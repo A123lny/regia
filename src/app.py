@@ -10,6 +10,7 @@ from services.media_adapter import generate_placeholder
 from services import auth
 from services import storage
 from services import loyalty
+from services import reviews
 
 
 def login_view():
@@ -215,6 +216,71 @@ def loyalty_tab(user, brands):
                 st.error(result["reason"])
 
 
+def reviews_tab(user, brands):
+    st.markdown("### Recensioni e reputazione (M8)")
+    st.caption(
+        "Negative → bozza pronta da approvare (RF-8.2) · Positive → risposta breve "
+        "(RF-8.3) · Casi gravi → solo segnalazione, mai bozza automatica (RF-8.4) · "
+        "nessuna risposta parte mai in autonomia (RF-8.5)."
+    )
+
+    sub1, sub2 = st.tabs(["Simula nuova recensione", "Da gestire"])
+
+    with sub1:
+        st.markdown("#### Simula l'arrivo di una recensione")
+        brand = st.selectbox("Marca", brands, key="rev_brand")
+        author_name = st.text_input("Nome autore", value="Cliente", key="rev_author")
+        rating = st.slider("Valutazione (stelle)", 1, 5, 5, key="rev_rating")
+        text = st.text_area("Testo della recensione", height=100, key="rev_text")
+        channel = st.selectbox("Canale", ["Google", "Commento social"], key="rev_channel")
+
+        if st.button("Simula ricezione"):
+            review = reviews.create_review(
+                brand=brand, author_name=author_name, rating=rating, text=text, channel=channel
+            )
+            storage.log_audit(user["username"], "review_received", {"id": review["id"], "category": review["category"]})
+            if review["category"] == "grave":
+                st.error("⚠️ Caso grave rilevato: nessuna bozza generata. Va gestito privatamente prima di rispondere in pubblico (RF-8.4).")
+            else:
+                st.success(f"Recensione registrata, categoria: {review['category']}. Bozza pronta nella scheda 'Da gestire'.")
+
+    with sub2:
+        st.markdown("#### Recensioni da gestire")
+        filter_brand = st.selectbox("Filtra per marca", ["Tutte"] + brands, key="rev_filter_brand")
+        brand_filter = None if filter_brand == "Tutte" else filter_brand
+        items = reviews.list_reviews(brand=brand_filter)
+
+        if not items:
+            st.info("Nessuna recensione presente.")
+            return
+
+        can_publish = auth.has_permission(user["role"], "publish")
+
+        for r in items:
+            badge = {"positiva": "🟢", "negativa": "🟡", "grave": "🔴"}.get(r["category"], "")
+            with st.expander(f"{badge} [{r['state'].upper()}] {r['brand']} · {r['rating']}★ · {r['author_name']}"):
+                st.write(f"_{r['text']}_")
+                st.caption(f"Canale: {r['channel']} · Categoria: {r['category']} · Ricevuta: {r['created_at'][:16]}")
+
+                if r["category"] == "grave":
+                    st.warning("Caso grave: risolvere privatamente con il cliente prima di rispondere in pubblico. Nessuna bozza automatica (RF-8.4).")
+                elif r["state"] == "bozza_pronta":
+                    edited = st.text_area("Bozza di risposta (modificabile)", value=r["draft_response"], key=f"draft_{r['id']}")
+                    if can_publish and st.button("Approva e pubblica", key=f"approve_pub_{r['id']}"):
+                        reviews.approve_and_publish(r["id"], edited, user["username"])
+                        storage.log_audit(user["username"], "review_response_published", {"id": r["id"]})
+                        st.success("Risposta pubblicata.")
+                        st.rerun()
+                elif r["state"] == "pubblicata":
+                    st.success(f"Risposta pubblicata: _{r['final_response']}_")
+                    if not r.get("follow_up_requested") and r["category"] == "negativa":
+                        if st.button("Segna: richiedi recensione dopo risoluzione", key=f"followup_{r['id']}"):
+                            reviews.request_follow_up_review(r["id"])
+                            st.rerun()
+                    if r.get("follow_up_requested"):
+                        st.caption("✓ Richiesta di recensione post-risoluzione segnata (RF-8.8)")
+
+
 def main():
     st.set_page_config(page_title="Regìa Prototype", layout="centered")
 
@@ -229,7 +295,7 @@ def main():
 
     brands = ["Lenny", "Stazione", "Eni Cafè", "Officina"]
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Crea contenuto", "Workflow", "Fedeltà", "Audit log"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Crea contenuto", "Workflow", "Fedeltà", "Recensioni", "Audit log"])
     with tab1:
         content_creation_tab(user, brands)
     with tab2:
@@ -237,6 +303,8 @@ def main():
     with tab3:
         loyalty_tab(user, brands)
     with tab4:
+        reviews_tab(user, brands)
+    with tab5:
         audit_tab(user)
 
     st.markdown("---")
