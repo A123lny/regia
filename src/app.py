@@ -11,6 +11,7 @@ from services import auth
 from services import storage
 from services import loyalty
 from services import reviews
+from services import contacts
 
 
 def login_view():
@@ -281,6 +282,86 @@ def reviews_tab(user, brands):
                         st.caption("✓ Richiesta di recensione post-risoluzione segnata (RF-8.8)")
 
 
+def contacts_tab(user, brands):
+    st.markdown("### Raccolta contatti (M10)")
+    st.caption(
+        "Simulazione del percorso QR → pagina → recapito → beneficio immediato (RF-10.1). "
+        "Doppia offerta: residente/pendolare vs turista (RF-10.2). Consenso separato per "
+        "canale (RF-10.3)."
+    )
+
+    sub1, sub2 = st.tabs(["Simula pagina QR", "Contatti raccolti"])
+
+    with sub1:
+        st.markdown("#### Pagina di iscrizione (come la vedrebbe il cliente)")
+        brand = st.selectbox("Marca / colonnina", brands, key="contact_brand")
+        visitor_type = st.radio(
+            "Sei un residente/pendolare o un turista?",
+            contacts.VISITOR_TYPES,
+            key="contact_visitor_type",
+            horizontal=True,
+        )
+
+        if visitor_type == "residente":
+            st.info("🏠 Offerta residente: iscriviti per vantaggi ricorrenti su officina, bar e servizi.")
+        else:
+            st.info("🌞 Offerta turista: un vantaggio subito e un motivo per tornare l'anno prossimo.")
+
+        full_name = st.text_input("Nome", key="contact_full_name")
+        email = st.text_input("Email (opzionale)", key="contact_email")
+        phone = st.text_input("Telefono (opzionale)", key="contact_phone")
+
+        st.markdown("**Consensi** (separati per canale, RF-10.3)")
+        c1, c2, c3 = st.columns(3)
+        consent_email = c1.checkbox("Email", key="consent_email")
+        consent_whatsapp = c2.checkbox("WhatsApp", key="consent_whatsapp")
+        consent_sms = c3.checkbox("SMS", key="consent_sms")
+
+        if st.button("Iscriviti e ricevi il beneficio"):
+            if not full_name or (not email and not phone):
+                st.error("Inserisci almeno nome e un recapito (email o telefono).")
+            else:
+                contact = contacts.register_contact(
+                    brand=brand,
+                    visitor_type=visitor_type,
+                    full_name=full_name,
+                    email=email or None,
+                    phone=phone or None,
+                    consents={"email": consent_email, "whatsapp": consent_whatsapp, "sms": consent_sms},
+                )
+                # Beneficio immediato: voucher di benvenuto (RN-63), riusa il motore fedeltà
+                voucher = loyalty.issue_voucher(
+                    contact=phone or email,
+                    source_brand=brand,
+                    target_brand=brand,
+                    category="benvenuto",
+                    value_label="Caffè omaggio" if visitor_type == "residente" else "Sconto di benvenuto",
+                )
+                contacts.set_welcome_voucher(contact["id"], voucher["code"])
+                storage.log_audit(user["username"], "contact_registered", {"id": contact["id"], "brand": brand})
+                st.success(
+                    f"Benvenuto/a {full_name}! Il tuo voucher: **{voucher['code']}** — {voucher['value_label']}."
+                )
+
+    with sub2:
+        st.markdown("#### Contatti raccolti")
+        filter_brand = st.selectbox("Filtra per marca", ["Tutte"] + brands, key="contact_filter_brand")
+        brand_filter = None if filter_brand == "Tutte" else filter_brand
+        items = contacts.list_contacts(brand=brand_filter)
+
+        if not items:
+            st.info("Nessun contatto raccolto finora.")
+            return
+
+        for c in items:
+            granted_channels = [ch for ch, v in c["consents"].items() if v["granted"]]
+            st.text(
+                f"{c['full_name']} ({c['visitor_type']}) · {c['brand']} · "
+                f"consensi: {', '.join(granted_channels) or 'nessuno'} · "
+                f"voucher: {c['welcome_voucher_code'] or '-'}"
+            )
+
+
 def main():
     st.set_page_config(page_title="Regìa Prototype", layout="centered")
 
@@ -295,7 +376,9 @@ def main():
 
     brands = ["Lenny", "Stazione", "Eni Cafè", "Officina"]
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Crea contenuto", "Workflow", "Fedeltà", "Recensioni", "Audit log"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+        ["Crea contenuto", "Workflow", "Fedeltà", "Recensioni", "Raccolta contatti", "Audit log"]
+    )
     with tab1:
         content_creation_tab(user, brands)
     with tab2:
@@ -305,6 +388,8 @@ def main():
     with tab4:
         reviews_tab(user, brands)
     with tab5:
+        contacts_tab(user, brands)
+    with tab6:
         audit_tab(user)
 
     st.markdown("---")
