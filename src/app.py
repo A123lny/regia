@@ -9,6 +9,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from services.media_adapter import generate_placeholder
 from services import auth
 from services import storage
+from services import loyalty
 
 
 def login_view():
@@ -142,6 +143,78 @@ def audit_tab(user):
         st.text(f"{e['timestamp']} · {e['user']} · {e['action']} · {e.get('details', {})}")
 
 
+def loyalty_tab(user, brands):
+    st.markdown("### Motore fedeltà (M6) — contatori e voucher")
+    st.caption(
+        "Contatore configurabile per marca (RF-6.1) · emissione automatica voucher "
+        "a soglia (RF-6.5) · scadenza (RF-6.6) · verifica/riscatto separati e "
+        "idempotenti (RF-6.7)."
+    )
+
+    sub1, sub2, sub3 = st.tabs(["Contatore", "Voucher emessi", "Riscatto"])
+
+    with sub1:
+        st.markdown("#### Registra un passaggio / ordine")
+        contact = st.text_input("Contatto (telefono o email)", key="loy_contact")
+        source_brand = st.selectbox("Marca di origine (dove si accumula)", brands, key="loy_source_brand")
+        target_brand = st.selectbox("Marca del premio (voucher incrociato)", brands, key="loy_target_brand")
+        threshold = st.number_input("Soglia", min_value=1, value=10, step=1, key="loy_threshold")
+        category = st.text_input("Categoria premio (es. lavaggio, tagliando, cibo)", key="loy_category")
+        value_label = st.text_input("Descrizione premio (es. '10% di sconto')", key="loy_value_label")
+
+        if contact:
+            counter = loyalty.get_or_create_counter(contact, source_brand, threshold)
+            st.info(f"Contatore attuale: {counter['value']} / {counter['threshold']}")
+
+        if st.button("Registra +1") and contact:
+            result = loyalty.increment_counter(contact, source_brand, threshold, amount=1)
+            st.success(f"Contatore aggiornato: {result['counter']['value']} / {threshold}")
+            if result["reached"]:
+                voucher = loyalty.issue_voucher(
+                    contact=contact,
+                    source_brand=source_brand,
+                    target_brand=target_brand,
+                    category=category or "generico",
+                    value_label=value_label or "Premio",
+                )
+                storage.log_audit(user["username"], "issue_voucher", {"code": voucher["code"], "contact": contact})
+                st.balloons()
+                st.success(f"🎉 Soglia raggiunta! Voucher emesso: **{voucher['code']}** (valido {loyalty.DEFAULT_EXPIRY_DAYS} giorni)")
+
+    with sub2:
+        st.markdown("#### Voucher emessi")
+        filter_brand = st.selectbox("Filtra per marca", ["Tutte"] + brands, key="loy_filter_brand")
+        brand_filter = None if filter_brand == "Tutte" else filter_brand
+        vouchers = loyalty.list_vouchers(brand=brand_filter)
+        if not vouchers:
+            st.info("Nessun voucher emesso finora.")
+        for v in vouchers:
+            st.text(
+                f"[{v['state'].upper()}] {v['code']} · {v['contact']} · "
+                f"{v['source_brand']}→{v['target_brand']} · {v['value_label']} · "
+                f"scade {v['expires_at'][:10]}"
+            )
+
+    with sub3:
+        st.markdown("#### Verifica e riscatto codice")
+        code = st.text_input("Codice voucher", key="loy_redeem_code")
+        col1, col2 = st.columns(2)
+        if col1.button("Verifica") and code:
+            result = loyalty.verify_voucher(code)
+            if result["valid"]:
+                v = result["voucher"]
+                st.success(f"Valido: {v['value_label']} ({v['category']}) — scade {v['expires_at'][:10]}")
+            else:
+                st.error(result["reason"])
+        if col2.button("Riscatta (brucia codice)") and code:
+            result = loyalty.redeem_voucher(code)
+            storage.log_audit(user["username"], "redeem_voucher", {"code": code, "success": result["success"]})
+            if result["success"]:
+                st.success(result["reason"])
+            else:
+                st.error(result["reason"])
+
+
 def main():
     st.set_page_config(page_title="Regìa Prototype", layout="centered")
 
@@ -156,12 +229,14 @@ def main():
 
     brands = ["Lenny", "Stazione", "Eni Cafè", "Officina"]
 
-    tab1, tab2, tab3 = st.tabs(["Crea contenuto", "Workflow", "Audit log"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Crea contenuto", "Workflow", "Fedeltà", "Audit log"])
     with tab1:
         content_creation_tab(user, brands)
     with tab2:
         workflow_tab(user, brands)
     with tab3:
+        loyalty_tab(user, brands)
+    with tab4:
         audit_tab(user)
 
     st.markdown("---")
