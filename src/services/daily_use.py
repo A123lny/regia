@@ -125,10 +125,10 @@ def list_all_recurring_contents(brand: Optional[str] = None) -> List[Dict]:
 
 # --- Assenza del titolare e delega (RF-12.6) ---
 
-def record_approval_activity(username: str) -> Dict:
+def record_approval_activity(username: str, at: Optional[datetime.datetime] = None) -> Dict:
     """Registra un'attività di approvazione: azzera il conteggio di assenza."""
     entries = _load(ACTIVITY_FILE)
-    entry = {"username": username, "at": datetime.datetime.now().isoformat()}
+    entry = {"username": username, "at": (at or datetime.datetime.now()).isoformat()}
     entries.append(entry)
     _save(ACTIVITY_FILE, entries)
     return entry
