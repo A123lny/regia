@@ -14,6 +14,7 @@ from services import reviews
 from services import contacts
 from services import analytics
 from services import restaurants
+from services import admin
 
 
 def login_view():
@@ -460,6 +461,88 @@ def restaurants_tab(user):
             st.rerun()
 
 
+def admin_tab(user, brands):
+    st.markdown("### Amministrazione (M11)")
+    if not auth.has_permission(user["role"], "view_commercial"):
+        st.info("Sezione riservata all'Owner.")
+        return
+
+    sub1, sub2, sub3, sub4 = st.tabs(["Marchi", "Autonomia", "Interruttore di arresto", "Monitor costi"])
+
+    with sub1:
+        st.markdown("#### Gestione marchi (RF-11.1)")
+        st.caption("I marchi sono configurazione, non codice (RN-15): aggiungerne uno non richiede sviluppo.")
+        for b in brands:
+            st.text(f"• {b}")
+        new_brand = st.text_input("Nuovo marchio", key="admin_new_brand")
+        if st.button("Aggiungi marchio") and new_brand:
+            admin.add_brand(new_brand)
+            storage.log_audit(user["username"], "brand_added", {"name": new_brand})
+            st.success(f"Marchio '{new_brand}' aggiunto.")
+            st.rerun()
+
+    with sub2:
+        st.markdown("#### Pannello autonomia progressiva (RF-11.4)")
+        st.caption("Tutto parte come proposta soggetta ad approvazione; l'autonomia si concede categoria per categoria.")
+        autonomy = admin.get_autonomy_settings()
+        labels = {
+            "contenuti_ricorrenti": "Contenuti ricorrenti (chiusure, orari festivi)",
+            "recensioni_positive": "Risposte a recensioni positive",
+            "promozioni": "Promozioni",
+            "advertising": "Advertising a pagamento",
+        }
+        for category in admin.AUTONOMY_CATEGORIES:
+            enabled = st.checkbox(
+                labels.get(category, category), value=autonomy.get(category, False), key=f"autonomy_{category}"
+            )
+            if enabled != autonomy.get(category, False):
+                admin.set_autonomy(category, enabled)
+                storage.log_audit(user["username"], "autonomy_changed", {"category": category, "enabled": enabled})
+                st.rerun()
+
+    with sub3:
+        st.markdown("#### Interruttore di arresto generale (RF-11.4)")
+        st.caption("Raggiungibile in pochi tocchi: ferma ogni pubblicazione automatica.")
+        paused = admin.is_system_paused()
+        if paused:
+            st.error("🛑 Sistema IN PAUSA: nessuna pubblicazione automatica in corso.")
+            if st.button("Riattiva sistema"):
+                admin.set_system_paused(False)
+                storage.log_audit(user["username"], "system_resumed")
+                st.rerun()
+        else:
+            st.success("✅ Sistema attivo")
+            if st.button("🛑 Ferma tutto"):
+                admin.set_system_paused(True)
+                storage.log_audit(user["username"], "system_paused")
+                st.rerun()
+
+    with sub4:
+        st.markdown("#### Monitor costi (RF-11.5)")
+        st.caption("Tetti e allarmi per ogni categoria di spesa (AI, servizi esterni, advertising).")
+
+        cost_category = st.selectbox("Categoria di spesa", admin.COST_CATEGORIES, key="admin_cost_category")
+        cost_amount = st.number_input("Importo (€)", min_value=0.0, step=0.5, key="admin_cost_amount")
+        cost_note = st.text_input("Nota", key="admin_cost_note")
+        if st.button("Registra costo"):
+            admin.record_cost(cost_category, cost_amount, cost_note)
+            st.success("Costo registrato.")
+            st.rerun()
+
+        st.markdown("**Totali mese corrente per categoria**")
+        totals = admin.get_monthly_costs()
+        thresholds = admin.get_cost_thresholds()
+        for category, total in totals.items():
+            threshold = thresholds.get(category, admin.DEFAULT_MONTHLY_THRESHOLD)
+            status = "🔴" if total > threshold else "🟢"
+            st.text(f"{status} {category}: €{total:.2f} / €{threshold:.2f}")
+
+        alerts = admin.get_cost_alerts()
+        if alerts:
+            for a in alerts:
+                st.warning(f"Soglia superata per '{a['category']}': €{a['total']:.2f} > €{a['threshold']:.2f}")
+
+
 def main():
     st.set_page_config(page_title="Regìa Prototype", layout="centered")
 
@@ -472,10 +555,13 @@ def main():
 
     st.title("Regìa — Prototype (Streamlit)")
 
-    brands = ["Lenny", "Stazione", "Eni Cafè", "Officina"]
+    if admin.is_system_paused():
+        st.error("🛑 Sistema in pausa (interruttore di arresto attivo). Vai in Amministrazione per riattivarlo.")
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
-        ["Crea contenuto", "Workflow", "Fedeltà", "Recensioni", "Raccolta contatti", "Rete ristoranti", "Analytics", "Audit log"]
+    brands = admin.get_brands()
+
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(
+        ["Crea contenuto", "Workflow", "Fedeltà", "Recensioni", "Raccolta contatti", "Rete ristoranti", "Analytics", "Amministrazione", "Audit log"]
     )
     with tab1:
         content_creation_tab(user, brands)
@@ -492,6 +578,8 @@ def main():
     with tab7:
         analytics_tab(user, brands)
     with tab8:
+        admin_tab(user, brands)
+    with tab9:
         audit_tab(user)
 
     st.markdown("---")
