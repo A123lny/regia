@@ -13,6 +13,7 @@ from services import loyalty
 from services import reviews
 from services import contacts
 from services import analytics
+from services import restaurants
 
 
 def login_view():
@@ -414,6 +415,51 @@ def analytics_tab(user, brands):
             st.text(f"{f['route']}: {f['issued']} emessi, {f['redeemed']} riscattati")
 
 
+def restaurants_tab(user):
+    st.markdown("### Rete ristoranti (M7)")
+    st.caption(
+        "Gestiti come rete di micro-partner, non lista destinatari (RF-7.1). "
+        "Il sistema indica chi contattare questa settimana (RF-7.2); i segnali "
+        "di raffreddamento hanno priorità sull'acquisizione (RF-7.4)."
+    )
+
+    sub1, sub2 = st.tabs(["Da contattare questa settimana", "Aggiungi/gestisci ristorante"])
+
+    with sub1:
+        items = restaurants.list_restaurants_by_priority()
+        if not items:
+            st.info("Nessun ristorante registrato. Aggiungine uno nella scheda accanto.")
+        for r in items:
+            cooling_badge = "🔥 IN RAFFREDDAMENTO" if r["cooling"] else "✅ attivo"
+            with st.expander(f"{cooling_badge} · {r['name']} ({r['category']}) · punteggio {r['priority_score']}"):
+                st.write(f"Ordini ultimi 30 giorni: {r['orders_30d']}")
+                last_contact = r["last_contact_at"][:16] if r["last_contact_at"] else "mai contattato"
+                st.write(f"Ultimo contatto: {last_contact}")
+                if r["notes"]:
+                    st.caption("Note: " + "; ".join(n["text"] for n in r["notes"][-3:]))
+
+                col1, col2 = st.columns(2)
+                if col1.button("Registra ordine ricevuto", key=f"order_{r['id']}"):
+                    restaurants.record_order(r["id"])
+                    st.rerun()
+
+                note = st.text_input("Nota sul contatto", key=f"note_input_{r['id']}")
+                if col2.button("Segna come contattato", key=f"contact_{r['id']}"):
+                    restaurants.record_contact(r["id"], note=note)
+                    storage.log_audit(user["username"], "restaurant_contacted", {"id": r["id"], "name": r["name"]})
+                    st.rerun()
+
+    with sub2:
+        st.markdown("#### Aggiungi un ristorante alla rete")
+        name = st.text_input("Nome ristorante", key="rest_name")
+        category = st.text_input("Categoria (es. pizzeria, sushi, griglia)", key="rest_category")
+        if st.button("Aggiungi") and name:
+            r = restaurants.register_restaurant(name=name, category=category or "generico")
+            storage.log_audit(user["username"], "restaurant_added", {"id": r["id"], "name": name})
+            st.success(f"Ristorante '{name}' aggiunto alla rete.")
+            st.rerun()
+
+
 def main():
     st.set_page_config(page_title="Regìa Prototype", layout="centered")
 
@@ -428,8 +474,8 @@ def main():
 
     brands = ["Lenny", "Stazione", "Eni Cafè", "Officina"]
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
-        ["Crea contenuto", "Workflow", "Fedeltà", "Recensioni", "Raccolta contatti", "Analytics", "Audit log"]
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
+        ["Crea contenuto", "Workflow", "Fedeltà", "Recensioni", "Raccolta contatti", "Rete ristoranti", "Analytics", "Audit log"]
     )
     with tab1:
         content_creation_tab(user, brands)
@@ -442,8 +488,10 @@ def main():
     with tab5:
         contacts_tab(user, brands)
     with tab6:
-        analytics_tab(user, brands)
+        restaurants_tab(user)
     with tab7:
+        analytics_tab(user, brands)
+    with tab8:
         audit_tab(user)
 
     st.markdown("---")
