@@ -18,6 +18,8 @@ from services import admin
 from services import media_library
 from services import publishing
 from services import advertising
+from services import agent_autonomy as agent
+from services import service_email
 
 
 BRAND_COLORS = {
@@ -38,6 +40,8 @@ PAGES = [
     ("🎭", "Rete ristoranti"),
     ("📤", "Pubblicazione"),
     ("💰", "Advertising"),
+    ("📧", "Email assistenza"),
+    ("🤖", "Agente AI"),
     ("📊", "Analytics"),
     ("⚙️", "Amministrazione"),
     ("📝", "Audit log"),
@@ -772,6 +776,101 @@ def advertising_tab(user, brands):
             st.caption(f"{icon} {req['category']} · +{req['requested_amount']:.2f}€ · {req['state']}")
 
 
+def service_email_tab(user, brands):
+    st.markdown("### Email di assistenza per servizio (M8b)")
+    st.caption(
+        "Domande fattuali semplici (orari, stato, disponibilità) → bozza pronta. "
+        "Tutto il resto → notifica al responsabile del servizio competente, mai risposta automatica autonoma (RF-8b.1)."
+    )
+
+    sub1, sub2 = st.tabs(["Simula email in arrivo", "Coda email"])
+
+    with sub1:
+        brand = st.selectbox("Marca", brands, key="email_brand")
+        sender = st.text_input("Mittente", key="email_sender")
+        subject = st.text_input("Oggetto", key="email_subject")
+        body = st.text_area("Testo", key="email_body")
+        if st.button("Registra email", key="email_register_btn") and body:
+            entry = service_email.register_email(brand=brand, sender=sender, subject=subject, body=body)
+            storage.log_audit(user["username"], "service_email_registered", {"id": entry["id"], "classification": entry["classification"]})
+            st.success(f"Email registrata: classificazione '{entry['classification']}', stato '{entry['state']}'.")
+            st.rerun()
+
+    with sub2:
+        filter_brand = st.selectbox("Filtra per marca", ["Tutte"] + brands, key="email_queue_filter")
+        brand_filter = None if filter_brand == "Tutte" else filter_brand
+        emails = service_email.list_emails(brand=brand_filter)
+
+        if not emails:
+            st.info("Nessuna email registrata.")
+        for e in emails:
+            with st.expander(f"[{e['state'].upper()}] {e['brand']} · {e['subject']} · {e['created_at'][:16]}"):
+                st.write(e["body"])
+                st.caption(f"Classificazione: {e['classification']}")
+                if e.get("assigned_to"):
+                    st.caption(f"Assegnata a: {e['assigned_to']}")
+                if e["state"] == "bozza_pronta":
+                    st.text_area("Bozza di risposta", value=e["draft_reply"], key=f"draft_{e['id']}", disabled=True)
+                    if st.button("Invia risposta", key=f"send_email_{e['id']}"):
+                        service_email.send_reply(e["id"])
+                        st.rerun()
+                elif e["state"] == "notificata":
+                    final_text = st.text_area("Scrivi la risposta da inviare", key=f"final_{e['id']}")
+                    if st.button("Invia risposta", key=f"send_routed_{e['id']}") and final_text:
+                        service_email.send_reply(e["id"], final_text=final_text)
+                        st.rerun()
+
+
+def agent_autonomy_tab(user, brands):
+    st.markdown("### Agente AI — autonomia progressiva (§8)")
+    if not auth.has_permission(user["role"], "view_commercial"):
+        st.info("Sezione riservata all'Owner.")
+        return
+
+    st.caption(
+        "Tutte le categorie partono a L1: nulla parte senza approvazione (RA-8.1). "
+        "Il modello propone, il codice dispone (RA-8.6): il passaggio di livello resta sempre una decisione manuale."
+    )
+
+    st.markdown("#### Categorie con autonomia progressiva")
+    levels = agent.list_autonomy_levels()
+    for category in agent.PROGRESSIVE_CATEGORIES:
+        cols = st.columns([2, 1, 2])
+        cols[0].write(category.replace("_", " ").capitalize())
+        current = levels[category]
+        cols[1].markdown(f"**{current}**")
+
+        suggestion = agent.get_promotion_suggestion(category)
+        if suggestion["suggestion"] == "promuovi":
+            if cols[2].button(f"⬆️ Promuovi a {suggestion['to_level']}", key=f"promote_{category}"):
+                agent.apply_level_change(category, suggestion["to_level"])
+                storage.log_audit(user["username"], "agent_level_promoted", {"category": category, "to": suggestion["to_level"]})
+                st.rerun()
+        elif suggestion["suggestion"] == "retrocedi":
+            if cols[2].button(f"⬇️ Riporta a {suggestion['to_level']}", key=f"demote_{category}"):
+                agent.apply_level_change(category, suggestion["to_level"])
+                storage.log_audit(user["username"], "agent_level_demoted", {"category": category, "to": suggestion["to_level"]})
+                st.rerun()
+        else:
+            cols[2].caption(suggestion.get("reason", ""))
+
+    st.markdown("---")
+    st.markdown("#### Categorie sempre manuali (§8.2)")
+    st.caption("Indipendentemente dal livello raggiunto altrove: queste non sono mai autonome, per sempre.")
+    for category in sorted(agent.NEVER_AUTONOMOUS_CATEGORIES):
+        st.markdown(f"- 🔒 {category.replace('_', ' ').capitalize()}")
+
+    st.markdown("---")
+    st.markdown("#### Pressione commerciale (RA-8.4)")
+    st.caption(f"Max {agent.MAX_COMMERCIAL_MESSAGES_PER_MONTH} messaggi commerciali/mese per persona, sommando tutte le marche.")
+    check_contact = st.text_input("Verifica contatto", key="pressure_check_contact")
+    if check_contact:
+        count = agent.get_month_to_date_commercial_count(check_contact)
+        allowed = agent.can_send_commercial_message(check_contact)
+        st.metric("Messaggi commerciali questo mese", count)
+        st.write("✅ Può ricevere altri messaggi commerciali" if allowed else "🚫 Limite raggiunto per questo mese")
+
+
 def admin_tab(user, brands):
     st.markdown("### Amministrazione (M11)")
     if not auth.has_permission(user["role"], "view_commercial"):
@@ -933,6 +1032,10 @@ def main():
         publishing_tab(user, brands)
     elif page_name == "Advertising":
         advertising_tab(user, brands)
+    elif page_name == "Email assistenza":
+        service_email_tab(user, brands)
+    elif page_name == "Agente AI":
+        agent_autonomy_tab(user, brands)
     elif page_name == "Analytics":
         analytics_tab(user, brands)
     elif page_name == "Amministrazione":
