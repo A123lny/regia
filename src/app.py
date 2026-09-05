@@ -20,6 +20,8 @@ from services import publishing
 from services import advertising
 from services import agent_autonomy as agent
 from services import service_email
+from services import brand_identity
+from services import daily_use
 
 
 BRAND_COLORS = {
@@ -34,6 +36,7 @@ PAGES = [
     ("➕", "Crea contenuto"),
     ("🔄", "Workflow"),
     ("📅", "Calendario"),
+    ("🎨", "Identità marchi"),
     ("🎁", "Fedeltà"),
     ("⭐", "Recensioni"),
     ("📱", "Raccolta contatti"),
@@ -871,13 +874,88 @@ def agent_autonomy_tab(user, brands):
         st.write("✅ Può ricevere altri messaggi commerciali" if allowed else "🚫 Limite raggiunto per questo mese")
 
 
+def brand_identity_tab(user, brands):
+    st.markdown("### Marchi e identità (M2)")
+    st.caption(
+        "Brand kit, tono di voce e contesto strategico: contesto obbligatorio in ogni generazione (RF-2.2, RF-2.3, RF-2.3a). "
+        "Vincoli redazionali applicati automaticamente (RF-2.5)."
+    )
+
+    brand = st.selectbox("Marca", brands, key="identity_brand")
+    identity = brand_identity.get_identity(brand)
+
+    sub1, sub2, sub3 = st.tabs(["Brand kit e tono", "Rubriche e pilastri", "Vincoli redazionali"])
+
+    with sub1:
+        colors_text = st.text_input("Colori (separati da virgola)", value=", ".join(identity["colors"]), key="id_colors")
+        font = st.text_input("Font", value=identity["font"], key="id_font")
+        tone = st.text_area("Tono di voce", value=identity["tone_of_voice"], key="id_tone")
+
+        st.markdown("##### Contesto strategico (RF-2.3a)")
+        purpose = st.text_area("Scopo e pubblico", value=identity["strategic_context"]["purpose_audience"], key="id_purpose")
+        year_goal = st.text_area("Obiettivo dell'anno in corso", value=identity["strategic_context"]["year_goal"], key="id_year_goal")
+        direction = st.text_area("Direzione futura", value=identity["strategic_context"]["future_direction"], key="id_direction")
+
+        if st.button("Salva brand kit", key="save_identity_btn"):
+            brand_identity.update_identity(
+                brand,
+                colors=[c.strip() for c in colors_text.split(",") if c.strip()],
+                font=font,
+                tone_of_voice=tone,
+                strategic_context={
+                    "purpose_audience": purpose,
+                    "year_goal": year_goal,
+                    "future_direction": direction,
+                },
+            )
+            storage.log_audit(user["username"], "brand_identity_updated", {"brand": brand})
+            st.success("Brand kit aggiornato.")
+            st.rerun()
+
+        with st.expander("Anteprima contesto generazione (usato in ogni prompt AI)"):
+            st.code(brand_identity.get_generation_context(brand))
+
+    with sub2:
+        st.markdown("##### Rubriche e pilastri con peso di frequenza (RF-2.4)")
+        for p in identity["pillars"]:
+            cols = st.columns([3, 1, 1])
+            cols[0].write(p["name"])
+            cols[1].write(f"peso {p['weight']}")
+            if cols[2].button("Rimuovi", key=f"remove_pillar_{brand}_{p['name']}"):
+                brand_identity.remove_pillar(brand, p["name"])
+                st.rerun()
+
+        new_pillar = st.text_input("Nuova rubrica", key="new_pillar_name")
+        new_weight = st.number_input("Peso", min_value=1, value=1, key="new_pillar_weight")
+        if st.button("Aggiungi rubrica", key="add_pillar_btn") and new_pillar:
+            brand_identity.add_pillar(brand, new_pillar, int(new_weight))
+            st.rerun()
+
+    with sub3:
+        st.markdown("##### Parole bandite")
+        st.write(", ".join(identity["forbidden_words"]) or "Nessuna parola bandita configurata.")
+        new_word = st.text_input("Aggiungi parola bandita", key="new_forbidden_word")
+        if st.button("Aggiungi", key="add_forbidden_word_btn") and new_word:
+            brand_identity.add_forbidden_word(brand, new_word)
+            st.rerun()
+
+        st.markdown("##### Verifica testo contro i vincoli")
+        test_text = st.text_area("Testo da verificare", key="check_text_input")
+        if st.button("Verifica", key="check_text_btn") and test_text:
+            result = brand_identity.check_text_against_constraints(brand, test_text)
+            if result["requires_human_review"]:
+                st.warning(f"⚠️ Revisione umana richiesta: parole trovate {result['forbidden_words_found']}")
+            else:
+                st.success("Nessun vincolo violato.")
+
+
 def admin_tab(user, brands):
     st.markdown("### Amministrazione (M11)")
     if not auth.has_permission(user["role"], "view_commercial"):
         st.info("Sezione riservata all'Owner.")
         return
 
-    sub1, sub2, sub3, sub4 = st.tabs(["Marchi", "Autonomia", "Interruttore di arresto", "Monitor costi"])
+    sub1, sub2, sub3, sub4, sub5 = st.tabs(["Marchi", "Autonomia", "Interruttore di arresto", "Monitor costi", "Delega (RF-12.6)"])
 
     with sub1:
         st.markdown("#### Gestione marchi (RF-11.1)")
@@ -952,6 +1030,51 @@ def admin_tab(user, brands):
             for a in alerts:
                 st.warning(f"Soglia superata per '{a['category']}': €{a['total']:.2f} > €{a['threshold']:.2f}")
 
+    with sub5:
+        st.markdown("#### Assenza del titolare e delega (RF-12.6)")
+        st.caption(
+            "Un sostituto delegato ha permessi ridotti: contenuti e recensioni sì, promozioni e configurazioni no."
+        )
+
+        absence = daily_use.get_absence_status(user["username"])
+        st.write(f"Stato: **{absence['status']}** · giorni senza approvazioni: {absence['days_absent']}")
+
+        active_delegation = daily_use.get_active_delegation(user["username"])
+        if active_delegation:
+            st.info(f"Delega attiva verso: **{active_delegation['delegate_username']}**")
+            st.caption(f"Permessi consentiti: {', '.join(active_delegation['allowed_permissions'])}")
+            st.caption(f"Permessi sempre negati: {', '.join(active_delegation['denied_permissions'])}")
+            if st.button("Revoca delega", key="revoke_delegation_btn"):
+                daily_use.revoke_delegation(active_delegation["id"])
+                storage.log_audit(user["username"], "delegation_revoked", {"delegation_id": active_delegation["id"]})
+                st.rerun()
+        else:
+            delegate_name = st.text_input("Nome utente sostituto", key="delegate_username_input")
+            if st.button("Crea delega", key="create_delegation_btn") and delegate_name:
+                entry = daily_use.create_delegation(user["username"], delegate_name)
+                storage.log_audit(user["username"], "delegation_created", {"delegate": delegate_name})
+                st.success(f"Delega creata verso '{delegate_name}' con permessi ridotti.")
+                st.rerun()
+
+        st.markdown("---")
+        st.markdown("#### Contenuti ricorrenti (RF-12.4)")
+        with st.expander("Registra nuovo contenuto ricorrente"):
+            rec_brand = st.selectbox("Marca", brands, key="rec_brand")
+            rec_title = st.text_input("Titolo (es. 'Chiusura natalizia')", key="rec_title")
+            rec_text = st.text_area("Testo modello", key="rec_text")
+            rec_date = st.text_input("Data annuale (MM-GG, es. 12-24)", key="rec_date")
+            rec_window = st.number_input("Finestra di preavviso (giorni)", min_value=1, value=14, key="rec_window")
+            if st.button("Registra ricorrenza", key="register_recurring_btn") and rec_title and rec_date:
+                daily_use.register_recurring_content(rec_brand, rec_title, rec_text, rec_date, int(rec_window))
+                st.success("Contenuto ricorrente registrato.")
+                st.rerun()
+
+        all_recurring = daily_use.list_all_recurring_contents()
+        if all_recurring:
+            st.markdown("##### Ricorrenze registrate")
+            for r in all_recurring:
+                st.caption(f"{r['brand']} · {r['title']} · {r['annual_date']} · preavviso {r['notice_window_days']}gg")
+
 
 def home_view(user, brands):
     st.markdown("## Bentornato/a 👋")
@@ -974,6 +1097,23 @@ def home_view(user, brands):
 
     if admin.is_system_paused():
         st.error("🛑 Il sistema è in pausa: nessuna pubblicazione automatica in corso.")
+
+    daily_use.record_approval_activity(user["username"])
+    absence = daily_use.get_absence_status(user["username"])
+    if absence["status"] == "proponi_delega":
+        st.warning(
+            f"⚠️ Nessuna approvazione da {absence['days_absent']} giorni (RF-12.6). "
+            "Valuta di delegare a un sostituto con permessi ridotti (contenuti e recensioni, non promozioni/configurazioni) "
+            "nella sezione Amministrazione."
+        )
+    elif absence["status"] == "avviso_assenza":
+        st.info(f"ℹ️ Nessuna approvazione da {absence['days_absent']} giorni (RF-12.6).")
+
+    due_recurring = daily_use.list_due_recurring_contents()
+    if due_recurring:
+        st.markdown("### 🔁 Contenuti ricorrenti da preparare (RF-12.4/12.5)")
+        for r in due_recurring[:5]:
+            st.markdown(f"- **{r['brand']}** · {r['title']} — tra {r['days_until']} giorni ({r['next_occurrence']})")
 
     st.markdown("---")
     st.markdown("### 📈 Come sta andando")
@@ -1020,6 +1160,8 @@ def main():
         workflow_tab(user, brands)
     elif page_name == "Calendario":
         calendar_tab(user, brands)
+    elif page_name == "Identità marchi":
+        brand_identity_tab(user, brands)
     elif page_name == "Fedeltà":
         loyalty_tab(user, brands)
     elif page_name == "Recensioni":
