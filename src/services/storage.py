@@ -130,3 +130,30 @@ def read_audit_log(limit: int = 100) -> List[Dict]:
             if line:
                 lines.append(json.loads(line))
     return list(reversed(lines))[:limit]
+
+
+def contents_grouped_by_date(brand: Optional[str] = None) -> Dict[str, List[Dict]]:
+    """Raggruppa i contenuti per data di creazione (RF-3.2: calendario unificato).
+
+    Ritorna un dizionario {data_iso: [contenuti]}, ordinato per data decrescente.
+    """
+    items = list_contents(brand=brand)
+    grouped: Dict[str, List[Dict]] = {}
+    for item in items:
+        date_key = item["created_at"][:10]
+        grouped.setdefault(date_key, []).append(item)
+    return dict(sorted(grouped.items(), reverse=True))
+
+
+def editorial_balance(brand_list: List[str]) -> Dict[str, int]:
+    """Conta i contenuti totali per marca, per rilevare squilibri editoriali (RF-12.3).
+
+    Es. "officina 2 uscite, delivery 18": qui si ottengono i conteggi grezzi
+    da cui la UI può derivare l'avviso.
+    """
+    counts = {b: 0 for b in brand_list}
+    for item in _load_all():
+        brand = item.get("brand")
+        if brand in counts:
+            counts[brand] += 1
+    return counts

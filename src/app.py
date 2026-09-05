@@ -15,6 +15,7 @@ from services import contacts
 from services import analytics
 from services import restaurants
 from services import admin
+from services import media_library
 
 
 BRAND_COLORS = {
@@ -28,6 +29,7 @@ PAGES = [
     ("🏠", "Home"),
     ("➕", "Crea contenuto"),
     ("🔄", "Workflow"),
+    ("📅", "Calendario"),
     ("🎁", "Fedeltà"),
     ("⭐", "Recensioni"),
     ("📱", "Raccolta contatti"),
@@ -123,39 +125,80 @@ def content_creation_tab(user, brands):
         key="create_channel",
     )
 
-    st.markdown("### Brief / Prompt")
-    prompt = st.text_area(
-        "Breve descrizione del contenuto",
-        value="Foto del locale / promozione breve...",
-        height=120,
-        key="create_prompt",
-    )
+    sub1, sub2 = st.tabs(["🎨 Genera nuovo", "📚 Riusa dalla libreria"])
 
-    if st.button("Genera immagine di prova"):
-        with st.spinner("Generazione in corso... (stub locale)"):
-            img = generate_placeholder(prompt=prompt, brand=brand, size=(1024, 768))
-            buf = io.BytesIO()
-            img.save(buf, format="PNG")
-            st.session_state["last_image"] = buf.getvalue()
-            st.success("Immagine generata")
+    with sub1:
+        st.markdown("### Brief / Prompt")
+        prompt = st.text_area(
+            "Breve descrizione del contenuto",
+            value="Foto del locale / promozione breve...",
+            height=120,
+            key="create_prompt",
+        )
+        tags_input = st.text_input("Etichette (separate da virgola, es. officina, promo, estate)", key="create_tags")
 
-    if "last_image" in st.session_state:
-        st.markdown("### Anteprima canale")
-        width_map = {
-            "Social (Instagram/Facebook)": 600,
-            "Email": 520,
-            "WhatsApp": 360,
-            "Stampa/Locandina": 1200,
-        }
-        st.image(st.session_state["last_image"], width=width_map.get(channel, 600), caption=f"Anteprima {channel}")
+        if st.button("Genera immagine di prova"):
+            with st.spinner("Generazione in corso... (stub locale)"):
+                img = generate_placeholder(prompt=prompt, brand=brand, size=(1024, 768))
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                st.session_state["last_image"] = buf.getvalue()
+                st.success("Immagine generata")
 
-        can_create = auth.has_permission(user["role"], "create")
-        if can_create and st.button("Salva come bozza"):
-            content = storage.create_content(
-                brand=brand, channel=channel, prompt=prompt, author=user["username"]
-            )
-            st.success(f"Bozza creata (id: {content['id'][:8]}...)")
-            st.session_state.pop("last_image", None)
+        if "last_image" in st.session_state:
+            st.markdown("### Anteprima canale")
+            width_map = {
+                "Social (Instagram/Facebook)": 600,
+                "Email": 520,
+                "WhatsApp": 360,
+                "Stampa/Locandina": 1200,
+            }
+            st.image(st.session_state["last_image"], width=width_map.get(channel, 600), caption=f"Anteprima {channel}")
+
+            can_create = auth.has_permission(user["role"], "create")
+            col1, col2 = st.columns(2)
+            if can_create and col1.button("Salva come bozza"):
+                content = storage.create_content(
+                    brand=brand, channel=channel, prompt=prompt, author=user["username"]
+                )
+                st.success(f"Bozza creata (id: {content['id'][:8]}...)")
+                st.session_state.pop("last_image", None)
+            if col2.button("📚 Salva anche in libreria media"):
+                tags = [t for t in tags_input.split(",")] if tags_input else []
+                media_library.save_media(
+                    brand=brand, image_bytes=st.session_state["last_image"], tags=tags, note=prompt
+                )
+                storage.log_audit(user["username"], "media_saved", {"brand": brand, "tags": tags})
+                st.success("Immagine salvata in libreria (RF-4.1): resta disponibile per il riuso.")
+
+    with sub2:
+        st.markdown("### Libreria media esistente")
+        st.caption("Ogni immagine generata/caricata resta e si accumula (RF-4.1): niente si perde dopo un solo uso.")
+        search_tag = st.text_input("Cerca per etichetta", key="media_search_tag")
+        available_tags = media_library.all_tags(brand=brand)
+        if available_tags:
+            st.caption("Etichette disponibili: " + ", ".join(available_tags))
+
+        media_items = media_library.list_media(brand=brand, tag=search_tag or None)
+        if not media_items:
+            st.info("Nessun media in libreria per questa marca. Generane uno nella scheda accanto.")
+        else:
+            cols = st.columns(3)
+            for idx, m in enumerate(media_items):
+                with cols[idx % 3]:
+                    img_bytes = media_library.get_media_bytes(m["id"])
+                    if img_bytes:
+                        st.image(img_bytes, width=200)
+                    st.caption(f"Tag: {', '.join(m['tags']) or '-'} · Usato {m['used_count']}x")
+                    can_create = auth.has_permission(user["role"], "create")
+                    if can_create and st.button("Usa per nuova bozza", key=f"reuse_{m['id']}"):
+                        media_library.mark_used(m["id"])
+                        content = storage.create_content(
+                            brand=brand, channel=channel, prompt=m["note"] or "(riuso da libreria)", author=user["username"]
+                        )
+                        storage.log_audit(user["username"], "media_reused", {"media_id": m["id"], "content_id": content["id"]})
+                        st.success(f"Bozza creata riusando il media (id: {content['id'][:8]}...)")
+                        st.rerun()
 
 
 def workflow_tab(user, brands):
@@ -208,6 +251,47 @@ def workflow_tab(user, brands):
 
             if item.get("rejection_reason"):
                 st.warning(f"Ultimo motivo di rifiuto: {item['rejection_reason']}")
+
+
+def calendar_tab(user, brands):
+    st.markdown("### Calendario editoriale unificato (RF-3.2)")
+    st.caption("Vista cronologica di tutti i contenuti, raggruppati per giorno e marca.")
+
+    filter_brand = st.selectbox("Filtra per marca", ["Tutte"] + brands, key="calendar_filter_brand")
+    brand_filter = None if filter_brand == "Tutte" else filter_brand
+
+    grouped = storage.contents_grouped_by_date(brand=brand_filter)
+
+    if not grouped:
+        st.info("Nessun contenuto ancora presente nel calendario.")
+    else:
+        for date_key, items in grouped.items():
+            st.markdown(f"#### 📆 {date_key}")
+            for item in items:
+                preview = item['prompt'][:80] + ("…" if len(item['prompt']) > 80 else "")
+                st.markdown(
+                    f"- **[{item['state'].upper()}]** {item['brand']} · {item['channel']} — {preview}"
+                )
+
+    st.markdown("---")
+    st.markdown("#### ⚖️ Equilibrio editoriale (RF-12.3)")
+    st.caption("Confronto del numero di contenuti totali per marca, per individuare squilibri (es. 'Officina 2 uscite, Delivery 18').")
+
+    counts = storage.editorial_balance(brands)
+    if counts:
+        cols = st.columns(len(counts))
+        for col, (brand, count) in zip(cols, counts.items()):
+            col.metric(brand, count)
+
+        max_brand, max_count = max(counts.items(), key=lambda kv: kv[1])
+        min_brand, min_count = min(counts.items(), key=lambda kv: kv[1])
+        if max_count > 0 and max_count - min_count >= 3 and max_count >= (min_count * 3 if min_count > 0 else max_count):
+            st.warning(
+                f"⚠️ Possibile squilibrio editoriale: **{max_brand}** ha {max_count} contenuti mentre "
+                f"**{min_brand}** ne ha solo {min_count}. Valuta di riequilibrare il piano editoriale."
+            )
+        else:
+            st.success("Il piano editoriale sembra ragionevolmente bilanciato tra le marche.")
 
 
 def audit_tab(user):
@@ -683,6 +767,8 @@ def main():
         content_creation_tab(user, brands)
     elif page_name == "Workflow":
         workflow_tab(user, brands)
+    elif page_name == "Calendario":
+        calendar_tab(user, brands)
     elif page_name == "Fedeltà":
         loyalty_tab(user, brands)
     elif page_name == "Recensioni":
