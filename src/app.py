@@ -16,6 +16,8 @@ from services import analytics
 from services import restaurants
 from services import admin
 from services import media_library
+from services import publishing
+from services import advertising
 
 
 BRAND_COLORS = {
@@ -33,7 +35,9 @@ PAGES = [
     ("🎁", "Fedeltà"),
     ("⭐", "Recensioni"),
     ("📱", "Raccolta contatti"),
-    ("🍽️", "Rete ristoranti"),
+    ("🎭", "Rete ristoranti"),
+    ("📤", "Pubblicazione"),
+    ("💰", "Advertising"),
     ("📊", "Analytics"),
     ("⚙️", "Amministrazione"),
     ("📝", "Audit log"),
@@ -620,6 +624,154 @@ def restaurants_tab(user):
             st.rerun()
 
 
+def publishing_tab(user, brands):
+    st.markdown("### Pubblicazione (M5)")
+    st.caption(
+        "Architettura ad adapter per canale (RF-5.1): coda con ritentativi e idempotenza (RF-5.5), "
+        "regola di canale su WhatsApp (RF-5.5a) e fasce orarie (RF-5.6)."
+    )
+
+    sub1, sub2 = st.tabs(["Programma pubblicazione", "Coda e log"])
+
+    with sub1:
+        brand = st.selectbox("Marca", brands, key="pub_brand")
+        channel = st.selectbox("Canale", publishing.CHANNELS, key="pub_channel")
+        category = st.selectbox(
+            "Categoria contenuto",
+            ["promozione_generica", "voucher", "richiamo_officina", "avviso_importante", "editoriale"],
+            key="pub_category",
+        )
+        content_id = st.text_input("ID contenuto (facoltativo)", key="pub_content_id") or str(id(channel))
+        snapshot = st.text_area("Testo da pubblicare (snapshot immutabile, RF-5.7)", key="pub_snapshot")
+
+        if channel in publishing.HIGH_VALUE_ONLY_CHANNELS and category not in publishing.HIGH_VALUE_CATEGORIES:
+            st.warning(
+                "⚠️ WhatsApp è riservato a comunicazioni ad alto valore (voucher, richiami, avvisi importanti). "
+                "Le promozioni generiche viaggiano via email (RF-5.5a)."
+            )
+
+        if st.button("Metti in coda", key="pub_schedule_btn") and snapshot:
+            try:
+                entry = publishing.schedule_publication(
+                    content_id=content_id, brand=brand, channel=channel, snapshot=snapshot, category=category
+                )
+                storage.log_audit(user["username"], "publication_scheduled", {"id": entry["id"], "channel": channel})
+                st.success(f"Pubblicazione messa in coda (stato: {entry['state']}).")
+                st.rerun()
+            except ValueError as e:
+                st.error(str(e))
+
+    with sub2:
+        filter_brand = st.selectbox("Filtra per marca", ["Tutte"] + brands, key="pub_queue_filter_brand")
+        brand_filter = None if filter_brand == "Tutte" else filter_brand
+        items = publishing.list_queue(brand=brand_filter)
+
+        if not items:
+            st.info("Nessuna pubblicazione in coda.")
+        for item in items:
+            with st.expander(
+                f"[{item['state'].upper()}] {item['brand']} · {item['channel']} · {item['created_at'][:16]}"
+            ):
+                st.write(item["snapshot"])
+                st.caption(f"Tentativi: {item['attempts']} · ID: {item['id']}")
+                cols = st.columns(3)
+                if item["state"] == "in_coda":
+                    if cols[0].button("Invia ora", key=f"send_{item['id']}"):
+                        result = publishing.process_publication(item["id"])
+                        if result["success"]:
+                            st.success(result["reason"])
+                        else:
+                            st.warning(result["reason"])
+                        st.rerun()
+                    if cols[1].button("Annulla", key=f"cancel_{item['id']}"):
+                        publishing.cancel_publication(item["id"])
+                        st.rerun()
+                if item.get("last_error"):
+                    st.error(f"Ultimo errore: {item['last_error']}")
+
+        st.markdown("---")
+        st.markdown("#### Log di pubblicazione (immutabile, RF-5.7)")
+        log = publishing.read_publication_log(limit=20)
+        if not log:
+            st.caption("Nessun evento registrato.")
+        for entry in log:
+            st.caption(f"{entry['at'][:16]} · {entry['event']} · {entry['brand']} · {entry['channel']}")
+
+
+def advertising_tab(user, brands):
+    st.markdown("### Advertising e presenza a pagamento (M13)")
+    if not auth.has_permission(user["role"], "view_commercial"):
+        st.info("Sezione riservata all'Owner.")
+        return
+
+    st.caption(
+        "Tutti gli interruttori partono spenti, per ogni marchio (RF-13.2): l'accensione è sempre "
+        "una decisione esplicita. Il superamento del tetto non è mai automatico (RF-13.6)."
+    )
+
+    brand = st.selectbox("Marca", brands, key="ads_brand")
+
+    st.markdown("#### Interruttori e tetti per categoria")
+    switches = advertising.list_switches(brand)
+    caps = advertising.list_budget_caps(brand)
+
+    for category in advertising.CATEGORIES:
+        cols = st.columns([2, 1, 1])
+        cols[0].write(category.replace("_", " ").capitalize())
+        new_state = cols[1].toggle(
+            "Attivo", value=switches[category], key=f"ads_switch_{brand}_{category}"
+        )
+        if new_state != switches[category]:
+            advertising.set_switch(brand, category, new_state)
+            storage.log_audit(user["username"], "ad_switch_changed", {"brand": brand, "category": category, "enabled": new_state})
+            st.rerun()
+
+        new_cap = cols[2].number_input(
+            "Tetto €/mese", min_value=0.0, value=float(caps[category]), key=f"ads_cap_{brand}_{category}"
+        )
+        if new_cap != caps[category]:
+            advertising.set_budget_cap(brand, category, new_cap)
+            st.rerun()
+
+        spent = advertising.get_month_to_date_spend(brand, category)
+        st.caption(f"Speso questo mese: {spent:.2f}€ / {caps[category]:.2f}€")
+
+    st.markdown("---")
+    st.markdown("#### Richieste di sforamento tetto (RF-13.6)")
+    with st.expander("Nuova richiesta di sforamento"):
+        category_req = st.selectbox("Categoria", advertising.CATEGORIES, key="overshoot_category")
+        amount = st.number_input("Importo aggiuntivo richiesto (€)", min_value=0.0, key="overshoot_amount")
+        reason = st.text_area("Motivazione (perché conviene ora, cosa si perde restando nel tetto)", key="overshoot_reason")
+        if st.button("Invia richiesta", key="overshoot_submit") and reason:
+            advertising.request_overshoot(brand, category_req, amount, reason)
+            st.success("Richiesta inviata: resta in attesa di approvazione esplicita del titolare.")
+            st.rerun()
+
+    pending = advertising.list_overshoot_requests(brand=brand, state="in_attesa")
+    for req in pending:
+        with st.expander(f"⏳ In attesa · {req['category']} · +{req['requested_amount']:.2f}€"):
+            st.write(req["reason"])
+            col1, col2 = st.columns(2)
+            if col1.button("Approva", key=f"approve_over_{req['id']}"):
+                advertising.decide_overshoot(req["id"], approve=True)
+                storage.log_audit(user["username"], "overshoot_approved", {"id": req["id"], "brand": brand})
+                st.rerun()
+            if col2.button("Rifiuta", key=f"reject_over_{req['id']}"):
+                advertising.decide_overshoot(req["id"], approve=False)
+                storage.log_audit(user["username"], "overshoot_rejected", {"id": req["id"], "brand": brand})
+                st.rerun()
+
+    decided = [
+        r for r in advertising.list_overshoot_requests(brand=brand)
+        if r["state"] != "in_attesa"
+    ]
+    if decided:
+        st.markdown("##### Storico decisioni")
+        for req in decided[:10]:
+            icon = "✅" if req["state"] == "approvato" else "❌"
+            st.caption(f"{icon} {req['category']} · +{req['requested_amount']:.2f}€ · {req['state']}")
+
+
 def admin_tab(user, brands):
     st.markdown("### Amministrazione (M11)")
     if not auth.has_permission(user["role"], "view_commercial"):
@@ -777,6 +929,10 @@ def main():
         contacts_tab(user, brands)
     elif page_name == "Rete ristoranti":
         restaurants_tab(user)
+    elif page_name == "Pubblicazione":
+        publishing_tab(user, brands)
+    elif page_name == "Advertising":
+        advertising_tab(user, brands)
     elif page_name == "Analytics":
         analytics_tab(user, brands)
     elif page_name == "Amministrazione":
