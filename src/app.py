@@ -17,24 +17,99 @@ from services import restaurants
 from services import admin
 
 
+BRAND_COLORS = {
+    "Lenny": "#FF6B35",
+    "Stazione": "#1E5F8C",
+    "Eni Cafè": "#8C5E1E",
+    "Officina": "#3E4C59",
+}
+
+PAGES = [
+    ("🏠", "Home"),
+    ("➕", "Crea contenuto"),
+    ("🔄", "Workflow"),
+    ("🎁", "Fedeltà"),
+    ("⭐", "Recensioni"),
+    ("📱", "Raccolta contatti"),
+    ("🍽️", "Rete ristoranti"),
+    ("📊", "Analytics"),
+    ("⚙️", "Amministrazione"),
+    ("📝", "Audit log"),
+]
+
+
+def inject_css():
+    st.markdown(
+        """
+        <style>
+        .block-container { padding-top: 2rem; padding-bottom: 3rem; max-width: 1100px; }
+        h1, h2, h3 { font-family: 'Segoe UI', sans-serif; }
+        h1 { color: #1E2A38; }
+        [data-testid="stMetric"] {
+            background: #F7F9FB;
+            border: 1px solid #E3E8EE;
+            border-radius: 10px;
+            padding: 12px 16px;
+        }
+        div[data-testid="stExpander"] {
+            border: 1px solid #E3E8EE;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+        .stButton>button {
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        section[data-testid="stSidebar"] {
+            background: #F5F6F8;
+        }
+        .regia-brand-pill {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 999px;
+            color: white;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def brand_pill(brand: str) -> str:
+    color = BRAND_COLORS.get(brand, "#5A6472")
+    return f'<span class="regia-brand-pill" style="background:{color}">{brand}</span>'
+
+
 def login_view():
-    st.title("Regìa — Login")
-    st.caption("Prototipo: owner/owner123 (Owner) · editor/editor123 (Editor)")
-    username = st.text_input("Utente")
-    password = st.text_input("Password", type="password")
-    if st.button("Accedi"):
-        user = auth.authenticate(username, password)
-        if user:
-            st.session_state["user"] = user
-            storage.log_audit(user["username"], "login")
-            st.rerun()
-        else:
-            st.error("Credenziali non valide")
+    inject_css()
+    col_a, col_b, col_c = st.columns([1, 1.4, 1])
+    with col_b:
+        st.markdown("## 🎛️ Regìa")
+        st.caption("Piattaforma di marketing e operazioni commerciali multi-marchio")
+        st.markdown("---")
+        st.markdown("#### Accedi")
+        username = st.text_input("Utente")
+        password = st.text_input("Password", type="password")
+        if st.button("Accedi", use_container_width=True):
+            user = auth.authenticate(username, password)
+            if user:
+                st.session_state["user"] = user
+                storage.log_audit(user["username"], "login")
+                st.rerun()
+            else:
+                st.error("Credenziali non valide")
+        st.caption("Prototipo: `owner`/`owner123` (Owner) · `editor`/`editor123` (Editor)")
 
 
 def sidebar_user_info(user):
-    st.sidebar.markdown(f"**{user['display_name']}** ({user['role']})")
-    if st.sidebar.button("Esci"):
+    st.sidebar.markdown("## 🎛️ Regìa")
+    avatar = "👑" if user["role"] == "Owner" else "👤"
+    st.sidebar.markdown(f"{avatar} **{user['display_name']}**")
+    st.sidebar.caption(f"Ruolo: {user['role']}")
+    st.sidebar.markdown("---")
+    if st.sidebar.button("🚪 Esci", use_container_width=True):
         storage.log_audit(user["username"], "logout")
         del st.session_state["user"]
         st.rerun()
@@ -543,8 +618,45 @@ def admin_tab(user, brands):
                 st.warning(f"Soglia superata per '{a['category']}': €{a['total']:.2f} > €{a['threshold']:.2f}")
 
 
+def home_view(user, brands):
+    st.markdown("## Bentornato/a 👋")
+    st.caption(
+        "In alto ciò che serve decidere ora, poi come sta andando: pensato per essere "
+        "letto in pochi secondi da telefono (RF-12.1)."
+    )
+
+    pending_content = len(storage.list_contents(state="proposto"))
+    pending_reviews = len(reviews.list_reviews(state="bozza_pronta"))
+    cooling_restaurants = len([r for r in restaurants.list_restaurants_by_priority() if r["cooling"]])
+    cost_alerts = len(admin.get_cost_alerts())
+
+    st.markdown("### ✅ Cosa devi fare")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Contenuti da approvare", pending_content)
+    col2.metric("Recensioni da gestire", pending_reviews)
+    col3.metric("Ristoranti in raffreddamento", cooling_restaurants)
+    col4.metric("Allarmi costi", cost_alerts)
+
+    if admin.is_system_paused():
+        st.error("🛑 Il sistema è in pausa: nessuna pubblicazione automatica in corso.")
+
+    st.markdown("---")
+    st.markdown("### 📈 Come sta andando")
+    summary = analytics.brand_summary(brand=None)
+    col5, col6, col7 = st.columns(3)
+    col5.metric("Voucher emessi (tutti i marchi)", summary["vouchers"]["total"])
+    col6.metric("Tasso di riscatto", f"{summary['vouchers']['redemption_rate_pct']}%")
+    col7.metric("Contatti raccolti", summary["contacts"]["total"])
+
+    st.markdown("---")
+    st.markdown("### Marchi attivi")
+    pills = " ".join(brand_pill(b) for b in brands)
+    st.markdown(pills, unsafe_allow_html=True)
+
+
 def main():
-    st.set_page_config(page_title="Regìa Prototype", layout="centered")
+    st.set_page_config(page_title="Regìa Prototype", layout="wide", page_icon="🎛️")
+    inject_css()
 
     if "user" not in st.session_state:
         login_view()
@@ -553,39 +665,43 @@ def main():
     user = st.session_state["user"]
     sidebar_user_info(user)
 
-    st.title("Regìa — Prototype (Streamlit)")
-
-    if admin.is_system_paused():
-        st.error("🛑 Sistema in pausa (interruttore di arresto attivo). Vai in Amministrazione per riattivarlo.")
+    st.sidebar.markdown("### Naviga")
+    labels = [f"{icon}  {name}" for icon, name in PAGES]
+    selected = st.sidebar.radio("Sezione", labels, label_visibility="collapsed", key="nav_selection")
+    page_name = selected.split("  ", 1)[1]
 
     brands = admin.get_brands()
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(
-        ["Crea contenuto", "Workflow", "Fedeltà", "Recensioni", "Raccolta contatti", "Rete ristoranti", "Analytics", "Amministrazione", "Audit log"]
-    )
-    with tab1:
+    if admin.is_system_paused() and page_name != "Home":
+        st.error("🛑 Sistema in pausa (interruttore di arresto attivo). Vai in Amministrazione per riattivarlo.")
+
+    st.title(f"Regìa — {page_name}")
+
+    if page_name == "Home":
+        home_view(user, brands)
+    elif page_name == "Crea contenuto":
         content_creation_tab(user, brands)
-    with tab2:
+    elif page_name == "Workflow":
         workflow_tab(user, brands)
-    with tab3:
+    elif page_name == "Fedeltà":
         loyalty_tab(user, brands)
-    with tab4:
+    elif page_name == "Recensioni":
         reviews_tab(user, brands)
-    with tab5:
+    elif page_name == "Raccolta contatti":
         contacts_tab(user, brands)
-    with tab6:
+    elif page_name == "Rete ristoranti":
         restaurants_tab(user)
-    with tab7:
+    elif page_name == "Analytics":
         analytics_tab(user, brands)
-    with tab8:
+    elif page_name == "Amministrazione":
         admin_tab(user, brands)
-    with tab9:
+    elif page_name == "Audit log":
         audit_tab(user)
 
-    st.markdown("---")
-    st.caption(
-        "Flusso dimostrato: login → brief → generazione media (stub) → bozza → "
-        "proposto → approvato → pubblicato, con audit log."
+    st.sidebar.markdown("---")
+    st.sidebar.caption(
+        "Flusso: login → brief → generazione media → bozza → proposto → "
+        "approvato → pubblicato, con audit log."
     )
 
 
