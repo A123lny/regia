@@ -23,6 +23,8 @@ from services import service_email
 from services import brand_identity
 from services import daily_use
 from services import data_hub
+from services import help_texts
+from services import brand_templates
 
 
 BRAND_COLORS = {
@@ -138,7 +140,7 @@ def content_creation_tab(user, brands):
         key="create_channel",
     )
 
-    sub1, sub2 = st.tabs(["🎨 Genera nuovo", "📚 Riusa dalla libreria"])
+    sub1, sub2, sub3 = st.tabs(["🎨 Genera nuovo", "📚 Riusa dalla libreria", "🖼️ Template di marca"])
 
     with sub1:
         st.markdown("### Brief / Prompt")
@@ -212,6 +214,48 @@ def content_creation_tab(user, brands):
                         storage.log_audit(user["username"], "media_reused", {"media_id": m["id"], "content_id": content["id"]})
                         st.success(f"Bozza creata riusando il media (id: {content['id'][:8]}...)")
                         st.rerun()
+
+    with sub3:
+        st.markdown("### Template grafici di marca (RF-4.2)")
+        st.caption("Template riempiti automaticamente, con anteprima fedele per canale/formato (RF-4.6) e formati multipli inclusa stampa alta risoluzione (RF-4.7).")
+
+        templates = brand_templates.list_templates(brand=brand)
+        if not templates:
+            st.info("Nessun template disponibile per questa marca.")
+        else:
+            template_labels = {t["key"]: t["label"] for t in templates}
+            selected_key = st.selectbox(
+                "Scegli template", list(template_labels.keys()), format_func=lambda k: template_labels[k], key="template_select"
+            )
+            template = brand_templates.get_template(selected_key)
+
+            values = {}
+            for field in template["fields"]:
+                values[field] = st.text_input(field.replace("_", " ").capitalize(), key=f"tpl_{selected_key}_{field}")
+
+            output_format = st.selectbox("Formato di output", template["formats"] + ["stampa_a4"], key="tpl_format")
+
+            if st.button("Genera anteprima template", key="tpl_generate_btn"):
+                validation = brand_templates.validate_fields(selected_key, values)
+                if not validation["valid"]:
+                    st.error(f"Campi mancanti: {', '.join(validation['missing_fields'])}")
+                else:
+                    img = brand_templates.render_preview(selected_key, values, output_format=output_format)
+                    buf = io.BytesIO()
+                    img.save(buf, format="PNG")
+                    st.session_state["template_preview"] = buf.getvalue()
+                    st.success("Anteprima generata.")
+
+            if "template_preview" in st.session_state:
+                st.image(st.session_state["template_preview"], width=500, caption=f"Anteprima · {output_format}")
+                can_create = auth.has_permission(user["role"], "create")
+                if can_create and st.button("Salva come bozza dal template", key="tpl_save_draft_btn"):
+                    composed = template["label"] + " — " + ", ".join(f"{k}: {v}" for k, v in values.items())
+                    content = storage.create_content(brand=brand, channel=channel, prompt=composed, author=user["username"])
+                    storage.log_audit(user["username"], "template_content_created", {"template": selected_key, "content_id": content["id"]})
+                    st.success(f"Bozza creata dal template (id: {content['id'][:8]}...)")
+                    st.session_state.pop("template_preview", None)
+                    st.rerun()
 
 
 def workflow_tab(user, brands):
@@ -1245,6 +1289,12 @@ def main():
         st.error("🛑 Sistema in pausa (interruttore di arresto attivo). Vai in Amministrazione per riattivarlo.")
 
     st.title(f"Regìa — {page_name}")
+
+    with st.expander("ℹ️ Aiuto contestuale (RF-12.7)"):
+        help_text = help_texts.get_help(page_name)
+        st.markdown(f"**Come funziona:** {help_text['come_funziona']}")
+        st.markdown(f"**Collegamenti con altre sezioni:** {help_text['collegamenti']}")
+        st.markdown(f"**Come usarla:** {help_text['come_usarla']}")
 
     if page_name == "Home":
         home_view(user, brands)
