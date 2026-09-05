@@ -22,6 +22,7 @@ from services import agent_autonomy as agent
 from services import service_email
 from services import brand_identity
 from services import daily_use
+from services import data_hub
 
 
 BRAND_COLORS = {
@@ -40,6 +41,7 @@ PAGES = [
     ("🎁", "Fedeltà"),
     ("⭐", "Recensioni"),
     ("📱", "Raccolta contatti"),
+    ("🗄️", "Data Hub"),
     ("🎭", "Rete ristoranti"),
     ("📤", "Pubblicazione"),
     ("💰", "Advertising"),
@@ -949,6 +951,98 @@ def brand_identity_tab(user, brands):
                 st.success("Nessun vincolo violato.")
 
 
+def data_hub_tab(user, brands):
+    st.markdown("### Data Hub (M1)")
+    st.caption(
+        "Modello dati canonico multi-marchio: anagrafica veicolo per i richiami officina (RF-1.3), "
+        "storico prezzi (RF-1.5), deduplicazione e igiene liste (RF-1.7), segmentazione automatica (RF-1.8), "
+        "richieste dati personali gestite manualmente (RF-1.9)."
+    )
+
+    sub1, sub2, sub3, sub4 = st.tabs(["Veicoli", "Storico prezzi", "Igiene liste", "Richieste dati personali"])
+
+    with sub1:
+        st.markdown("#### Anagrafica veicolo (RF-1.3)")
+        with st.expander("Registra/aggiorna veicolo"):
+            contact = st.text_input("Contatto (email/telefono)", key="veh_contact")
+            plate = st.text_input("Targa", key="veh_plate")
+            model = st.text_input("Modello", key="veh_model")
+            mileage = st.number_input("Chilometri", min_value=0, key="veh_mileage")
+            last_service = st.date_input("Data ultimo intervento", key="veh_last_service", value=None)
+            tire = st.selectbox("Tipo gomme", ["(non specificato)"] + data_hub.TIRE_TYPES, key="veh_tire")
+            if st.button("Salva veicolo", key="save_vehicle_btn") and plate:
+                data_hub.register_vehicle(
+                    contact=contact,
+                    plate=plate,
+                    model=model,
+                    mileage_km=int(mileage),
+                    last_service_date=last_service.isoformat() if last_service else None,
+                    tire_type=None if tire == "(non specificato)" else tire,
+                )
+                st.success(f"Veicolo {plate.upper()} registrato.")
+                st.rerun()
+
+        st.markdown("##### Richiami officina in scadenza (>6 mesi dall'ultimo intervento)")
+        due = data_hub.vehicles_due_for_reminder()
+        if not due:
+            st.info("Nessun veicolo in scadenza.")
+        for v in due:
+            st.markdown(f"- **{v['plate']}** ({v['model']}) · contatto: {v['contact']} · ultimo intervento: {v.get('last_service_date') or 'mai registrato'}")
+
+    with sub2:
+        st.markdown("#### Storico prezzi e costi (RF-1.5)")
+        brand = st.selectbox("Marca", brands, key="price_brand")
+        item = st.text_input("Voce (es. 'Benzina Diesel', 'Tagliando base')", key="price_item")
+        price = st.number_input("Prezzo (€)", min_value=0.0, step=0.01, key="price_value")
+        if st.button("Registra prezzo", key="record_price_btn") and item:
+            data_hub.record_price(brand, item, price)
+            st.success("Prezzo registrato con data di validità odierna.")
+            st.rerun()
+
+        if item:
+            current = data_hub.get_current_price(brand, item)
+            if current:
+                st.metric(f"Prezzo attuale · {item}", f"€{current['price']:.2f}")
+            history = data_hub.get_price_history(brand, item)
+            for h in history[:10]:
+                st.caption(f"{h['valid_from'][:16]} · €{h['price']:.2f}")
+
+    with sub3:
+        st.markdown("#### Deduplicazione e igiene liste (RF-1.7)")
+        st.caption("Analisi eseguita sui contatti raccolti dal modulo M10.")
+        raw_contacts = contacts.list_contacts() if hasattr(contacts, "list_contacts") else []
+        if not raw_contacts:
+            st.info("Nessun contatto disponibile per l'analisi (modulo Raccolta contatti).")
+        else:
+            duplicates = data_hub.find_duplicate_contacts(raw_contacts)
+            invalid_emails = data_hub.find_invalid_emails(raw_contacts)
+            st.metric("Gruppi di duplicati trovati", len(duplicates))
+            st.metric("Email non valide", len(invalid_emails))
+            for group in duplicates[:5]:
+                st.caption(f"Duplicato: {[c.get('email') or c.get('phone') for c in group]}")
+
+    with sub4:
+        st.markdown("#### Richieste dati personali (RF-1.9)")
+        st.caption("Esportazione/cancellazione: gestione interamente manuale, nessuna risposta automatica.")
+        with st.expander("Nuova richiesta"):
+            req_contact = st.text_input("Contatto", key="dsr_contact")
+            req_type = st.selectbox("Tipo", ["esportazione", "cancellazione"], key="dsr_type")
+            req_notes = st.text_area("Note", key="dsr_notes")
+            if st.button("Registra richiesta", key="dsr_register_btn") and req_contact:
+                data_hub.create_personal_data_request(req_contact, req_type, req_notes)
+                st.success("Richiesta registrata, in attesa di gestione manuale.")
+                st.rerun()
+
+        pending = data_hub.list_personal_data_requests(state="in_attesa")
+        for r in pending:
+            with st.expander(f"⏳ {r['request_type']} · {r['contact']} · {r['created_at'][:16]}"):
+                st.write(r["notes"])
+                if st.button("Segna come gestita", key=f"handle_dsr_{r['id']}"):
+                    data_hub.mark_request_handled(r["id"], handled_by=user["username"])
+                    storage.log_audit(user["username"], "personal_data_request_handled", {"id": r["id"]})
+                    st.rerun()
+
+
 def admin_tab(user, brands):
     st.markdown("### Amministrazione (M11)")
     if not auth.has_permission(user["role"], "view_commercial"):
@@ -1168,6 +1262,8 @@ def main():
         reviews_tab(user, brands)
     elif page_name == "Raccolta contatti":
         contacts_tab(user, brands)
+    elif page_name == "Data Hub":
+        data_hub_tab(user, brands)
     elif page_name == "Rete ristoranti":
         restaurants_tab(user)
     elif page_name == "Pubblicazione":
