@@ -12,6 +12,7 @@ from services import storage
 from services import loyalty
 from services import reviews
 from services import contacts
+from services import analytics
 
 
 def login_view():
@@ -362,6 +363,57 @@ def contacts_tab(user, brands):
             )
 
 
+def analytics_tab(user, brands):
+    st.markdown("### Analytics e misurazione (M9)")
+    st.caption(
+        "Dashboard per marca (RF-9.8), aggregata dai dati già raccolti — nessuna "
+        "misurazione separata, solo lettura di quanto esiste (RF-9.2)."
+    )
+
+    filter_brand = st.selectbox("Marca", ["Tutti i marchi"] + brands, key="analytics_brand")
+    brand_filter = None if filter_brand == "Tutti i marchi" else filter_brand
+    summary = analytics.brand_summary(brand=brand_filter)
+
+    st.markdown(f"#### {summary['brand']}")
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Voucher emessi", summary["vouchers"]["total"])
+    col2.metric("Tasso riscatto", f"{summary['vouchers']['redemption_rate_pct']}%")
+    col3.metric("Recensioni", summary["reviews"]["total"], help=f"Media stelle: {summary['reviews']['avg_rating']}")
+    col4.metric("Contatti raccolti", summary["contacts"]["total"])
+
+    st.markdown("---")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**Recensioni per categoria**")
+        for cat, count in summary["reviews"]["by_category"].items():
+            st.text(f"{cat}: {count}")
+        if summary["reviews"]["pending_response"] > 0:
+            st.warning(f"{summary['reviews']['pending_response']} recensioni in attesa di risposta")
+
+    with c2:
+        st.markdown("**Contatti per tipo**")
+        for vtype, count in summary["contacts"]["by_type"].items():
+            st.text(f"{vtype}: {count}")
+
+    st.markdown("**Contenuti per stato**")
+    if summary["contents"]["by_state"]:
+        for state, count in summary["contents"]["by_state"].items():
+            st.text(f"{state}: {count}")
+    else:
+        st.text("Nessun contenuto presente.")
+
+    st.markdown("---")
+    st.markdown("#### Travaso voucher tra marchi (RF-9.2)")
+    flows = analytics.cross_brand_voucher_flow()
+    if not flows:
+        st.info("Nessun voucher emesso finora.")
+    else:
+        for f in flows:
+            st.text(f"{f['route']}: {f['issued']} emessi, {f['redeemed']} riscattati")
+
+
 def main():
     st.set_page_config(page_title="Regìa Prototype", layout="centered")
 
@@ -376,8 +428,8 @@ def main():
 
     brands = ["Lenny", "Stazione", "Eni Cafè", "Officina"]
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
-        ["Crea contenuto", "Workflow", "Fedeltà", "Recensioni", "Raccolta contatti", "Audit log"]
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
+        ["Crea contenuto", "Workflow", "Fedeltà", "Recensioni", "Raccolta contatti", "Analytics", "Audit log"]
     )
     with tab1:
         content_creation_tab(user, brands)
@@ -390,6 +442,8 @@ def main():
     with tab5:
         contacts_tab(user, brands)
     with tab6:
+        analytics_tab(user, brands)
+    with tab7:
         audit_tab(user)
 
     st.markdown("---")
