@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const url = process.env["NEXT_PUBLIC_SUPABASE_URL"] ?? "http://127.0.0.1:54520";
-const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"]!;
+const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+
+if (!serviceKey) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY non impostata. Carica app/.env.local prima dei test.");
+}
+
 const admin: SupabaseClient = createClient(url, serviceKey);
 
 describe("RS-3 · unicità dello slug del brand nella stessa organization", () => {

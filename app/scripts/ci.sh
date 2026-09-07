@@ -18,7 +18,7 @@ npx supabase db reset --no-seed
 echo "==> Test invarianti (Vitest)"
 # I test si aspettano che Supabase locale sia attivo. Se non lo è, li saltiamo con warning.
 if npx supabase status >/dev/null 2>&1; then
-  npx dotenv -e .env.local -- npm test
+  npm test
 else
   echo "   Supabase locale non attivo — test saltati. Esegui 'npx supabase start' e ripeti."
   exit 1

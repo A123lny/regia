@@ -18,11 +18,27 @@ create table public.users_profile (
 create index users_profile_organization_idx on public.users_profile(organization_id);
 
 -- Owner richiede sempre 2FA (RU-3). Enforcement DB dell'invariante.
+-- RU-3: Owner richiede 2FA.
+-- ATTENZIONE — In F0 (locale) questo trigger controlla SOLO la colonna auto-
+-- dichiarata `requires_mfa`, non l'esistenza di un fattore MFA verificato. È
+-- una predisposizione: garantisce che nessun record `role='owner'` venga
+-- inserito senza il flag alzato, ma non prova che l'MFA sia davvero attivo.
+--
+-- In F0-b (col cloud e provider MFA reale) va sostituito con lookup su
+-- auth.mfa_factors — vedi ledger `.superpowers/sdd/2026-09-07-cantiere-f0/progress.md`
+-- voce "Task 5: deferred F0-b — enforce_owner_mfa reale". Esempio target:
+--
+--   if new.role = 'owner' and not exists (
+--     select 1 from auth.mfa_factors f
+--     where f.user_id = new.user_id and f.status = 'verified'
+--   ) then
+--     raise exception 'RU-3: owner richiede fattore MFA verificato';
+--   end if;
 create or replace function public.enforce_owner_mfa()
 returns trigger language plpgsql as $$
 begin
   if new.role = 'owner' and new.requires_mfa = false then
-    raise exception 'RU-3: role owner requires MFA (requires_mfa must be true)';
+    raise exception 'RU-3 (F0-predisposition): role owner requires_mfa=true (F0-b upgrade: aggancio a auth.mfa_factors)';
   end if;
   return new;
 end;
