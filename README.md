@@ -1,35 +1,18 @@
-# Regìa — Prototype (Streamlit)
+# Regìa
 
-Prototipo rapido per validare i flussi principali del progetto "Regìa" (MVP iniziale).
+Piattaforma di marketing e operazioni commerciali multi-marchio per il gruppo Lenny + stazione Eni (San Marino).
 
-Contenuti creati:
-- `src/app.py` — prototipo Streamlit: selezione marchio, generazione immagine di prova, anteprime canale, simulazione di pubblicazione.
-- `src/services/media_adapter.py` — stub per l'adapter di generazione media (genera immagini di prova locali).
-- `requirements.txt` — dipendenze minime.
-- `.gitignore` — file di esclusione per ambiente e artefatti.
-- `run.ps1` — script PowerShell per creare venv e avviare l'app su Windows.
-- `logs/.gitkeep` — directory di log iniziale.
+## Documenti
 
-Requisiti:
-- Python 3.9+ (consigliato 3.10/3.11)
+- **Capitolato tecnico:** [`docs/capitolato.md`](docs/capitolato.md) — fonte di verità v1.5.
+- **Regole di sviluppo:** [`CLAUDE.md`](CLAUDE.md).
+- **Diario di bordo:** [`docs/diario.md`](docs/diario.md).
 
-Istruzioni rapide (PowerShell):
+## Codice
 
-```powershell
-# creare virtualenv
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+- **Piattaforma target** (in costruzione da F0): `app/` — Next.js + TypeScript + Supabase.
+- **Prototipo di riferimento** (Streamlit/Python): branch `prototype/streamlit`, non pensato per la produzione.
 
-# avviare l'app Streamlit
-streamlit run src/app.py
-```
+## Sviluppo locale
 
-Note:
-- Questo è un prototipo locale e non include autenticazione, DB o integrazioni esterne.
-- L'adapter di generazione media è un stub che genera immagini di prova; sostituirlo con un adapter reale per collegare servizi esterni.
-
-Next steps consigliati:
-- Inizializzare git: `git init`, aggiungere `.gitignore`, primo commit.
-- Collegare un servizio di generazione media reale tramite `src/services/media_adapter.py` (adapter pattern).
-- Implementare DB/Storage e autenticazione per utenti e ruoli.
+Vedi [`app/README.md`](app/README.md) una volta scaffoldata la piattaforma (Task 2 del piano F0).

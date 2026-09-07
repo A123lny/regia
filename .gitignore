@@ -1,8 +1,20 @@
+# Ambiente Python (prototipo Streamlit)
 .venv/
 __pycache__/
 *.pyc
-.env
-logs/
+
+# Config editor / OS
 .vscode/
 .DS_Store
 /.idea/
+
+# Segreti / dati locali
+.env
+.env.local
+
+# Runtime prototipo Streamlit
+logs/
+data/
+
+# Config locale Claude Code (per-macchina)
+.claude/

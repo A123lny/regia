@@ -98,6 +98,37 @@ interruttore di arresto · injection sull'agente · tetti di spesa advertising.
 - Nessun segreto nel repository (RNF-1): credenziali solo nel secret store.
 - Struttura delle cartelle: si fissa al primo commit di F0 e si annota qui.
 
+## Struttura del repository *(fissata il 7 set 2026, primo commit F0)*
+
+```
+/
+├── CLAUDE.md                       queste regole
+├── docs/                           fonte di verità
+│   ├── capitolato.md               v1.5 — sostituisce ogni versione precedente
+│   ├── diario.md                   una pagina, sempre aggiornata all'ultimo task
+│   ├── archivio/                   documenti storici (v1.0, addenda, decisioni acquisite)
+│   ├── runbook-backup.md           procedura ripristino (RQ-5)
+│   └── superpowers/plans/          piani di implementazione multi-task
+├── app/                            piattaforma Next.js monolite (RS-6)
+│   ├── src/app/                    App Router
+│   ├── src/lib/db/                 adapter Supabase (RS-2)
+│   ├── src/lib/auth/               sessione utente
+│   ├── src/lib/audit/              log immutabile (RF-11.3)
+│   ├── src/modules/M{NN}-{slug}/   moduli M1–M13 con public.ts (RS-1)
+│   ├── supabase/migrations/        migrazioni versionate (RS-8)
+│   ├── tests/invariants/           test degli invarianti RQ-3
+│   ├── tests/boundaries/           verifica confini RS-1
+│   └── scripts/                    ci.sh, db-backup.sh, db-restore.sh
+└── src/                            prototipo Streamlit di riferimento
+                                    (esiste solo sul branch prototype/streamlit)
+```
+
+Regole:
+- Un modulo `Mn` importa da un altro `Mm` **solo** tramite `Mm/public.ts`. Verificato in CI (RS-1).
+- Ogni tabella nasce con `organization_id` (RN-87).
+- Ogni migrazione ha nome `YYYYMMDD_NNNNNN_verbo_soggetto.sql` ed è idempotente al primo `supabase db reset`.
+- I segreti stanno in `app/.env.local` (ignorato). Il template pubblico è `app/.env.local.example`.
+
 ## Diario
 
 `docs/diario.md` — una pagina al massimo: Adesso · Fatto · Prossimo · Decisioni ·
