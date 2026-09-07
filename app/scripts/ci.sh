@@ -15,8 +15,16 @@ echo "==> Verifica migrazioni (supabase db reset)"
 # non è idempotente rispetto al reset o rompe lo schema, fallisce qui.
 npx supabase db reset --no-seed
 
+echo "==> Test invarianti (Vitest)"
+# I test si aspettano che Supabase locale sia attivo. Se non lo è, li saltiamo con warning.
+if npx supabase status >/dev/null 2>&1; then
+  npx dotenv -e .env.local -- npm test
+else
+  echo "   Supabase locale non attivo — test saltati. Esegui 'npx supabase start' e ripeti."
+  exit 1
+fi
+
 # I passi seguenti vengono aggiunti dai task successivi del piano F0:
-#   - Task 10: test Vitest
 #   - Task 10: boundaries dependency-cruiser (RS-1)
 
 echo "==> CI locale OK"

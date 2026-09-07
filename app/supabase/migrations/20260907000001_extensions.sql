@@ -1,4 +1,4 @@
--- 20260907_000001_extensions.sql
+-- 20260907000001_extensions.sql
 -- Estensioni di sistema attese dalla piattaforma.
 -- pgcrypto: gen_random_uuid() per chiavi primarie.
 -- pg_trgm: ricerca fuzzy nomi/etichette (RF-12.2).
