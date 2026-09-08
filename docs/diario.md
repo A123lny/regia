@@ -1,14 +1,19 @@
 # Diario di bordo — Regìa
 
-> Aggiornato: 7 settembre 2026 · Una pagina al massimo. Le voci vecchie si potano:
+> Aggiornato: 8 settembre 2026 · Una pagina al massimo. Le voci vecchie si potano:
 > la storia completa sta in git. Regole d'uso: vedi CLAUDE.md, sezione "Rito di sessione".
 
 ## Adesso
 
-- **Cantiere F0 aperto** (7 set 2026) — implementazione in corso secondo `docs/superpowers/plans/2026-09-07-cantiere-f0.md`.
+- Nessun task di codice in corso. Prossima decisione: apertura F0-b (hosting applicazione, §15.A) oppure inizio F1 in locale (Data Hub, RF-1.x) usando il DB locale.
 
 ## Fatto
 
+- **7–8 set 2026 — Cantiere F0 locale completato.**
+  - Repo riordinato (`docs/`), scaffolding Next.js+TS strict in `app/`, Supabase locale via CLI, modello dati F0 (organizations, brands, users_profile, audit_events) con invarianti in DB (RS-3), audit log append-only (RF-11.3), adapter Supabase (RS-2), auth minimale con Owner+MFA predisposto (RU-1, RU-3), confini di modulo (RS-1) attivi in CI locale, migrazioni versionate (RS-8), backup+restore provati (RQ-5, RNF-3).
+  - Un solo comando di verifica: `cd app && npm run ci` (lint + format + typecheck + boundaries + migrazioni + 8 test — tutto verde).
+  - Sequenza commit dettagliata: `.superpowers/sdd/2026-09-07-cantiere-f0/progress.md`.
+  - **Fuori scope, aperto:** hosting applicazione (§15.A), Supabase Pro collegato, GitHub Actions, 2FA reale, backup remoto cifrato → **F0-b**, si apre alla scelta dell'hosting.
 - **7 set 2026** — Riordino repo: capitolato in `docs/capitolato.md`, diario in `docs/diario.md`, `docs/archivio/` creato per storici futuri. Struttura cartelle fissata in `CLAUDE.md` (RQ-1a).
 - **2–3 set 2026 (recuperato ex-post)** — Prototipo esplorativo Streamlit sul branch `prototype/streamlit`: 17 pagine navigabili, 19 servizi (M1–M13 + M8b + §8 + brand templates + help texts), 18 test, storage JSON, auth minimale. Non è la piattaforma target: serve come **riferimento visivo dei flussi** durante lo sviluppo del vero applicativo TS/Next.js. Nessun merge previsto; il branch resta intatto.
 - **18 ago 2026** — Capitolato esteso a **v1.5** (`docs/capitolato.md`): generazione media via servizi esterni (RF-4.5), materiali offline (RF-4.7), RS-2 aggiornato a due punti di contatto AI. `CLAUDE.md` allineato.
@@ -17,9 +22,9 @@
 
 ## Prossimo (in ordine)
 
-1. Esecuzione dei 14 task di `docs/superpowers/plans/2026-09-07-cantiere-f0.md` — scaffolding, Supabase locale, modello dati F0, auth, audit log, RS-1/RS-8 in CI locale, backup provato.
-2. **F0-b (fuori scope del piano corrente):** hosting applicazione (§15.A), Supabase Pro collegato, GitHub Actions, 2FA reale, backup cifrato remoto. Si apre quando si sceglie l'hosting.
-3. **F1 (dopo F0-b):** Data Hub su Lenny e lavaggi (RF-1.x), consensi (RF-1.4), brand kit (RF-2.x), primo piano editoriale generato.
+1. **Decisione aperta:** F0-b (hosting applicazione §15.A, Supabase Pro, GitHub Actions, 2FA reale, backup cifrato remoto) oppure F1 in locale (Data Hub RF-1.x, consensi RF-1.4, brand kit RF-2.x) usando il DB locale senza aspettare l'hosting. Le due strade non sono mutuamente esclusive.
+2. **F0-b:** aggancio al cloud — scelta hosting (DigitalOcean App Platform vs Droplet), Supabase Pro collegato, GitHub Actions, 2FA reale. Si apre quando si decide l'hosting.
+3. **F1 (dopo o in parallelo a F0-b):** Data Hub su Lenny e lavaggi (RF-1.x), consensi (RF-1.4), brand kit (RF-2.x), primo piano editoriale generato.
 
 ## Decisioni prese in corso d'opera
 
@@ -33,6 +38,4 @@
 
 - Il QR alla colonnina è **l'unica voce con scadenza di calendario** (picco di agosto).
 - La deroga RF-6.25 è **dormiente**: al lancio si implementa solo il Modello A.
-- Al primo commit: fissare la struttura delle cartelle e annotarla nel CLAUDE.md.
-- **Hosting applicazione ancora aperto** (App Platform vs Droplet su DigitalOcean): non
-  bloccare lo sviluppo locale per questo, ma non dimenticarlo prima di chiudere F0.
+- **Hosting applicazione ancora aperto** (App Platform vs Droplet su DigitalOcean): decidere prima di aprire F0-b.

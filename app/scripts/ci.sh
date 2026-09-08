@@ -1,34 +1,44 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "==> Lint (ESLint)"
-npm run lint
+# CI locale — equivalente della pipeline che gireremo su GitHub Actions in F0-b.
+# Prerequisiti:
+#   - Docker Desktop attivo
+#   - Supabase locale avviato (npx supabase start) con le credenziali in .env.local
+# Ogni passo è indipendente ed esce a errore alla prima violazione.
 
-echo "==> Formattazione (Prettier check)"
-npm run format:check
-
-echo "==> Typecheck (TypeScript strict)"
-npm run typecheck
-
-echo "==> Confini di modulo (RS-1, dependency-cruiser)"
-npx depcruise src --config .dependency-cruiser.cjs
-
-echo "==> Verifica migrazioni (supabase db reset)"
-# Applica tutte le migrazioni su un DB locale pulito. Se una migrazione
-# non è idempotente rispetto al reset o rompe lo schema, fallisce qui.
-npx supabase db reset --no-seed
-
-echo "==> Test invarianti (Vitest)"
-# I test si aspettano che Supabase locale sia attivo. Se non lo è, li saltiamo con warning.
-if npx supabase status >/dev/null 2>&1; then
-  npm test
-else
-  echo "   Supabase locale non attivo — test saltati. Esegui 'npx supabase start' e ripeti."
+if [ ! -f .env.local ]; then
+  echo "!! .env.local mancante. Copia .env.local.example e riempi." >&2
   exit 1
 fi
 
-# Nota per lo sviluppatore: supabase db reset ha svuotato auth.users
-# durante la verifica migrazioni. Se vuoi rifare il login in locale,
-# esegui: bash scripts/dev-create-owner.sh
+if ! npx supabase status >/dev/null 2>&1; then
+  echo "!! Supabase locale non attivo. Esegui: npx supabase start" >&2
+  exit 1
+fi
 
-echo "==> CI locale OK"
+echo "==> 1/6  Lint (ESLint)"
+npm run lint
+
+echo "==> 2/6  Formattazione (Prettier check)"
+npm run format:check
+
+echo "==> 3/6  Typecheck (TypeScript strict)"
+npm run typecheck
+
+echo "==> 4/6  Confini di modulo (RS-1, dependency-cruiser)"
+npx depcruise src --config .dependency-cruiser.cjs
+
+echo "==> 5/6  Migrazioni idempotenti (RS-8, supabase db reset)"
+# Applica tutte le migrazioni su un DB locale pulito. Se una migrazione
+# non è idempotente rispetto al reset o rompe lo schema, fallisce qui.
+# Il seed dati è incluso nella migrazione 000006: non serve un passo separato.
+# Nota: dopo il reset auth.users è svuotato; riesegui dev-create-owner.sh per ricreare l'Owner.
+npx supabase db reset --no-seed >/dev/null
+
+echo "==> 6/6  Test invarianti + boundaries (Vitest)"
+npm test
+
+echo ""
+echo "==> CI locale verde ✓"
+echo "    Puoi committare."

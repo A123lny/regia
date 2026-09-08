@@ -84,6 +84,10 @@ test degli invarianti toccati · ID dei requisiti citati (nel task e nel commit)
 duplicazioni, nomi coerenti. I refactoring ampi sono task espliciti a sé, mai lavoro
 infilato di nascosto in altri task.
 
+**Comando di verifica locale:** `cd app && npm run ci` — deve essere verde
+prima di ogni commit. Sui push (una volta su GitHub, F0-b) la stessa pipeline
+girerà su GitHub Actions.
+
 ## Test non negoziabili (RQ-3)
 
 Se il lavoro tocca uno di questi punti, i test relativi sono obbligatori e si scrivono
@@ -96,7 +100,7 @@ interruttore di arresto · injection sull'agente · tetti di spesa advertising.
 - Identificatori di codice in inglese; interfaccia utente, commenti e documenti in italiano.
 - Messaggi di commit: prima gli ID, poi la descrizione (es. `RF-6.7: riscatto idempotente`).
 - Nessun segreto nel repository (RNF-1): credenziali solo nel secret store.
-- Struttura delle cartelle: si fissa al primo commit di F0 e si annota qui.
+- Struttura delle cartelle: vedi sezione "Struttura del repository" (fissata il 7 set 2026).
 
 ## Struttura del repository *(fissata il 7 set 2026, primo commit F0)*
 
