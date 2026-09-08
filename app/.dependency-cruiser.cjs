@@ -36,17 +36,23 @@ module.exports = {
         // I file nello stesso modulo si importano tipicamente con import relativo locale,
         // che depcruiser risolve nello stesso prefisso modulo: falsi positivi praticamente zero.
         path: "^src/modules/([^/]+)/internal/",
-        // Restrizione ulteriore: escludiamo i file nello stesso modulo.
-        // Nota: pathNot in "to" limita il matcher — non i falsi positivi.
-        // Per ora accettiamo che la regola copra cross-module: se due file dello stesso
-        // internal/ si importano a vicenda, depcruiser li risolve con percorso identico
-        // e non scatta la regola (dipende dalla versione). Monitorare.
+        // TODO (dep-cruiser >18): riportare la restrizione "cross-module" precisa
+        // quando la backreference tra `from` e `to` tornerà affidabile.
+        // Nel frattempo: se un modulo importa un proprio file `internal/` tramite un
+        // alias di path (es. `@/modules/m11-admin/internal/helper` invece del relativo
+        // `./helper`), dep-cruiser risolve l'alias e la regola scatta come falso
+        // positivo. Rimedio quando succede: aggiungere `pathNot` in `to` con il
+        // prefisso del modulo interessato, es.
+        //   `pathNot: ["^src/modules/m11-admin/internal/"]`.
       },
     },
-    // TODO: modules-must-expose-public — garantisce che gli import cross-modulo
-    // passino sempre da public.ts (non da altri file non-internal del modulo).
-    // La backreference $1 tra clausole from/to non è supportata in modo affidabile
-    // da dependency-cruiser. Rimandato a task successivo.
+    // TODO — `modules-must-expose-public` regola omessa in F0 perché richiederebbe
+    // la backreference `(?!$1)` tra `from` e `to`, non affidabile in dep-cruiser
+    // v18 (attualmente `dependency-cruiser ^18.2.0`). Alle versioni successive
+    // verificare: (a) supporto backreference cross-clause; (b) alternative come
+    // `useOnlyForFromAndTo`. Nel frattempo, la copertura è garantita dalle altre
+    // due regole `modules-internal-forbidden` e `cross-module-internal-forbidden`
+    // che catturano il caso critico (import di `internal/` dall'esterno del modulo).
     {
       name: "no-circular",
       severity: "error",
