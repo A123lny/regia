@@ -4,7 +4,7 @@ Progetto Next.js + TypeScript + Supabase. Vedi `../docs/capitolato.md`.
 
 ## Sviluppo locale
 
-Prerequisiti: Node ≥ 20, Docker Desktop in esecuzione, Supabase CLI ≥ 2.98.
+Prerequisiti: Node ≥ 20, Docker Desktop in esecuzione, Supabase CLI ≥ 2.116.
 
 ```bash
 # 1. Installa dipendenze
@@ -18,7 +18,7 @@ npx supabase db reset
 
 # 4. Copia .env.local.example in .env.local e riempi con i valori stampati da 'supabase start'
 cp .env.local.example .env.local
-# poi editalo: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+# poi editalo: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 
 # 5. Avvia Next.js
 npm run dev
