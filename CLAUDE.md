@@ -130,7 +130,7 @@ interruttore di arresto · injection sull'agente · tetti di spesa advertising.
 Regole:
 - Un modulo `Mn` importa da un altro `Mm` **solo** tramite `Mm/public.ts`. Verificato in CI (RS-1).
 - Ogni tabella nasce con `organization_id` (RN-87).
-- Ogni migrazione ha nome `YYYYMMDD_NNNNNN_verbo_soggetto.sql` ed è idempotente al primo `supabase db reset`.
+- Ogni migrazione ha nome `YYYYMMDDNNNNNN_verbo_soggetto.sql` (14 cifre continue: data + progressivo, es. `20260907000001_extensions.sql`). Idempotente al primo `supabase db reset`. Vincolo tecnico del Supabase CLI ≥2.116: la version key è tutto ciò che precede il primo `_`, quindi la data e il progressivo devono formare un blocco continuo.
 - I segreti stanno in `app/.env.local` (ignorato). Il template pubblico è `app/.env.local.example`.
 
 ## Diario

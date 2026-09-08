@@ -7,6 +7,9 @@ set -euo pipefail
 #   - Supabase locale avviato (npx supabase start) con le credenziali in .env.local
 # Ogni passo è indipendente ed esce a errore alla prima violazione.
 
+# Env vars sono caricati da dotenv-cli dentro `npm test` (script `test` in
+# package.json). Non fare `source .env.local` qui: causerebbe doppio caricamento
+# con dotenv-cli e potenziali conflitti (vedi Task 5 fix round).
 if [ ! -f .env.local ]; then
   echo "!! .env.local mancante. Copia .env.local.example e riempi." >&2
   exit 1
@@ -34,6 +37,10 @@ echo "==> 5/6  Migrazioni idempotenti (RS-8, supabase db reset)"
 # non è idempotente rispetto al reset o rompe lo schema, fallisce qui.
 # Il seed dati è incluso nella migrazione 000006: non serve un passo separato.
 # Nota: dopo il reset auth.users è svuotato; riesegui dev-create-owner.sh per ricreare l'Owner.
+# Nota: su Windows con Docker Desktop + Hyper-V, `supabase db reset` a caldo
+# subito dopo un reset precedente può fallire con timeout Docker (~1 min).
+# Rimedio: attendere 5-10 secondi e rieseguire `npm run ci`. Non riproducibile
+# su Linux nativo (GitHub Actions, F0-b).
 npx supabase db reset --no-seed >/dev/null
 
 echo "==> 6/6  Test invarianti + boundaries (Vitest)"
