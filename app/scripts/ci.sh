@@ -27,4 +27,8 @@ fi
 # I passi seguenti vengono aggiunti dai task successivi del piano F0:
 #   - Task 10: boundaries dependency-cruiser (RS-1)
 
+# Nota per lo sviluppatore: supabase db reset ha svuotato auth.users
+# durante la verifica migrazioni. Se vuoi rifare il login in locale,
+# esegui: bash scripts/dev-create-owner.sh
+
 echo "==> CI locale OK"

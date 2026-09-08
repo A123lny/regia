@@ -16,8 +16,9 @@ export default function LoginPage() {
         <button type="submit">Accedi</button>
       </form>
       <p style={{ marginTop: "1rem", fontSize: "0.9em", color: "#666" }}>
-        F0: nessun utente creato al primo avvio. Vedi <code>docs/runbook-backup.md</code> per la
-        procedura di creazione manuale del primo Owner nel DB locale.
+        F0: nessun utente creato al primo avvio. In sviluppo: crea il primo Owner con{" "}
+        <code>bash app/scripts/dev-create-owner.sh</code> (vedi header dello script per
+        credenziali).
       </p>
     </main>
   );
