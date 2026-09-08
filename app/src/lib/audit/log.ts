@@ -4,7 +4,7 @@
 // solo la disciplina di *cosa* si registra e in quale formato.
 
 import { getAdminClient } from "../db/admin";
-import type { AuditEventInput } from "./types";
+import type { AuditEventInput, ActorKind } from "./types";
 
 // Tipo row per l'inserimento — allineato alla tabella audit_events (migrazione _000005_).
 // In F1, quando verranno generati i tipi Supabase, questo tipo sarà sostituito
@@ -12,12 +12,20 @@ import type { AuditEventInput } from "./types";
 type AuditEventRow = {
   organization_id: string;
   actor_user_id: string | null;
-  actor_kind: string;
+  actor_kind: ActorKind;
   action: string;
   target: string | null;
   details: Record<string, unknown>;
 };
 
+/**
+ * Registra un evento nell'audit log (RF-11.3, append-only).
+ *
+ * Vincoli lato DB (verranno rifiutati con eccezione dal Postgres se violati):
+ * - `action`: 1..200 caratteri
+ * - `target`: 1..500 caratteri se presente
+ * - `organizationId`, `actorUserId`: UUID validi (o null per actorUserId)
+ */
 export async function logAuditEvent(input: AuditEventInput): Promise<void> {
   const admin = getAdminClient();
   const row: AuditEventRow = {

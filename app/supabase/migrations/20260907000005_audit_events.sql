@@ -27,6 +27,9 @@ create index audit_events_action_idx
 -- Blocco a livello DB di UPDATE e DELETE.
 -- Chiunque usi il service_role vede questi trigger scattare: nemmeno un errore
 -- in codice può cancellare la traccia.
+-- Nota: TRUNCATE non attiva i trigger per riga; il vincolo è UPDATE/DELETE.
+-- In produzione, TRUNCATE sarebbe eseguibile solo da un ruolo con privilegi
+-- elevati (mai anon/authenticated), quindi il rischio è trascurabile.
 create or replace function public.deny_audit_events_mutation()
 returns trigger language plpgsql as $$
 begin
@@ -50,3 +53,6 @@ comment on table public.audit_events is
 -- Le policy select per il pannello Owner (RF-11.3 lettura filtrabile) arriveranno in F1.
 alter table public.audit_events enable row level security;
 revoke insert, update, delete on public.audit_events from anon, authenticated;
+-- service_role conserva il grant DEFAULT da PUBLIC; qui lo rendiamo esplicito
+-- per proteggere logAuditEvent() da futuri "revoke all from public" di hardening.
+grant insert on public.audit_events to service_role;
