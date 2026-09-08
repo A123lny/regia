@@ -34,6 +34,23 @@
   --input: var(--border);
   --ring: var(--primary);
   --radius: 0.5rem;
+
+  /* Sidebar (mappata su surface + text della palette editoriale) */
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--surface-muted);
+  --sidebar-accent-foreground: var(--text);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--primary);
+
+  /* Chart (5 tinte dalla palette editoriale) */
+  --chart-1: var(--primary);
+  --chart-2: var(--secondary);
+  --chart-3: var(--warning);
+  --chart-4: var(--text-muted);
+  --chart-5: var(--border);
 }
 
 @theme inline {
