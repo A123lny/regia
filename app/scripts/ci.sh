@@ -10,6 +10,9 @@ npm run format:check
 echo "==> Typecheck (TypeScript strict)"
 npm run typecheck
 
+echo "==> Confini di modulo (RS-1, dependency-cruiser)"
+npx depcruise src --config .dependency-cruiser.cjs
+
 echo "==> Verifica migrazioni (supabase db reset)"
 # Applica tutte le migrazioni su un DB locale pulito. Se una migrazione
 # non è idempotente rispetto al reset o rompe lo schema, fallisce qui.
@@ -23,9 +26,6 @@ else
   echo "   Supabase locale non attivo — test saltati. Esegui 'npx supabase start' e ripeti."
   exit 1
 fi
-
-# I passi seguenti vengono aggiunti dai task successivi del piano F0:
-#   - Task 10: boundaries dependency-cruiser (RS-1)
 
 # Nota per lo sviluppatore: supabase db reset ha svuotato auth.users
 # durante la verifica migrazioni. Se vuoi rifare il login in locale,
