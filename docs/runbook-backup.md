@@ -13,6 +13,12 @@ Output: `app/backups/regia-YYYYMMDD-HHMMSS.sql`.
 La cartella `backups/` è ignorata da git (`.gitignore`).
 Il dump è prodotto da `docker exec supabase_db_app pg_dump` e include schema e dati dello schema `public`.
 
+> **Nota tecnica**: il backup usa `docker exec ... pg_dump` invece di
+> `npx supabase db dump --local` perché il CLI Supabase non produce dump
+> combinato schema+dati in un singolo file: le opzioni disponibili sono
+> soltanto schema-only (default) o `--data-only`. Il `pg_dump` nel container
+> genera invece un dump completo (DDL + `COPY`) in un unico passaggio.
+
 ## Ripristino locale
 
 **Attenzione: distruttivo. Solo su DB locale.**
@@ -59,7 +65,7 @@ LAST=$(ls -t backups/*.sql | head -1)
 
 # 4) Drop schema
 docker exec supabase_db_app psql -U postgres -d postgres \
-  -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+  -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"
 
 # 5) Verifica che non ci siano tabelle
 docker exec supabase_db_app psql -U postgres -d postgres \

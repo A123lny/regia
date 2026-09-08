@@ -5,6 +5,12 @@ set -euo pipefail
 # NON usare su altro che il DB locale.
 # Usa docker exec psql (il container supabase_db_app espone psql).
 
+# Container Supabase DB locale.
+# Nome derivato dal Supabase CLI: supabase_db_<projectId>.
+# Il projectId è definito in supabase/config.toml (campo [project].project_id;
+# di default = nome della directory del progetto). Se il projectId cambia,
+# aggiornare CONTAINER qui e in db-backup.sh (o viceversa).
+
 if [ $# -ne 1 ]; then
   echo "Uso: $0 <path-al-dump.sql>" >&2
   exit 2

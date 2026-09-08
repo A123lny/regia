@@ -19,6 +19,10 @@ nella tabella `auth.users` e il relativo profilo con ruolo `owner` in `public.us
 Per usare email o password diverse, modifica le variabili nel file oppure esegui
 manualmente:
 
+**Importante**: eseguire l'intero blocco a partire da `EMAIL=...` — il heredoc
+`<<SQL` interpola le variabili shell, quindi le assegnazioni all'inizio del
+blocco sono obbligatorie.
+
 ```bash
 cd app
 
