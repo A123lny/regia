@@ -25,7 +25,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav className="flex flex-col gap-1 px-3 py-4">
       {NAV.map((item) => {
-        const active = pathname.startsWith(item.href);
+        const active = pathname === item.href || pathname.startsWith(item.href + "/");
         const Icon = item.icon;
         return (
           <Link
