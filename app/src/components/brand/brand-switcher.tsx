@@ -15,7 +15,7 @@ import { BrandChip, type BrandSlug } from "@/components/brand/brand-chip";
 import { setBrandScope } from "@/lib/brand/scope";
 import { useTransition } from "react";
 
-type Brand = { slug: string; displayName: string };
+type Brand = { slug: BrandSlug; displayName: string };
 
 export function BrandSwitcher({ currentScope, brands }: { currentScope: string; brands: Brand[] }) {
   const [isPending, startTransition] = useTransition();
@@ -38,7 +38,7 @@ export function BrandSwitcher({ currentScope, brands }: { currentScope: string; 
         {brands.map((b) => (
           <SelectItem key={b.slug} value={b.slug}>
             <div className="flex items-center gap-2">
-              <BrandChip brand={b.slug as BrandSlug} />
+              <BrandChip brand={b.slug} />
             </div>
           </SelectItem>
         ))}
