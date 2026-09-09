@@ -31,3 +31,7 @@ npm run ci   # lint + typecheck + test + boundaries + migrate-check
 ```
 
 Non usare `git push` finché il cantiere non arriva a F0-b (cloud + GitHub).
+
+## Note sulle dipendenze
+
+- **`lucide-react` serie 1.x**: la libreria di icone Lucide ha migrato dalla serie 0.x alla 1.x nel 2026. La versione corrente (`^1.42.0`) è la `dist-tags.latest` sul registry npm ufficiale, con repository `lucide-icons/lucide.git`. Automated security scanner con knowledge cutoff pre-migrazione possono falsamente segnalare la 1.x come sospetta — vedi verifica `npm view lucide-react dist-tags` per l'evidenza.
