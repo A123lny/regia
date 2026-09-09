@@ -1,7 +1,7 @@
 // Chip colorato per marchio. Colori identità fissi (non da CSS vars — sono valori
 // del brand kit, non parte del tema). Riusato ovunque compare un marchio (RF-2.6).
 
-type BrandSlug = "lenny" | "stazione" | "eni-cafe" | "officina";
+export type BrandSlug = "lenny" | "stazione" | "eni-cafe" | "officina";
 
 const BRAND_META: Record<BrandSlug, { name: string; color: string }> = {
   lenny: { name: "Lenny", color: "#FF6B35" },
