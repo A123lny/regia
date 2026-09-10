@@ -46,13 +46,17 @@ async function safeCount(table: string, organizationId: string): Promise<number>
 
 async function getLastAuthEvent(organizationId: string): Promise<string | null> {
   const admin = getAdminClient();
-  const { data } = await admin
+  const { data, error } = await admin
     .from("audit_events")
     .select("created_at")
     .eq("organization_id", organizationId)
     .like("action", "auth.%")
     .order("created_at", { ascending: false })
     .limit(1);
+  if (error) {
+    if (error.code === "42P01" || error.code === "42703") return null;
+    throw error;
+  }
   const rows = data as Array<{ created_at: string }> | null;
   return rows?.[0]?.created_at ?? null;
 }
