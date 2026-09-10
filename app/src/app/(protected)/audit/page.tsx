@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { getRecentAuditEvents } from "@/modules/m11-admin/public";
 import {
@@ -34,6 +35,8 @@ export default async function AuditPage({
   searchParams: Promise<{ actor?: string }>;
 }) {
   const session = await getSessionOrRedirect();
+  if (session.role !== "owner") notFound(); // RU-1a: audit log solo owner
+
   const params = await searchParams;
   const actorFilter = params.actor;
 
