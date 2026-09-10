@@ -3,6 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+function safeDecodeError(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -16,7 +24,7 @@ export default async function LoginPage({
         <h1 className="mb-6 text-center font-serif text-3xl font-semibold text-text">Regìa</h1>
         {params.error && (
           <p className="mb-4 rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
-            {decodeURIComponent(params.error)}
+            {safeDecodeError(params.error)}
           </p>
         )}
         <form action={login} className="flex flex-col gap-4">
