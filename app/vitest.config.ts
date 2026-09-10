@@ -13,6 +13,9 @@ export default defineConfig({
     globals: true,
     include: ["tests/**/*.test.{ts,tsx}"],
     testTimeout: 15_000,
+    // I test invarianti condividono il DB locale: esecuzione sequenziale per
+    // evitare race condition (brand temporanei di un test visibili ad altri).
+    fileParallelism: false,
     environmentMatchGlobs: [
       ["tests/ui/**/*.test.tsx", "jsdom"],
       ["**/*.test.ts", "node"],
