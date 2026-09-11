@@ -8,13 +8,22 @@ import { type BrandSlug } from "@/components/brand/brand-chip";
 import { getBrandScope } from "@/lib/brand/scope";
 import { getAdminClient } from "@/lib/db/admin";
 
-export async function Header({ email, role }: { email: string; role: string }) {
+export async function Header({
+  email,
+  role,
+  organizationId,
+}: {
+  email: string;
+  role: string;
+  organizationId: string;
+}) {
   const scope = await getBrandScope();
   const admin = getAdminClient();
   // F0: no RLS select policy yet — bypass via service_role. Rimosso in F1.2 quando arrivano policy select.
   const { data: brandRows } = await admin
     .from("brands")
     .select("slug, display_name")
+    .eq("organization_id", organizationId)
     .order("display_name");
 
   const brands = (brandRows ?? []).map((b: { slug: string; display_name: string }) => ({

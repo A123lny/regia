@@ -11,7 +11,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   const email = userRow.user?.email ?? "utente@regia.local";
 
   return (
-    <AppShell email={email} role={session.role}>
+    <AppShell email={email} role={session.role} organizationId={session.organizationId}>
       {children}
     </AppShell>
   );

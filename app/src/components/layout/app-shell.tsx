@@ -8,14 +8,16 @@ export async function AppShell({
   children,
   email,
   role,
+  organizationId,
 }: {
   children: React.ReactNode;
   email: string;
   role: string;
+  organizationId: string;
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-bg">
-      <Header email={email} role={role} />
+      <Header email={email} role={role} organizationId={organizationId} />
       <div className="flex flex-1">
         <DesktopSidebar />
         <main className="flex-1 px-4 py-6 md:px-6 lg:mx-auto lg:max-w-6xl lg:px-8">{children}</main>

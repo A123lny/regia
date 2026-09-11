@@ -78,3 +78,12 @@ RN-87 (organization_id ovunque), RNF-1 (no segreti in repo), RU-3 (Owner con 2FA
 - 18 commit su `feature/cantiere-f0` (base 2162e6d).
 - Deliverables F0-locale completati: docs riordinati; Next.js+TS strict; Prettier + `npm run ci` (6 passi verdi); Supabase locale via CLI; modello dati organizations/brands/users_profile con invarianti in DB (RS-3); RLS baseline denial-by-default; adapter Supabase (RS-2); auth minimale con Owner+MFA predisposto; audit log append-only (RF-11.3) via trigger DB + helper logAuditEvent; RS-1 confini modulo con dependency-cruiser + primo modulo M11 come caso di test; backup+restore locali provati end-to-end (RQ-5, RNF-3); 4 file di test invarianti, 8 test PASS.
 - Prossimo: final whole-branch review + finishing-a-development-branch (merge in main + eventuale apertura F0-b col cloud + GitHub).
+
+## Final whole-branch review — 8 set 2026
+
+- Reviewer: opus. Verdict: **Ready to merge with 5 Important-tier fixes**. 0 Critical.
+- Findings I1..I5: env var names in README, versione Supabase CLI ≥2.116, middleware.ts SSR mancante (RS-6 gap), count "22 commit" errato, layout.tsx scaffold defaults.
+- Fix wave (commit 1f41423): tutti e 5 addressed in un unico commit. Middleware I3 risolto con option (a) — wrapper `lib/db/middleware.ts` preserva RS-2. Nessun weakening di dep-cruiser. Branch ora 19 commit.
+- Scoped re-review: tutti ADDRESSED, nessun new breakage.
+
+**BRANCH READY TO MERGE INTO main.** F0-locale completato.
