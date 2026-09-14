@@ -3,10 +3,11 @@
 // M02 Brand — server actions per editing brand kit (RF-2.3, RF-2.3a, RF-2.4, RF-2.5).
 // Ogni action:
 //   1. verifica session Owner (RU-1a role check duplicato dal layout per safety)
-//   2. valida input lato server
-//   3. usa getAdminClient() (RS-2) — bypassa RLS by design
-//   4. logga in audit_events (RF-11.3)
-//   5. revalidatePath della pagina marchio per aggiornare UI
+//   2. verifica che brandId appartenga all'organization della session (RN-87 — IDOR fix)
+//   3. valida input lato server
+//   4. usa getAdminClient() (RS-2) — bypassa RLS by design
+//   5. logga in audit_events (RF-11.3)
+//   6. revalidatePath della pagina marchio per aggiornare UI
 
 import { getAdminClient } from "@/lib/db/admin";
 import { getSessionOrRedirect } from "@/lib/auth/session";
@@ -22,6 +23,31 @@ async function requireOwner() {
   return session;
 }
 
+/**
+ * Verifica che il brandId appartenga all'organization della session (RN-87).
+ * Ritorna session + dati brand dal DB per uso downstream (slug, organization_id).
+ * Il client non può mentire sullo slug: viene derivato dal DB dopo verifica.
+ */
+async function requireOwnedBrand(brandId: string) {
+  const session = await requireOwner();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin
+    .from("brands")
+    .select("id, slug, organization_id")
+    .eq("id", brandId)
+    .maybeSingle();
+  if (error) throw new Error(`Errore verifica brand: ${error.message}`);
+  if (!data) throw new Error("Brand non trovato");
+  if (data.organization_id !== session.organizationId) {
+    throw new Error("Accesso negato al brand");
+  }
+  return {
+    session,
+    brand: data as { id: string; slug: string; organization_id: string },
+  };
+}
+
 function revalidateBrandPage(slug: string) {
   revalidatePath(`/marchi/${slug}`, "page");
 }
@@ -30,10 +56,9 @@ function revalidateBrandPage(slug: string) {
 
 export async function updateBrandKitTone(
   brandId: string,
-  brandSlug: string,
   toneOfVoice: string,
 ): Promise<void> {
-  const session = await requireOwner();
+  const { session, brand } = await requireOwnedBrand(brandId);
   if (toneOfVoice.length > 5000) {
     throw new Error("Tono di voce troppo lungo (max 5000 caratteri)");
   }
@@ -50,20 +75,19 @@ export async function updateBrandKitTone(
     actorUserId: session.userId,
     actorKind: "user",
     action: "brand_kit.tone_updated",
-    target: `brand:${brandSlug}`,
+    target: `brand:${brand.slug}`,
     details: { length: toneOfVoice.length },
   });
-  revalidateBrandPage(brandSlug);
+  revalidateBrandPage(brand.slug);
 }
 
 // ─── CONTESTO STRATEGICO (RF-2.3a) ─────────────────────────────────────────────
 
 export async function updateBrandKitContext(
   brandId: string,
-  brandSlug: string,
   payload: { purpose: string; yearGoal: string; direction: string },
 ): Promise<void> {
-  const session = await requireOwner();
+  const { session, brand } = await requireOwnedBrand(brandId);
   if (payload.purpose.length > 3000) throw new Error("Scopo/pubblico troppo lungo (max 3000)");
   if (payload.yearGoal.length > 3000) throw new Error("Obiettivo anno troppo lungo (max 3000)");
   if (payload.direction.length > 3000) throw new Error("Direzione futura troppo lunga (max 3000)");
@@ -86,19 +110,18 @@ export async function updateBrandKitContext(
     actorUserId: session.userId,
     actorKind: "user",
     action: "brand_kit.context_updated",
-    target: `brand:${brandSlug}`,
+    target: `brand:${brand.slug}`,
   });
-  revalidateBrandPage(brandSlug);
+  revalidateBrandPage(brand.slug);
 }
 
 // ─── RUBRICHE / PILLARS (RF-2.4) ───────────────────────────────────────────────
 
 export async function addBrandPillar(
   brandId: string,
-  brandSlug: string,
   payload: { name: string; weight: number },
 ): Promise<void> {
-  const session = await requireOwner();
+  const { session, brand } = await requireOwnedBrand(brandId);
   if (payload.name.length < 1 || payload.name.length > 100) {
     throw new Error("Nome rubrica non valido (1-100 caratteri)");
   }
@@ -130,19 +153,18 @@ export async function addBrandPillar(
     actorUserId: session.userId,
     actorKind: "user",
     action: "brand_kit.pillar_added",
-    target: `brand:${brandSlug}`,
+    target: `brand:${brand.slug}`,
     details: { name: payload.name, weight: payload.weight },
   });
-  revalidateBrandPage(brandSlug);
+  revalidateBrandPage(brand.slug);
 }
 
 export async function updateBrandPillar(
   brandId: string,
-  brandSlug: string,
   pillarId: string,
   payload: { name: string; weight: number },
 ): Promise<void> {
-  const session = await requireOwner();
+  const { session, brand } = await requireOwnedBrand(brandId);
   if (payload.weight < 1 || payload.weight > 10) throw new Error("Peso fuori range (1-10)");
   if (payload.name.length < 1 || payload.name.length > 100)
     throw new Error("Nome rubrica non valido");
@@ -161,18 +183,17 @@ export async function updateBrandPillar(
     actorUserId: session.userId,
     actorKind: "user",
     action: "brand_kit.pillar_updated",
-    target: `brand:${brandSlug}`,
+    target: `brand:${brand.slug}`,
     details: { pillarId, name: payload.name, weight: payload.weight },
   });
-  revalidateBrandPage(brandSlug);
+  revalidateBrandPage(brand.slug);
 }
 
 export async function removeBrandPillar(
   brandId: string,
-  brandSlug: string,
   pillarId: string,
 ): Promise<void> {
-  const session = await requireOwner();
+  const { session, brand } = await requireOwnedBrand(brandId);
   const admin = getAdminClient();
   const { error } = await admin
     .from("brand_pillars")
@@ -186,19 +207,18 @@ export async function removeBrandPillar(
     actorUserId: session.userId,
     actorKind: "user",
     action: "brand_kit.pillar_removed",
-    target: `brand:${brandSlug}`,
+    target: `brand:${brand.slug}`,
     details: { pillarId },
   });
-  revalidateBrandPage(brandSlug);
+  revalidateBrandPage(brand.slug);
 }
 
 export async function moveBrandPillar(
   brandId: string,
-  brandSlug: string,
   pillarId: string,
   direction: "up" | "down",
 ): Promise<void> {
-  const session = await requireOwner();
+  const { session, brand } = await requireOwnedBrand(brandId);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
 
@@ -234,20 +254,19 @@ export async function moveBrandPillar(
     actorUserId: session.userId,
     actorKind: "user",
     action: "brand_kit.pillar_moved",
-    target: `brand:${brandSlug}`,
+    target: `brand:${brand.slug}`,
     details: { pillarId, direction },
   });
-  revalidateBrandPage(brandSlug);
+  revalidateBrandPage(brand.slug);
 }
 
 // ─── PAROLE BANDITE (RF-2.5) ───────────────────────────────────────────────────
 
 export async function addBrandForbiddenWord(
   brandId: string,
-  brandSlug: string,
   word: string,
 ): Promise<void> {
-  const session = await requireOwner();
+  const { session, brand } = await requireOwnedBrand(brandId);
   const trimmed = word.trim();
   if (trimmed.length < 1 || trimmed.length > 100) {
     throw new Error("Parola non valida (1-100 caratteri)");
@@ -268,18 +287,17 @@ export async function addBrandForbiddenWord(
     actorUserId: session.userId,
     actorKind: "user",
     action: "brand_kit.forbidden_word_added",
-    target: `brand:${brandSlug}`,
+    target: `brand:${brand.slug}`,
     details: { word: trimmed },
   });
-  revalidateBrandPage(brandSlug);
+  revalidateBrandPage(brand.slug);
 }
 
 export async function removeBrandForbiddenWord(
   brandId: string,
-  brandSlug: string,
   wordId: string,
 ): Promise<void> {
-  const session = await requireOwner();
+  const { session, brand } = await requireOwnedBrand(brandId);
   const admin = getAdminClient();
   const { error } = await admin
     .from("brand_forbidden_words")
@@ -293,20 +311,19 @@ export async function removeBrandForbiddenWord(
     actorUserId: session.userId,
     actorKind: "user",
     action: "brand_kit.forbidden_word_removed",
-    target: `brand:${brandSlug}`,
+    target: `brand:${brand.slug}`,
     details: { wordId },
   });
-  revalidateBrandPage(brandSlug);
+  revalidateBrandPage(brand.slug);
 }
 
 // ─── ARGOMENTI SENSIBILI (RF-2.5) ──────────────────────────────────────────────
 
 export async function addBrandSensitiveTopic(
   brandId: string,
-  brandSlug: string,
   payload: { topic: string; kind: SensitiveTopicKind; note: string },
 ): Promise<void> {
-  const session = await requireOwner();
+  const { session, brand } = await requireOwnedBrand(brandId);
   const topic = payload.topic.trim();
   if (topic.length < 1 || topic.length > 200) {
     throw new Error("Argomento non valido (1-200 caratteri)");
@@ -332,19 +349,18 @@ export async function addBrandSensitiveTopic(
     actorUserId: session.userId,
     actorKind: "user",
     action: "brand_kit.sensitive_topic_added",
-    target: `brand:${brandSlug}`,
+    target: `brand:${brand.slug}`,
     details: { topic, kind: payload.kind },
   });
-  revalidateBrandPage(brandSlug);
+  revalidateBrandPage(brand.slug);
 }
 
 export async function updateBrandSensitiveTopicNote(
   brandId: string,
-  brandSlug: string,
   topicId: string,
   note: string,
 ): Promise<void> {
-  const session = await requireOwner();
+  const { session, brand } = await requireOwnedBrand(brandId);
   if (note.length > 500) throw new Error("Nota troppo lunga (max 500 caratteri)");
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -361,18 +377,17 @@ export async function updateBrandSensitiveTopicNote(
     actorUserId: session.userId,
     actorKind: "user",
     action: "brand_kit.sensitive_topic_note_updated",
-    target: `brand:${brandSlug}`,
+    target: `brand:${brand.slug}`,
     details: { topicId, noteLength: note.length },
   });
-  revalidateBrandPage(brandSlug);
+  revalidateBrandPage(brand.slug);
 }
 
 export async function removeBrandSensitiveTopic(
   brandId: string,
-  brandSlug: string,
   topicId: string,
 ): Promise<void> {
-  const session = await requireOwner();
+  const { session, brand } = await requireOwnedBrand(brandId);
   const admin = getAdminClient();
   const { error } = await admin
     .from("brand_sensitive_topics")
@@ -386,8 +401,8 @@ export async function removeBrandSensitiveTopic(
     actorUserId: session.userId,
     actorKind: "user",
     action: "brand_kit.sensitive_topic_removed",
-    target: `brand:${brandSlug}`,
+    target: `brand:${brand.slug}`,
     details: { topicId },
   });
-  revalidateBrandPage(brandSlug);
+  revalidateBrandPage(brand.slug);
 }
