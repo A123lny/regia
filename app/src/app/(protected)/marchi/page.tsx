@@ -44,8 +44,8 @@ export default async function MarchiPage() {
       <header>
         <h1 className="font-serif text-3xl font-semibold text-text">Marchi</h1>
         <p className="mt-1 text-sm text-text-muted">
-          I quattro marchi del gruppo (RF-2.1). Clicca un marchio per editarne il brand kit
-          (tono, contesto strategico, rubriche, vincoli redazionali).
+          I quattro marchi del gruppo (RF-2.1). Clicca un marchio per editarne il brand kit (tono,
+          contesto strategico, rubriche, vincoli redazionali).
         </p>
       </header>
 
@@ -74,9 +74,7 @@ export default async function MarchiPage() {
                   </Link>
                 </TableCell>
                 <TableCell>
-                  <code className="rounded bg-surface-muted px-1.5 py-0.5 text-xs">
-                    {b.slug}
-                  </code>
+                  <code className="rounded bg-surface-muted px-1.5 py-0.5 text-xs">{b.slug}</code>
                 </TableCell>
                 <TableCell className="text-text-muted">{formatDate(b.created_at)}</TableCell>
                 <TableCell>

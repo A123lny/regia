@@ -54,10 +54,7 @@ function revalidateBrandPage(slug: string) {
 
 // ─── TONO DI VOCE (RF-2.3) ─────────────────────────────────────────────────────
 
-export async function updateBrandKitTone(
-  brandId: string,
-  toneOfVoice: string,
-): Promise<void> {
+export async function updateBrandKitTone(brandId: string, toneOfVoice: string): Promise<void> {
   const { session, brand } = await requireOwnedBrand(brandId);
   if (toneOfVoice.length > 5000) {
     throw new Error("Tono di voce troppo lungo (max 5000 caratteri)");
@@ -138,7 +135,7 @@ export async function addBrandPillar(
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
-  const nextSort = (((maxRow as any)?.sort_order as number | undefined) ?? -1) + 1;
+  const nextSort = ((maxRow?.sort_order as number | undefined) ?? -1) + 1;
 
   const { error } = await admin.from("brand_pillars").insert({
     brand_id: brandId,
@@ -189,10 +186,7 @@ export async function updateBrandPillar(
   revalidateBrandPage(brand.slug);
 }
 
-export async function removeBrandPillar(
-  brandId: string,
-  pillarId: string,
-): Promise<void> {
+export async function removeBrandPillar(brandId: string, pillarId: string): Promise<void> {
   const { session, brand } = await requireOwnedBrand(brandId);
   const admin = getAdminClient();
   const { error } = await admin
@@ -262,10 +256,7 @@ export async function moveBrandPillar(
 
 // ─── PAROLE BANDITE (RF-2.5) ───────────────────────────────────────────────────
 
-export async function addBrandForbiddenWord(
-  brandId: string,
-  word: string,
-): Promise<void> {
+export async function addBrandForbiddenWord(brandId: string, word: string): Promise<void> {
   const { session, brand } = await requireOwnedBrand(brandId);
   const trimmed = word.trim();
   if (trimmed.length < 1 || trimmed.length > 100) {
@@ -293,10 +284,7 @@ export async function addBrandForbiddenWord(
   revalidateBrandPage(brand.slug);
 }
 
-export async function removeBrandForbiddenWord(
-  brandId: string,
-  wordId: string,
-): Promise<void> {
+export async function removeBrandForbiddenWord(brandId: string, wordId: string): Promise<void> {
   const { session, brand } = await requireOwnedBrand(brandId);
   const admin = getAdminClient();
   const { error } = await admin
@@ -383,10 +371,7 @@ export async function updateBrandSensitiveTopicNote(
   revalidateBrandPage(brand.slug);
 }
 
-export async function removeBrandSensitiveTopic(
-  brandId: string,
-  topicId: string,
-): Promise<void> {
+export async function removeBrandSensitiveTopic(brandId: string, topicId: string): Promise<void> {
   const { session, brand } = await requireOwnedBrand(brandId);
   const admin = getAdminClient();
   const { error } = await admin

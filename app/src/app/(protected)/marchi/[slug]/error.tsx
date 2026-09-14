@@ -2,13 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 
-export default function BrandKitError({
-  error,
-  reset,
-}: {
-  error: Error;
-  reset: () => void;
-}) {
+export default function BrandKitError({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="rounded-lg border border-danger/30 bg-danger/10 p-6">
       <h2 className="font-serif text-xl font-semibold text-danger">

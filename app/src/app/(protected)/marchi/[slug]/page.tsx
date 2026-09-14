@@ -8,13 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -57,11 +51,7 @@ function formatDate(iso: string): string {
   });
 }
 
-export default async function BrandKitPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function BrandKitPage({ params }: { params: Promise<{ slug: string }> }) {
   const session = await getSessionOrRedirect();
   if (session.role !== "owner") notFound(); // RU-1a
 
@@ -135,10 +125,7 @@ export default async function BrandKitPage({
               className="w-full"
             />
             <div className="mt-3 flex justify-end">
-              <Button
-                type="submit"
-                className="bg-primary text-white hover:bg-primary-hover"
-              >
+              <Button type="submit" className="bg-primary text-white hover:bg-primary-hover">
                 Salva tono
               </Button>
             </div>
@@ -197,10 +184,7 @@ export default async function BrandKitPage({
               </div>
             </div>
             <div className="mt-4 flex justify-end">
-              <Button
-                type="submit"
-                className="bg-primary text-white hover:bg-primary-hover"
-              >
+              <Button type="submit" className="bg-primary text-white hover:bg-primary-hover">
                 Salva contesto strategico
               </Button>
             </div>
@@ -440,8 +424,7 @@ export default async function BrandKitPage({
               "use server";
               const topic = String(formData.get("topic") ?? "");
               const kind = String(formData.get("kind") ?? "revisione_umana") as
-                | "claim_vietato"
-                | "revisione_umana";
+                "claim_vietato" | "revisione_umana";
               const note = String(formData.get("note") ?? "");
               await addBrandSensitiveTopic(brandId, { topic, kind, note });
             }}
@@ -490,8 +473,8 @@ export default async function BrandKitPage({
         <CardHeader>
           <CardTitle className="font-serif">Anteprima contesto per AI</CardTitle>
           <CardDescription>
-            Come l&apos;AI di M3 leggerà il brand kit di questo marchio quando genererà
-            contenuti (RF-2.3, RF-2.3a). Aggiornato in tempo reale.
+            Come l&apos;AI di M3 leggerà il brand kit di questo marchio quando genererà contenuti
+            (RF-2.3, RF-2.3a). Aggiornato in tempo reale.
           </CardDescription>
         </CardHeader>
         <CardContent>
