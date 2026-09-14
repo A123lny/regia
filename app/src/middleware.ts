@@ -2,6 +2,11 @@
 // Rinfresca la sessione cookie ad ogni navigazione — senza questo, il JWT scade dopo 1h
 // e l'utente viene disconnesso silenziosamente. Il client Supabase è creato tramite
 // lib/db/middleware.ts (RS-2: un solo punto di accesso per contesto di esecuzione).
+//
+// RF-12.1: best-effort auth refresh — il middleware NON deve mai bloccare una request.
+// Il login (server action React 19 come multipart/form-data) passa da qui: se getUser()
+// è lento o fallisce, il try/catch + timeout assicura che la response venga comunque
+// restituita. Se il token è davvero scaduto lo gestirà getSessionOrRedirect lato pagina.
 
 import type { NextRequest } from "next/server";
 import { getMiddlewareClient } from "@/lib/db/middleware";
@@ -13,7 +18,20 @@ export async function middleware(request: NextRequest) {
     // IMPORTANTE: usare getUser(), non getSession().
     // getSession() legge solo il cookie locale e non valida il token sul server.
     // getUser() chiama l'API Supabase e garantisce che il token sia valido e rinnovato.
-    await supabase.auth.getUser();
+    //
+    // Best-effort: timeout 2 s + catch silenzioso.
+    // Un errore qui NON deve impedire al server action o alla pagina di rispondere.
+    try {
+      await Promise.race([
+        supabase.auth.getUser(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("middleware auth timeout")), 2000),
+        ),
+      ]);
+    } catch {
+      // Silenzioso di proposito: middleware best-effort.
+      // Se il token è davvero scaduto, sarà getSessionOrRedirect a gestirlo lato pagina protetta.
+    }
   }
 
   return response;
