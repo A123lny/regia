@@ -13,4 +13,17 @@ export type {
 // Query (server components)
 export { getBrandKitWithLists, formatBrandContextForAI } from "./internal/brand-kit-repo";
 
-// Server actions arriveranno in Task 7.
+// Server actions (form submit)
+export {
+  updateBrandKitTone,
+  updateBrandKitContext,
+  addBrandPillar,
+  updateBrandPillar,
+  removeBrandPillar,
+  moveBrandPillar,
+  addBrandForbiddenWord,
+  removeBrandForbiddenWord,
+  addBrandSensitiveTopic,
+  updateBrandSensitiveTopicNote,
+  removeBrandSensitiveTopic,
+} from "./internal/brand-kit-actions";
