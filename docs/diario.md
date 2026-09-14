@@ -1,14 +1,22 @@
 # Diario di bordo — Regìa
 
-> Aggiornato: 8 settembre 2026 · Una pagina al massimo. Le voci vecchie si potano:
+> Aggiornato: 14 settembre 2026 · Una pagina al massimo. Le voci vecchie si potano:
 > la storia completa sta in git. Regole d'uso: vedi CLAUDE.md, sezione "Rito di sessione".
 
 ## Adesso
 
-- Nessun task di codice in corso. Prossima decisione: apertura F0-b (hosting applicazione, §15.A) oppure inizio F1 in locale (Data Hub, RF-1.x) usando il DB locale.
+- F1.1 chiuso. Prossima decisione: apertura F1.2 (M2 brand kit editabile) o altro sotto-cantiere di F1.
 
 ## Fatto
 
+- **14 set 2026 — F1.1 Layout UI + shell completato.**
+  - Base grafica editoriale calda: Tailwind v4 + shadcn/ui v4 + Fraunces (serif) + Geist (sans) + palette 11 CSS vars (crema, terracotta, salvia, ecc.) + 4 colori marchio come chip.
+  - 6 pagine navigabili: landing pubblica arricchita (hero + 4 marchi + 6 feature card), login card, dashboard M12 con 4 metric card + brand chips + card ambiente, marchi RO, audit log owner-only con filtro, impostazioni profilo + ambiente + logout.
+  - 2 moduli reali (m11-admin + m12-daily-use) — RS-1 verificato in CI con dep-cruiser.
+  - 16 test totali passing (organization scoping, brand uniqueness, audit append-only, dashboard stats, boundaries, brand-chip UI).
+  - Fix intermedi: middleware SSR best-effort con Promise.race + timeout 2s (sblocca server actions React 19 in Next 16 Turbopack); Header filtra brands per organization_id (IDOR fix); role check RU-1a su audit; safeDecodeError login.
+  - Commit range: `e200085..HEAD` su `feature/f1-1-layout-shell` (~23 commit inclusi 10 fix round).
+  - Prossimo sotto-cantiere: F1.2 = M2 brand kit editabile (editing colori/tono/parole bandite/contesto strategico per marchio).
 - **7–8 set 2026 — Cantiere F0 locale completato.**
   - Repo riordinato (`docs/`), scaffolding Next.js+TS strict in `app/`, Supabase locale via CLI, modello dati F0 (organizations, brands, users_profile, audit_events) con invarianti in DB (RS-3), audit log append-only (RF-11.3), adapter Supabase (RS-2), auth minimale con Owner+MFA predisposto (RU-1, RU-3), confini di modulo (RS-1) attivi in CI locale, migrazioni versionate (RS-8), backup+restore provati (RQ-5, RNF-3).
   - Un solo comando di verifica: `cd app && npm run ci` (lint + format + typecheck + boundaries + migrazioni + 8 test — tutto verde).
