@@ -79,7 +79,10 @@ export async function embedText(input: EmbedTextInput): Promise<EmbedTextResult>
   }
 
   if (!res.ok) {
-    throw new VoyageApiError(res.status, await res.text());
+    // Non incapsulare l'upstream body nel messaggio: se il corpo fosse loggato
+    // in aggregate log potrebbe contenere echo dell'input o dettagli interni.
+    // Il chiamante ha lo status per differenziare i casi (429, 5xx, ecc).
+    throw new VoyageApiError(res.status, `Voyage API error (HTTP ${res.status})`);
   }
 
   const json = (await res.json()) as {
