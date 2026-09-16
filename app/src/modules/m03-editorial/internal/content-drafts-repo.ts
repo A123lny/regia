@@ -4,11 +4,7 @@
 // non ancora generati — debito noto, task futuro F0-b).
 
 import { getAdminClient } from "@/lib/db/admin";
-import type {
-  ContentDraft,
-  ContentChannel,
-  ContentDraftStatus,
-} from "./content-drafts-types";
+import type { ContentDraft, ContentChannel, ContentDraftStatus } from "./content-drafts-types";
 
 // Row snake_case da DB → ContentDraft camelCase.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -137,10 +133,7 @@ export async function markRejected(input: MarkRejectedInput): Promise<void> {
     // Supabase JS: pgvector accetta string "[v1,v2,...]" o array puro.
     patch["rejection_reason_embedding"] = input.reasonEmbedding;
   }
-  const { error } = await admin
-    .from("content_drafts")
-    .update(patch)
-    .eq("id", input.draftId);
+  const { error } = await admin.from("content_drafts").update(patch).eq("id", input.draftId);
   if (error) throw new Error(`Errore rifiuto draft: ${error.message}`);
 }
 
