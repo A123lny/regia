@@ -13,8 +13,13 @@ cd app
 bash scripts/dev-create-owner.sh
 ```
 
-Lo script crea un utente con email `owner@regia.local` e password `owner-dev-2026`
+Lo script crea un utente con email `admin@admin.com` e password `admin123`
 nella tabella `auth.users` e il relativo profilo con ruolo `owner` in `public.users_profile`.
+
+**Nota**: queste credenziali sono **solo per lo sviluppo locale**. Sono
+volutamente triviali per ridurre attrito in dev. In produzione (F0-b/cloud)
+la password verrà impostata all'invito dell'utente dal pannello Supabase e
+NON deve mai essere `admin123` o simili.
 
 Per usare email o password diverse, modifica le variabili nel file oppure esegui
 manualmente:
@@ -26,8 +31,8 @@ blocco sono obbligatorie.
 ```bash
 cd app
 
-EMAIL="owner@regia.local"
-PASSWORD="owner-dev-2026"
+EMAIL="admin@admin.com"
+PASSWORD="admin123"
 
 docker exec -i supabase_db_app psql -U postgres -d postgres <<SQL
 INSERT INTO auth.users (

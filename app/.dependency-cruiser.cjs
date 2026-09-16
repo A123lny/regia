@@ -44,6 +44,9 @@ module.exports = {
         // positivo. Rimedio quando succede: aggiungere `pathNot` in `to` con il
         // prefisso del modulo interessato, es.
         //   `pathNot: ["^src/modules/m11-admin/internal/"]`.
+        // m02-brand: brand-kit-repo.ts importa brand-kit-types.ts con path relativo
+        // (./brand-kit-types), dep-cruiser risolve il percorso e scatta falso positivo.
+        pathNot: ["^src/modules/m02-brand/internal/"],
       },
     },
     // TODO — `modules-must-expose-public` regola omessa in F0 perché richiederebbe

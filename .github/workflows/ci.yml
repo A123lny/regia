@@ -43,7 +43,18 @@ jobs:
         run: npx supabase start
 
       - name: Get Supabase env
-        run: npx supabase status -o env > .env.local
+        run: |
+          npx supabase status -o env > .env.local
+          # supabase status -o env usa nomi diversi da quelli attesi dai test:
+          #   API_URL      → NEXT_PUBLIC_SUPABASE_URL
+          #   ANON_KEY     → NEXT_PUBLIC_SUPABASE_ANON_KEY
+          #   SERVICE_ROLE_KEY → SUPABASE_SERVICE_ROLE_KEY
+          API_URL=$(grep '^API_URL=' .env.local | cut -d= -f2- | tr -d '"')
+          ANON_KEY=$(grep '^ANON_KEY=' .env.local | cut -d= -f2- | tr -d '"')
+          SERVICE_ROLE_KEY=$(grep '^SERVICE_ROLE_KEY=' .env.local | cut -d= -f2- | tr -d '"')
+          echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}" >> .env.local
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}" >> .env.local
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}" >> .env.local
 
       - name: 1/6 Lint (ESLint)
         run: npm run lint

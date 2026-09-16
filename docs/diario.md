@@ -5,10 +5,26 @@
 
 ## Adesso
 
-- F1.1 chiuso. Prossima decisione: apertura F1.2 (M2 brand kit editabile) o altro sotto-cantiere di F1.
+- F1.2 chiuso. Prossima decisione: F1.3 utenti/permessi Editor per marchio (RU-1),
+  F1.4 Data Hub reale connettori gestionali (§15.A/B in carico al titolare),
+  oppure F1.5 M3 motore editoriale (usa brand kit di F1.2 come contesto AI).
 
 ## Fatto
 
+- **14 set 2026 — F1.2 M2 Brand kit editabile completato.**
+  - 4 nuove tabelle DB (brand_kits, brand_pillars, brand_forbidden_words, brand_sensitive_topics)
+    con RLS denial-by-default, FK cascade, unique/check constraints (RS-3).
+  - Seed iniziale dai contenuti del capitolato per i 4 marchi (tono, contesto strategico,
+    rubriche §7.2, parole bandite, argomenti sensibili tipo carburante Stazione).
+  - Nuovo modulo `m02-brand` (RS-1): `public.ts` con `getBrandKitWithLists`,
+    `formatBrandContextForAI` (pronto per M3), 11 server actions con audit log
+    (RF-11.3) e role check Owner.
+  - Route `/marchi/[slug]` con 6 card editing (tono, contesto strategico, rubriche,
+    parole bandite, argomenti sensibili, anteprima AI).
+  - 4 nuovi test invarianti (brand-kit-scoping cascade, uniqueness, pillar weight
+    range, sensitive topic kind enum). Test totali dopo F1.2: 30.
+  - Commit range: `dcfe500..HEAD` su `feature/f1-2-brand-kit` (~11 commit).
+  - Prossimo sotto-cantiere: F1.3 utenti/permessi Editor OR F1.5 M3 piano editoriale.
 - **14 set 2026 — F1.1 Layout UI + shell completato.**
   - Base grafica editoriale calda: Tailwind v4 + shadcn/ui v4 + Fraunces (serif) + Geist (sans) + palette 11 CSS vars (crema, terracotta, salvia, ecc.) + 4 colori marchio come chip.
   - 6 pagine navigabili: landing pubblica arricchita (hero + 4 marchi + 6 feature card), login card, dashboard M12 con 4 metric card + brand chips + card ambiente, marchi RO, audit log owner-only con filtro, impostazioni profilo + ambiente + logout.
