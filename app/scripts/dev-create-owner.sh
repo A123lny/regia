@@ -8,8 +8,8 @@
 #   bash scripts/dev-create-owner.sh
 #
 # Variabili di ambiente (opzionali — i default vanno bene per lo sviluppo locale):
-#   OWNER_DEV_EMAIL    (default: owner@regia.local)
-#   OWNER_DEV_PASSWORD (default: owner-dev-2026)
+#   OWNER_DEV_EMAIL    (default: admin@admin.com)
+#   OWNER_DEV_PASSWORD (default: admin123)
 #   SEED_ORG_ID        (default: 00000000-0000-0000-0000-000000000001)
 #   SUPABASE_URL       (default: http://127.0.0.1:54520)
 #   SERVICE_ROLE_KEY   (letto da .env.local se presente, altrimenti default locale)
@@ -24,8 +24,8 @@
 
 set -euo pipefail
 
-OWNER_DEV_EMAIL="${OWNER_DEV_EMAIL:-owner@regia.local}"
-OWNER_DEV_PASSWORD="${OWNER_DEV_PASSWORD:-owner-dev-2026}"
+OWNER_DEV_EMAIL="${OWNER_DEV_EMAIL:-admin@admin.com}"
+OWNER_DEV_PASSWORD="${OWNER_DEV_PASSWORD:-admin123}"
 SEED_ORG_ID="${SEED_ORG_ID:-00000000-0000-0000-0000-000000000001}"
 SUPABASE_URL="${SUPABASE_URL:-http://127.0.0.1:54520}"
 
