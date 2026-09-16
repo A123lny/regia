@@ -18,12 +18,10 @@ export {
   updateBrandKitTone,
   updateBrandKitContext,
   addBrandPillar,
-  updateBrandPillar,
   removeBrandPillar,
   moveBrandPillar,
   addBrandForbiddenWord,
   removeBrandForbiddenWord,
   addBrandSensitiveTopic,
-  updateBrandSensitiveTopicNote,
   removeBrandSensitiveTopic,
 } from "./internal/brand-kit-actions";

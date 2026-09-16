@@ -156,36 +156,6 @@ export async function addBrandPillar(
   revalidateBrandPage(brand.slug);
 }
 
-export async function updateBrandPillar(
-  brandId: string,
-  pillarId: string,
-  payload: { name: string; weight: number },
-): Promise<void> {
-  const { session, brand } = await requireOwnedBrand(brandId);
-  if (payload.weight < 1 || payload.weight > 10) throw new Error("Peso fuori range (1-10)");
-  if (payload.name.length < 1 || payload.name.length > 100)
-    throw new Error("Nome rubrica non valido");
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = getAdminClient() as any;
-  const { error } = await admin
-    .from("brand_pillars")
-    .update({ name: payload.name, weight: payload.weight })
-    .eq("id", pillarId)
-    .eq("brand_id", brandId);
-  if (error) throw new Error(`Errore aggiornamento rubrica: ${error.message}`);
-
-  await logAuditEvent({
-    organizationId: session.organizationId,
-    actorUserId: session.userId,
-    actorKind: "user",
-    action: "brand_kit.pillar_updated",
-    target: `brand:${brand.slug}`,
-    details: { pillarId, name: payload.name, weight: payload.weight },
-  });
-  revalidateBrandPage(brand.slug);
-}
-
 export async function removeBrandPillar(brandId: string, pillarId: string): Promise<void> {
   const { session, brand } = await requireOwnedBrand(brandId);
   const admin = getAdminClient();
@@ -339,34 +309,6 @@ export async function addBrandSensitiveTopic(
     action: "brand_kit.sensitive_topic_added",
     target: `brand:${brand.slug}`,
     details: { topic, kind: payload.kind },
-  });
-  revalidateBrandPage(brand.slug);
-}
-
-export async function updateBrandSensitiveTopicNote(
-  brandId: string,
-  topicId: string,
-  note: string,
-): Promise<void> {
-  const { session, brand } = await requireOwnedBrand(brandId);
-  if (note.length > 500) throw new Error("Nota troppo lunga (max 500 caratteri)");
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = getAdminClient() as any;
-  const { error } = await admin
-    .from("brand_sensitive_topics")
-    .update({ note })
-    .eq("id", topicId)
-    .eq("brand_id", brandId);
-  if (error) throw new Error(`Errore aggiornamento nota: ${error.message}`);
-
-  await logAuditEvent({
-    organizationId: session.organizationId,
-    actorUserId: session.userId,
-    actorKind: "user",
-    action: "brand_kit.sensitive_topic_note_updated",
-    target: `brand:${brand.slug}`,
-    details: { topicId, noteLength: note.length },
   });
   revalidateBrandPage(brand.slug);
 }
