@@ -63,7 +63,7 @@ export default async function BrandContentPage({ params }: { params: Promise<{ s
   const brandSlug = brandRow.slug as string;
   const displayName = brandRow.display_name as string;
 
-  const drafts = await listContentDraftsByBrand(brandId, 20);
+  const drafts = await listContentDraftsByBrand(brandId, session.organizationId, 20);
 
   return (
     <div className="space-y-6">

@@ -36,8 +36,13 @@ const SELECT_COLS =
   "prompt_version, model_used, tokens_in, tokens_out, cost_usd, latency_ms, " +
   "status, rejection_reason, created_by, created_at, approved_at, rejected_at";
 
+/**
+ * Tenant-scoped: filtra su organization_id per prevenire IDOR cross-tenant (RN-87).
+ * Coerente con getContentDraft.
+ */
 export async function listContentDraftsByBrand(
   brandId: string,
+  organizationId: string,
   limit: number = 20,
 ): Promise<ContentDraft[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,6 +51,7 @@ export async function listContentDraftsByBrand(
     .from("content_drafts")
     .select(SELECT_COLS)
     .eq("brand_id", brandId)
+    .eq("organization_id", organizationId)
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw new Error(`Errore lettura drafts: ${error.message}`);
