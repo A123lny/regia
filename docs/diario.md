@@ -1,16 +1,28 @@
 # Diario di bordo — Regìa
 
-> Aggiornato: 14 settembre 2026 · Una pagina al massimo. Le voci vecchie si potano:
+> Aggiornato: 17 settembre 2026 · Una pagina al massimo. Le voci vecchie si potano:
 > la storia completa sta in git. Regole d'uso: vedi CLAUDE.md, sezione "Rito di sessione".
 
 ## Adesso
 
-- F1.2 chiuso. Prossima decisione: F1.3 utenti/permessi Editor per marchio (RU-1),
-  F1.4 Data Hub reale connettori gestionali (§15.A/B in carico al titolare),
-  oppure F1.5 M3 motore editoriale (usa brand kit di F1.2 come contesto AI).
+- F1.5a chiuso. Motore editoriale generazione singola guidata funzionante end-to-end
+  (locale). Prossima decisione: F1.5b workflow stato completo + programmazione,
+  oppure F1.3 utenti Editor per marchio, oppure lavoro parallelo su F1.4 Data Hub
+  reale.
 
 ## Fatto
 
+- **16–17 set 2026 — F1.5a M3 Motore editoriale (generazione singola) completato.**
+  - Adapter AI (RS-2, unica porta per canale): `lib/ai/anthropic.ts` (Claude Sonnet 4.6, timeout 30s, pricing hardcoded) + `lib/ai/voyage.ts` (embeddings vector(512), timeout 15s).
+  - Modulo `m03-editorial` (RS-1) con `public.ts` che espone 3 types, 2 query, 3 server actions. Orchestrazione con brand kit di M02 + retrieval semantico rifiuti via pgvector (RF-3.8, HNSW cosine filtered).
+  - Injection guard XML marker `<owner-input>`/`<anti-pattern-recenti>` per input Owner e reason rifiuti (RA-8.7): 4 test unit dedicati con tentativi di tag-escape.
+  - 3 migrazioni DB: `content_drafts` (7 check, 3 FK, enum status) + embeddings vector(512) con constraint embedding-only-if-rejected + RLS denial-by-default; RPC `fetch_similar_rejections`.
+  - Route `/contenuti/*` (5 pagine, sidebar aggiornata): elenco marchi, lista drafts per brand con badge status, form generazione con anti-slot-machine rate limit 10s, dettaglio draft con approva/rifiuta con motivo obbligatorio 1-500 char (RF-3.8 dataset apprendimento).
+  - Server actions con `requireOwnedBrand`/`requireOwnedDraft` (RN-87, RU-1a Owner-only), audit `editorial.draft_*` per ogni generate/approve/reject (RF-11.3, RA-8.12), fallback Voyage down su reject (RNF-9).
+  - Fix cross-tenant IDOR: `getContentDraft` tenant-scoped al repo (previene bypass RLS via admin client anche per futuri caller); invariant test cross-org/same-org dedicato.
+  - 23 nuovi test in 9 file (7 invarianti DB + 1 boundaries m03 + 4 injection guard + 1 tenant-scoping IDOR). Totale test dopo F1.5a: **53** (era 30). CI locale verde 53/53 (lint + format + typecheck + boundaries + migrazioni + tutti i test).
+  - Commit range: `59c39ab..b3a862e` su `feature/f1-5a-editorial-engine` (14 commit inclusi 1 fix round IDOR).
+  - Prossimo sotto-cantiere: F1.5b (stato programmato/pubblicato/misurato + coda BullMQ RS-4), oppure F1.3 utenti Editor, oppure F1.4 Data Hub.
 - **14 set 2026 — F1.2 M2 Brand kit editabile completato.**
   - 4 nuove tabelle DB (brand_kits, brand_pillars, brand_forbidden_words, brand_sensitive_topics)
     con RLS denial-by-default, FK cascade, unique/check constraints (RS-3).
