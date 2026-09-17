@@ -19,9 +19,9 @@
   - 3 migrazioni DB: `content_drafts` (7 check, 3 FK, enum status) + embeddings vector(512) con constraint embedding-only-if-rejected + RLS denial-by-default; RPC `fetch_similar_rejections`.
   - Route `/contenuti/*` (5 pagine, sidebar aggiornata): elenco marchi, lista drafts per brand con badge status, form generazione con anti-slot-machine rate limit 10s, dettaglio draft con approva/rifiuta con motivo obbligatorio 1-500 char (RF-3.8 dataset apprendimento).
   - Server actions con `requireOwnedBrand`/`requireOwnedDraft` (RN-87, RU-1a Owner-only), audit `editorial.draft_*` per ogni generate/approve/reject (RF-11.3, RA-8.12), fallback Voyage down su reject (RNF-9).
-  - Fix cross-tenant IDOR: `getContentDraft` tenant-scoped al repo (previene bypass RLS via admin client anche per futuri caller); invariant test cross-org/same-org dedicato.
-  - 23 nuovi test in 9 file (7 invarianti DB + 1 boundaries m03 + 4 injection guard + 1 tenant-scoping IDOR). Totale test dopo F1.5a: **53** (era 30). CI locale verde 53/53 (lint + format + typecheck + boundaries + migrazioni + tutti i test).
-  - Commit range: `59c39ab..b3a862e` su `feature/f1-5a-editorial-engine` (14 commit inclusi 1 fix round IDOR).
+  - Fix cross-tenant IDOR estesi al repo per entrambe le query esposte: `getContentDraft` (T11 fix) e `listContentDraftsByBrand` (final review fix). Repo-layer defense = impossibile dimenticare per futuri caller. 2 invariant test cross-org/same-org dedicati.
+  - 25 nuovi test in 10 file (7 invarianti DB + 1 boundaries m03 + 4 injection guard + 2 tenant-scoping IDOR). Totale test dopo F1.5a: **55** (era 30). CI locale verde 55/55 (lint + format + typecheck + boundaries + migrazioni + tutti i test).
+  - Commit range: `59c39ab..8379d4b` su `feature/f1-5a-editorial-engine` (16 commit inclusi 2 fix round IDOR).
   - Prossimo sotto-cantiere: F1.5b (stato programmato/pubblicato/misurato + coda BullMQ RS-4), oppure F1.3 utenti Editor, oppure F1.4 Data Hub.
 - **14 set 2026 — F1.2 M2 Brand kit editabile completato.**
   - 4 nuove tabelle DB (brand_kits, brand_pillars, brand_forbidden_words, brand_sensitive_topics)
