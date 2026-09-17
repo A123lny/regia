@@ -8,7 +8,7 @@
 
 import { getBrandKitWithLists, formatBrandContextForAI } from "@/modules/m02-brand/public";
 import { generateText, AiTimeoutError, AiRateLimitError, AiApiError } from "@/lib/ai/anthropic";
-import { embedText, VoyageApiError, VoyageTimeoutError } from "@/lib/ai/voyage";
+import { embedText, VoyageApiError, VoyageTimeoutError, VoyageConfigError } from "@/lib/ai/voyage";
 import { loadPromptTemplate, interpolate } from "./prompt-loader";
 import {
   insertDraft,
@@ -104,14 +104,21 @@ export async function runGenerateSocialPost(
   const approvedExamples = await fetchRecentApprovedByBrand(input.brandId, 3);
 
   // 4. Embedding tema Owner per retrieval anti-pattern.
-  //    Fallback: se Voyage è down, procediamo senza anti-pattern (RNF-9).
+  //    Fallback RNF-9: se Voyage è down, non configurata, o l'embedding fallisce
+  //    per qualsiasi motivo "Voyage-related", procediamo senza anti-pattern.
+  //    Config missing (VOYAGE_API_KEY vuota) è un caso legittimo: F1.5a può
+  //    girare senza retrieval, che diventa utile solo con un corpus di rifiuti.
   let rejections: Array<{ themeInput: string; generatedText: string; rejectionReason: string }> =
     [];
   try {
     const emb = await embedText({ text: input.themeInput });
     rejections = await fetchSimilarRejectionsByBrand(input.brandId, emb.embedding, 3);
   } catch (err) {
-    if (err instanceof VoyageApiError || err instanceof VoyageTimeoutError) {
+    if (
+      err instanceof VoyageApiError ||
+      err instanceof VoyageTimeoutError ||
+      err instanceof VoyageConfigError
+    ) {
       console.warn(
         "[m03] Voyage embedding non disponibile, procedo senza anti-pattern:",
         (err as Error).message,
