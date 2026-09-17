@@ -12,7 +12,7 @@
 **Data:** 17 settembre 2026
 **Fase capitolato:** F1 (Data Hub, brand kit, generazione contenuti, coda approvazioni)
 **Dipende da:** F1.1 (layout+shell), F1.2 (brand kit — `m02-brand`), F1.5a (generazione singola — `m03-editorial`)
-**Sblocca:** F1.5b-β (coda BullMQ + scheduler worker), F1.5c (sessione RF-3.6 guidata + canali multipli), M5 (publish adapters reali)
+**Sblocca:** F1.5b-β (coda BullMQ + scheduler worker), F1.5c (sessione RF-3.6 guidata + canali multipli), M5 (publish adapters reali), F1.6 (configurazione runtime — edit chiavi AI + test connessione + tetti spesa)
 
 ---
 
@@ -28,6 +28,7 @@ Owner ha un content_draft in stato `approved` (F1.5a l'ha generato). Adesso vuol
 5. Click "Segna come pubblicato adesso" → badge grigio "Pubblicato il 17 set 13:42", nessun'altra azione possibile.
 6. `/audit` mostra 2 nuove voci: `editorial.draft_scheduled`, `editorial.draft_published` per il draft.
 7. Prova a rimprogrammare: bottone "Annulla programmazione" → draft torna in drawer come approvato.
+8. `/impostazioni` mostra card "Chiavi AI" con stato di `ANTHROPIC_API_KEY` e `VOYAGE_API_KEY` (`✅ configurata` con maschera parziale, oppure `❌ non configurata`). Read-only. Nessuna funzione di edit/test in questa fase (F1.6 dedicato).
 
 **Cosa NON fa F1.5b-α:**
 - Nessuna pubblicazione automatica su canali reali (M5 arriva dopo — richiede credenziali API social/email/WhatsApp).
@@ -90,6 +91,7 @@ F1.5b-α **estende `m03-editorial`**, non crea moduli nuovi. M5 (Publishing) res
   - `scheduled` → banner blu "Programmato per <data/ora>" + 2 form ("Annulla programmazione" → `unscheduleContentDraft`, "Segna come pubblicato adesso" → `markContentDraftPublished`)
   - `published` → banner grigio "Pubblicato il <data/ora>", nessuna azione
   - `draft` / `rejected` → immutato da F1.5a
+- `impostazioni/page.tsx` — aggiunge card "Chiavi AI" nella sezione Ambiente (read-only, mostra presenza e maschera parziale di `ANTHROPIC_API_KEY` e `VOYAGE_API_KEY` letti da `process.env` server-side; nessuna edit UI)
 
 **Zero nuovi moduli, zero nuove dipendenze di servizi esterni.** Solo 2 npm packages UI (`@dnd-kit/core`, `@dnd-kit/utilities`).
 
@@ -456,7 +458,41 @@ Sezione azioni riscritta con `switch(draft.status)`:
 
 Formattazione data/ora: helper esistente `formatDateTime(iso)` già usato per `createdAt`.
 
-### 6.9 Nessun test UI in F1.5b-α
+### 6.9 Estensione `impostazioni/page.tsx` — card "Chiavi AI" read-only
+
+**Motivazione:** durante il tour manuale F1.5a è emerso che l'Owner non ha modo di sapere se `ANTHROPIC_API_KEY` e `VOYAGE_API_KEY` sono configurate senza aprire il file `.env.local`. Piccola aggiunta con alto valore di feedback immediato.
+
+**Cosa aggiungiamo:** una card "Chiavi AI" nella sezione Ambiente esistente di `/impostazioni`. Sotto la card "Ambiente" (URL Supabase / versione / commit).
+
+**Formato UI:**
+```
+┌─ Chiavi AI ─────────────────────────────────────┐
+│ Anthropic API                                    │
+│   ✅ configurata  sk-ant-…abc12                  │
+│                                                  │
+│ Voyage AI (embeddings)                           │
+│   ❌ non configurata                             │
+│                                                  │
+│ La modifica delle chiavi avviene in app/.env.local  │
+│ (edit + riavvio dev server). UI di edit + test   │
+│ prevista in F1.6 configurazione runtime.         │
+└──────────────────────────────────────────────────┘
+```
+
+**Comportamento:**
+- Server-side only: le key sono lette da `process.env["ANTHROPIC_API_KEY"]` e `process.env["VOYAGE_API_KEY"]` nella RSC `impostazioni/page.tsx`. **Le key non arrivano mai al client**: la RSC calcola già il presente/assente e la maschera parziale, e passa al render solo booleano + stringa mascherata.
+- **Maschera parziale:** primi 8 caratteri + `…` + ultimi 4 (es. `sk-ant-a…abc12`). Se la key è più corta di 12 caratteri, mostra solo `configurata` senza maschera.
+- **Assente:** key vuota o non presente → mostra `❌ non configurata` senza maschera.
+
+**Cosa NON fa questa card in F1.5b-α:**
+- Nessun form di edit — F1.6 dedicato (richiede storage sicuro, encryption at rest, decisioni infrastrutturali)
+- Nessun bottone "Test connessione" — F1.6 (richiede endpoint helper backend)
+- Nessuna scadenza/quota mostrata — F1.6/M11 (richiede integrazione con billing API dei provider)
+- Nessun rotate — F1.6
+
+**Costo:** ~1-2 ore. Zero migrazioni DB, zero server actions, zero dipendenze nuove.
+
+### 6.10 Nessun test UI in F1.5b-α
 
 Coerente con F1.5a. La UI si valida nel tour manuale end-to-end. Se emergono edge case (es. sovrapposizioni card su cella affollata, click accidentale su bottone "Segna pubblicato"), aggiungiamo focused tests con vitest+@testing-library dopo.
 
@@ -515,6 +551,8 @@ Nessuno obbligatorio in F1.5b-α (pattern F1.5a). Copertura via tour manuale.
 
 Queste cose **NON entrano in F1.5b-α** e restano segnate per cantieri successivi:
 
+- **UI edit + test + rotate delle chiavi AI** (Anthropic, Voyage, e futuri provider) → **F1.6 configurazione runtime**. Include storage sicuro delle key (decisione Supabase Vault vs colonna encrypted), bottone "Test connessione", quote/scadenze, rotate policy. In F1.5b-α c'è solo card read-only per feedback immediato (§6.9).
+- **Tetti di spesa configurabili in UI** (RF-11.5) → **F1.6** insieme al punto sopra.
 - **Coda BullMQ + Redis** (RS-4, V-1 §9.2, RF-5.5) → **F1.5b-β**. Serve quando vogliamo scheduler worker autonomo che alla data programmata segni `published` (o chiami adapter M5). Richiede Redis (Upstash produzione, Docker locale).
 - **Publish adapter per canale reale** (M5, RF-5.1) → **F1.5c**. Facebook/Instagram Graph API, WhatsApp Business, email SMTP, ecc. Richiede credenziali fornitori.
 - **Vista sessione RF-3.6 guidata** — "Sessione di programmazione" dedicata che elenca approvati in attesa + suggerimenti orari + preview 14 gg → **F1.5c**.
@@ -539,5 +577,7 @@ Queste cose **NON entrano in F1.5b-α** e restano segnate per cantieri successiv
 **Naming/audit:** RN-87 (organization_id + requireOwnedDraft), RF-11.3 (audit event per ogni action).
 
 **Qualità/processo:** RQ-1 (ID nei commit), RQ-7 (definition of done: strict + lint + test + CI + push).
+
+**Osservabilità/config:** RNF-1 (nessun segreto nel repo — la card §6.9 mostra solo maschera parziale server-side, le chiavi vive restano in `.env.local` ignorato).
 
 **Vincoli progetto:** V-1 (semplicità), V-2 (2 sessioni/settimana da 30 min — informa la vista bisettimanale).
