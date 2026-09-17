@@ -5,13 +5,37 @@
 
 ## Adesso
 
-- F1.5a chiuso. Motore editoriale generazione singola guidata funzionante end-to-end
-  (locale). Prossima decisione: F1.5b workflow stato completo + programmazione,
-  oppure F1.3 utenti Editor per marchio, oppure lavoro parallelo su F1.4 Data Hub
-  reale.
+- F1.5a mergiato in `feature/f1-1-layout-shell` (commit `93d420e`) + hotfix RNF-9
+  su `runGenerateSocialPost` che catchava solo `VoyageApiError`/`VoyageTimeoutError`
+  ma non `VoyageConfigError` (senza chiave Voyage il flusso di generazione
+  esplodeva invece di degradare, come intende RNF-9). Fix `393323f` pushato,
+  CI 55/55.
+- **Tour manuale end-to-end di generazione: rimandato.** Bloccato da credito
+  Anthropic esaurito (chiave valida, modello `claude-sonnet-4-6` corretto,
+  API risponde 400 `Your credit balance is too low`). Owner locale + auth +
+  navigazione UI verificati funzionanti. Manca solo la parte AI reale
+  (generazione, approva, rifiuta, retrieval anti-pattern) che si sblocca
+  aggiungendo credito su console.anthropic.com.
+- Prossima decisione: (a) aggiungere credito e completare il tour F1.5a un
+  altro giorno, oppure (b) aprire il prossimo cantiere — F1.5b workflow stato
+  completo + programmazione, F1.3 utenti Editor per marchio, F1.4 Data Hub reale.
 
 ## Fatto
 
+- **17 set 2026 — Hotfix RNF-9 in F1.5a scoperto dal tour manuale.**
+  - Il catch in `runGenerateSocialPost` era troppo stretto: coglieva solo errori
+    API/timeout Voyage, ma la config missing (`VoyageConfigError`) veniva
+    propagata verso `error.tsx`, bloccando la generazione anche quando il resto
+    del sistema è a posto.
+  - Fix: import di `VoyageConfigError` + `instanceof` esteso. Commento aggiornato
+    per esplicitare che F1.5a può girare senza Voyage (retrieval anti-pattern
+    diventa utile solo con un corpus di rifiuti, non è day-1 critical).
+  - `actions.ts:rejectContentDraft` già catchava tutti gli errori (`catch (err)`
+    a maglie larghe), quindi nessun fix lì.
+  - Commit `393323f` su `feature/f1-1-layout-shell`, CI 55/55, push OK.
+  - Test dedicato non aggiunto: richiederebbe mocking di Anthropic+Supabase che
+    il progetto oggi non usa. Da valutare in F1.5b quando/se si aggiungono
+    infrastrutture di test unit-with-mocks.
 - **16–17 set 2026 — F1.5a M3 Motore editoriale (generazione singola) completato.**
   - Adapter AI (RS-2, unica porta per canale): `lib/ai/anthropic.ts` (Claude Sonnet 4.6, timeout 30s, pricing hardcoded) + `lib/ai/voyage.ts` (embeddings vector(512), timeout 15s).
   - Modulo `m03-editorial` (RS-1) con `public.ts` che espone 3 types, 2 query, 3 server actions. Orchestrazione con brand kit di M02 + retrieval semantico rifiuti via pgvector (RF-3.8, HNSW cosine filtered).
@@ -75,3 +99,5 @@
 - Il QR alla colonnina è **l'unica voce con scadenza di calendario** (picco di agosto).
 - La deroga RF-6.25 è **dormiente**: al lancio si implementa solo il Modello A.
 - **Hosting applicazione ancora aperto** (App Platform vs Droplet su DigitalOcean): decidere prima di aprire F0-b.
+- **Rotare la chiave Anthropic in `app/.env.local`** (finita nel transcript Claude Code del 17 set): console.anthropic.com → API Keys → rigenera → sostituisci nel file. Nessuna urgenza operativa, solo igiene.
+- **Aggiungere credito Anthropic** ($5 basta) prima di riprendere il tour manuale F1.5a.
