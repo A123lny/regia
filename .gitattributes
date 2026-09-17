@@ -1,0 +1,18 @@
+# Force LF line endings on checkout for all text files, regardless of platform.
+# Motivation: Prettier default endOfLine="lf" fails npm run format:check on
+# Windows checkouts when core.autocrlf=true (CRLF in working tree). Aligning
+# working tree with repo eliminates the drift.
+
+* text=auto eol=lf
+
+# Binary files: leave them alone.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.svg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
