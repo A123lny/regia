@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Tag, ScrollText, Settings, LogOut, Menu } from "lucide-react";
+import { Home, Tag, Sparkles, ScrollText, Settings, LogOut, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/app/(protected)/logout-action";
@@ -16,6 +16,7 @@ type NavItem = { href: string; label: string; icon: typeof Home };
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/marchi", label: "Marchi", icon: Tag },
+  { href: "/contenuti", label: "Contenuti", icon: Sparkles },
   { href: "/audit", label: "Audit log", icon: ScrollText },
   { href: "/impostazioni", label: "Impostazioni", icon: Settings },
 ];
