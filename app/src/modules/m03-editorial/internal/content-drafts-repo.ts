@@ -53,13 +53,21 @@ export async function listContentDraftsByBrand(
   return ((data ?? []) as any[]).map(rowToDraft);
 }
 
-export async function getContentDraft(draftId: string): Promise<ContentDraft | null> {
+/**
+ * Tenant-scoped: filtra su organization_id per prevenire IDOR cross-tenant.
+ * Restituisce null se il draft non esiste O appartiene a un'altra org.
+ */
+export async function getContentDraft(
+  draftId: string,
+  organizationId: string,
+): Promise<ContentDraft | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const { data, error } = await admin
     .from("content_drafts")
     .select(SELECT_COLS)
     .eq("id", draftId)
+    .eq("organization_id", organizationId)
     .maybeSingle();
   if (error) throw new Error(`Errore lettura draft: ${error.message}`);
   return data ? rowToDraft(data) : null;

@@ -43,7 +43,7 @@ export default async function DraftDetailPage({
   if (session.role !== "owner") notFound();
 
   const { slug, draftId } = await params;
-  const draft = await getContentDraft(draftId);
+  const draft = await getContentDraft(draftId, session.organizationId);
   if (!draft) notFound();
 
   return (
