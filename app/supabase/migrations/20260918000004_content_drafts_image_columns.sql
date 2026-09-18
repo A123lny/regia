@@ -65,6 +65,12 @@ USING (
   AND (storage.foldername(name))[1] = (
     SELECT organization_id::text FROM users_profile WHERE user_id = auth.uid()
   )
+)
+WITH CHECK (
+  bucket_id = 'content-media'
+  AND (storage.foldername(name))[1] = (
+    SELECT organization_id::text FROM users_profile WHERE user_id = auth.uid()
+  )
 );
 
 CREATE POLICY "content_media_org_owner_delete"
