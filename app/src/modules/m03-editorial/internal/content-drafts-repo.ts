@@ -28,13 +28,16 @@ function rowToDraft(row: any): ContentDraft {
     createdAt: row.created_at,
     approvedAt: row.approved_at ?? null,
     rejectedAt: row.rejected_at ?? null,
+    scheduledAt: row.scheduled_at ?? null,
+    publishedAt: row.published_at ?? null,
   };
 }
 
 const SELECT_COLS =
   "id, organization_id, brand_id, channel, theme_input, generated_text, " +
   "prompt_version, model_used, tokens_in, tokens_out, cost_usd, latency_ms, " +
-  "status, rejection_reason, created_by, created_at, approved_at, rejected_at";
+  "status, rejection_reason, created_by, created_at, approved_at, rejected_at, " +
+  "scheduled_at, published_at";
 
 /**
  * Tenant-scoped: filtra su organization_id per prevenire IDOR cross-tenant (RN-87).
