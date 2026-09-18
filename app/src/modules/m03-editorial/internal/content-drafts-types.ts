@@ -4,8 +4,9 @@
 export type ContentChannel = "social";
 // F1.5b+ estenderà con: "email", "whatsapp", "sms", "google".
 
-export type ContentDraftStatus = "draft" | "approved" | "rejected";
-// F1.5b aggiungerà: "scheduled", "published", "measured" (RF-3.5 workflow completo).
+export type ContentDraftStatus = "draft" | "approved" | "rejected" | "scheduled" | "published";
+// F1.5b-α aggiunge "scheduled" + "published" (RF-3.5 workflow).
+// F1.5c+ potrà aggiungere "measured" quando M9 sarà in linea.
 
 export type ContentDraft = {
   id: string;
@@ -26,4 +27,6 @@ export type ContentDraft = {
   createdAt: string; // ISO
   approvedAt: string | null;
   rejectedAt: string | null;
+  scheduledAt: string | null; // ISO — null se non programmato (F1.5b-α)
+  publishedAt: string | null; // ISO — null se non pubblicato (F1.5b-α)
 };
