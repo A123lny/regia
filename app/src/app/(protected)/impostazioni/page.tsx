@@ -37,8 +37,9 @@ function maskUrl(url: string): string {
 function maskApiKey(raw: string | undefined): { present: boolean; masked: string } {
   const key = (raw ?? "").trim();
   if (!key) return { present: false, masked: "" };
-  if (key.length < 12) return { present: true, masked: "configurata" };
-  return { present: true, masked: `${key.slice(0, 8)}…${key.slice(-4)}` };
+  // Non mostrare byte finali della key (fingerprint). Prefix (max 8 char) + lunghezza.
+  const prefix = key.slice(0, Math.min(8, key.length));
+  return { present: true, masked: `${prefix}… (${key.length} char)` };
 }
 
 export default async function ImpostazioniPage() {
@@ -142,52 +143,54 @@ export default async function ImpostazioniPage() {
         </CardContent>
       </Card>
 
-      {/* Sezione chiavi AI (read-only, RNF-1) */}
-      <Card className="border-border bg-surface">
-        <CardHeader>
-          <CardTitle className="font-serif text-xl">Chiavi AI</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
-              Anthropic API (Claude, generazione testi)
-            </span>
-            {anthropic.present ? (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-success">✅ configurata</span>
-                <code className="rounded bg-surface-muted px-2 py-1 text-xs text-text">
-                  {anthropic.masked}
-                </code>
-              </div>
-            ) : (
-              <span className="text-sm text-danger">❌ non configurata</span>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
-              Voyage AI (embeddings, retrieval anti-pattern)
-            </span>
-            {voyage.present ? (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-success">✅ configurata</span>
-                <code className="rounded bg-surface-muted px-2 py-1 text-xs text-text">
-                  {voyage.masked}
-                </code>
-              </div>
-            ) : (
-              <span className="text-sm text-danger">
-                ❌ non configurata (opzionale — F1.5a degrada senza)
+      {/* Sezione chiavi AI (read-only, RNF-1) — solo Owner (RU-1a) */}
+      {session.role === "owner" && (
+        <Card className="border-border bg-surface">
+          <CardHeader>
+            <CardTitle className="font-serif text-xl">Chiavi AI</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                Anthropic API (Claude, generazione testi)
               </span>
-            )}
-          </div>
+              {anthropic.present ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-success">✅ configurata</span>
+                  <code className="rounded bg-surface-muted px-2 py-1 text-xs text-text">
+                    {anthropic.masked}
+                  </code>
+                </div>
+              ) : (
+                <span className="text-sm text-danger">❌ non configurata</span>
+              )}
+            </div>
 
-          <p className="border-t border-border pt-3 text-xs text-text-muted">
-            La modifica delle chiavi avviene in <code>app/.env.local</code> (edit + riavvio dev
-            server). UI di edit + test connessione prevista in F1.6 configurazione runtime.
-          </p>
-        </CardContent>
-      </Card>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                Voyage AI (embeddings, retrieval anti-pattern)
+              </span>
+              {voyage.present ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-success">✅ configurata</span>
+                  <code className="rounded bg-surface-muted px-2 py-1 text-xs text-text">
+                    {voyage.masked}
+                  </code>
+                </div>
+              ) : (
+                <span className="text-sm text-danger">
+                  ❌ non configurata (opzionale — F1.5a degrada senza)
+                </span>
+              )}
+            </div>
+
+            <p className="border-t border-border pt-3 text-xs text-text-muted">
+              La modifica delle chiavi avviene in <code>app/.env.local</code> (edit + riavvio dev
+              server). UI di edit + test connessione prevista in F1.6 configurazione runtime.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Logout */}
       <div className="pt-2">
