@@ -220,3 +220,122 @@ export async function isRateLimited(
   const lastMs = new Date((data as { created_at: string }).created_at).getTime();
   return Date.now() - lastMs < minGapSeconds * 1000;
 }
+
+/**
+ * Tenant-scoped: passa status da 'approved' a 'scheduled' + set scheduled_at.
+ * Guardia contro race: filtra su status='approved', se il draft è già in altro
+ * stato ritorna null (0 righe update).
+ */
+export async function scheduleDraft(
+  draftId: string,
+  organizationId: string,
+  scheduledAtIso: string,
+): Promise<ContentDraft | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin
+    .from("content_drafts")
+    .update({ status: "scheduled", scheduled_at: scheduledAtIso })
+    .eq("id", draftId)
+    .eq("organization_id", organizationId)
+    .eq("status", "approved")
+    .select(SELECT_COLS)
+    .maybeSingle();
+  if (error) throw new Error(`Errore programmazione draft: ${error.message}`);
+  return data ? rowToDraft(data) : null;
+}
+
+/**
+ * Tenant-scoped: passa status da 'scheduled' a 'approved' + azzera scheduled_at.
+ * Guardia contro race: filtra su status='scheduled'.
+ */
+export async function unscheduleDraft(
+  draftId: string,
+  organizationId: string,
+): Promise<ContentDraft | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin
+    .from("content_drafts")
+    .update({ status: "approved", scheduled_at: null })
+    .eq("id", draftId)
+    .eq("organization_id", organizationId)
+    .eq("status", "scheduled")
+    .select(SELECT_COLS)
+    .maybeSingle();
+  if (error) throw new Error(`Errore annullamento programmazione: ${error.message}`);
+  return data ? rowToDraft(data) : null;
+}
+
+/**
+ * Tenant-scoped: passa status da 'scheduled' a 'published' + set published_at = now().
+ * published_at generato lato DB con now(). Guardia contro race: filtra su status='scheduled'.
+ */
+export async function markPublished(
+  draftId: string,
+  organizationId: string,
+): Promise<ContentDraft | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin
+    .from("content_drafts")
+    .update({ status: "published", published_at: new Date().toISOString() })
+    .eq("id", draftId)
+    .eq("organization_id", organizationId)
+    .eq("status", "scheduled")
+    .select(SELECT_COLS)
+    .maybeSingle();
+  if (error) throw new Error(`Errore marcatura pubblicato: ${error.message}`);
+  return data ? rowToDraft(data) : null;
+}
+
+/**
+ * Tenant-scoped: lista drafts scheduled+published del brand nel range [from, to).
+ * Usato dal calendario editoriale per popolare le celle 14gg.
+ */
+export async function listScheduledByBrandBetween(
+  brandId: string,
+  organizationId: string,
+  fromIsoInclusive: string,
+  toIsoExclusive: string,
+): Promise<ContentDraft[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin
+    .from("content_drafts")
+    .select(SELECT_COLS)
+    .eq("brand_id", brandId)
+    .eq("organization_id", organizationId)
+    .in("status", ["scheduled", "published"])
+    .gte("scheduled_at", fromIsoInclusive)
+    .lt("scheduled_at", toIsoExclusive)
+    .order("scheduled_at", { ascending: true });
+  if (error) throw new Error(`Errore lettura calendario: ${error.message}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map(rowToDraft);
+}
+
+/**
+ * Tenant-scoped: lista drafts in stato 'approved' e non ancora programmati (scheduled_at IS NULL).
+ * Usato dal drawer laterale del calendario.
+ */
+export async function listApprovedNotScheduledByBrand(
+  brandId: string,
+  organizationId: string,
+  limit: number = 50,
+): Promise<ContentDraft[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin
+    .from("content_drafts")
+    .select(SELECT_COLS)
+    .eq("brand_id", brandId)
+    .eq("organization_id", organizationId)
+    .eq("status", "approved")
+    .is("scheduled_at", null)
+    .order("approved_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`Errore lettura approvati in attesa: ${error.message}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map(rowToDraft);
+}

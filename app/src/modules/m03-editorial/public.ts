@@ -9,7 +9,12 @@ export type {
 } from "./internal/content-drafts-types";
 
 // Query (server components / RSC)
-export { listContentDraftsByBrand, getContentDraft } from "./internal/content-drafts-repo";
+export {
+  listContentDraftsByBrand,
+  getContentDraft,
+  listScheduledByBrandBetween,
+  listApprovedNotScheduledByBrand,
+} from "./internal/content-drafts-repo";
 
 // Server actions (form submit)
 export { generateSocialPost, approveContentDraft, rejectContentDraft } from "./internal/actions";
