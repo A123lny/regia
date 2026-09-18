@@ -10,7 +10,14 @@ import { getSessionOrRedirect } from "@/lib/auth/session";
 import { logAuditEvent } from "@/lib/audit/log";
 import { embedText } from "@/lib/ai/voyage";
 import { runGenerateSocialPost } from "./generate-social-post";
-import { markApproved, markRejected, isRateLimited } from "./content-drafts-repo";
+import {
+  markApproved,
+  markRejected,
+  isRateLimited,
+  scheduleDraft,
+  unscheduleDraft,
+  markPublished,
+} from "./content-drafts-repo";
 
 async function requireOwnedBrand(brandId: string) {
   const session = await getSessionOrRedirect();
@@ -183,4 +190,83 @@ export async function rejectContentDraft(draftId: string, reason: string): Promi
   });
 
   revalidatePath(`/contenuti/${brandSlug}`);
+}
+
+export async function scheduleContentDraft(draftId: string, scheduledAtIso: string): Promise<void> {
+  // 1. Validation server-side: data parsabile + strettamente futura.
+  const scheduledAt = new Date(scheduledAtIso);
+  if (Number.isNaN(scheduledAt.getTime())) {
+    throw new Error("Data di programmazione non valida");
+  }
+  if (scheduledAt.getTime() <= Date.now()) {
+    throw new Error("La data di pubblicazione deve essere nel futuro");
+  }
+
+  // 2. Auth + ownership + status guard
+  const { session, draft } = await requireOwnedDraft(draftId);
+  if (draft.status !== "approved") {
+    throw new Error(`Bozza in stato ${draft.status}, non programmabile`);
+  }
+
+  // 3. Repo
+  const brandSlug = await getBrandSlug(draft.brand_id);
+  await scheduleDraft(draftId, session.organizationId, scheduledAt.toISOString());
+
+  // 4. Audit (RF-11.3, RA-8.12)
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "editorial.draft_scheduled",
+    target: `brand:${brandSlug}`,
+    details: { draftId, scheduledAt: scheduledAt.toISOString() },
+  });
+
+  // 5. Revalidate lista + calendario
+  revalidatePath(`/contenuti/${brandSlug}`);
+  revalidatePath(`/contenuti/${brandSlug}/calendario`);
+}
+
+export async function unscheduleContentDraft(draftId: string): Promise<void> {
+  const { session, draft } = await requireOwnedDraft(draftId);
+  if (draft.status !== "scheduled") {
+    throw new Error(`Bozza in stato ${draft.status}, non annullabile`);
+  }
+
+  const brandSlug = await getBrandSlug(draft.brand_id);
+  await unscheduleDraft(draftId, session.organizationId);
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "editorial.draft_unscheduled",
+    target: `brand:${brandSlug}`,
+    details: { draftId },
+  });
+
+  revalidatePath(`/contenuti/${brandSlug}`);
+  revalidatePath(`/contenuti/${brandSlug}/calendario`);
+}
+
+export async function markContentDraftPublished(draftId: string): Promise<void> {
+  const { session, draft } = await requireOwnedDraft(draftId);
+  if (draft.status !== "scheduled") {
+    throw new Error(`Bozza in stato ${draft.status}, non pubblicabile`);
+  }
+
+  const brandSlug = await getBrandSlug(draft.brand_id);
+  const updated = await markPublished(draftId, session.organizationId);
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "editorial.draft_published",
+    target: `brand:${brandSlug}`,
+    details: { draftId, publishedAt: updated?.publishedAt ?? new Date().toISOString() },
+  });
+
+  revalidatePath(`/contenuti/${brandSlug}`);
+  revalidatePath(`/contenuti/${brandSlug}/calendario`);
 }

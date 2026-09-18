@@ -17,4 +17,11 @@ export {
 } from "./internal/content-drafts-repo";
 
 // Server actions (form submit)
-export { generateSocialPost, approveContentDraft, rejectContentDraft } from "./internal/actions";
+export {
+  generateSocialPost,
+  approveContentDraft,
+  rejectContentDraft,
+  scheduleContentDraft,
+  unscheduleContentDraft,
+  markContentDraftPublished,
+} from "./internal/actions";
