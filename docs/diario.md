@@ -1,27 +1,82 @@
 # Diario di bordo — Regìa
 
-> Aggiornato: 17 settembre 2026 · Una pagina al massimo. Le voci vecchie si potano:
+> Aggiornato: 18 settembre 2026 · Una pagina al massimo. Le voci vecchie si potano:
 > la storia completa sta in git. Regole d'uso: vedi CLAUDE.md, sezione "Rito di sessione".
 
 ## Adesso
 
-- F1.5a mergiato in `feature/f1-1-layout-shell` (commit `93d420e`) + hotfix RNF-9
-  su `runGenerateSocialPost` che catchava solo `VoyageApiError`/`VoyageTimeoutError`
-  ma non `VoyageConfigError` (senza chiave Voyage il flusso di generazione
-  esplodeva invece di degradare, come intende RNF-9). Fix `393323f` pushato,
-  CI 55/55.
-- **Tour manuale end-to-end di generazione: rimandato.** Bloccato da credito
-  Anthropic esaurito (chiave valida, modello `claude-sonnet-4-6` corretto,
-  API risponde 400 `Your credit balance is too low`). Owner locale + auth +
-  navigazione UI verificati funzionanti. Manca solo la parte AI reale
-  (generazione, approva, rifiuta, retrieval anti-pattern) che si sblocca
-  aggiungendo credito su console.anthropic.com.
-- Prossima decisione: (a) aggiungere credito e completare il tour F1.5a un
-  altro giorno, oppure (b) aprire il prossimo cantiere — F1.5b workflow stato
-  completo + programmazione, F1.3 utenti Editor per marchio, F1.4 Data Hub reale.
+- F1.5b-α chiuso su branch `feature/f1-5b-alpha-workflow-programmazione`, pronto
+  per merge in `feature/f1-1-layout-shell`. Workflow scheduled+published + calendario
+  bisettimanale con drag-and-drop + card impostazioni "Chiavi AI" read-only,
+  tutto verificato in locale (62 test verdi). Prossima decisione:
+  (a) F1.5b-β (coda BullMQ + scheduler, richiede Redis/Docker o Upstash),
+  (b) F1.5c (sessione RF-3.6 guidata + canali multipli),
+  (c) F1.6 (edit + test connessione chiavi AI + tetti spesa),
+  (d) F1.3 (utenti Editor),
+  (e) F1.4 (Data Hub reale),
+  (f) merge F1.5b-α ora e riprendere il tour manuale end-to-end di F1.5a+b una
+  volta ripristinato il credito Anthropic.
 
 ## Fatto
 
+- **18 set 2026 — F1.5b-α Workflow + calendario + programmazione manuale completato.**
+  - State machine `content_drafts` estesa con `scheduled` e `published` (RF-3.5,
+    coprendo il pezzo del workflow che F1.5a lasciava aperto). Transizioni:
+    approved→scheduled→published (terminale). Rewind approved←scheduled
+    possibile via "Annulla programmazione".
+  - 3 migrazioni DB: `20260918000001` enum extension (idempotente `ADD VALUE
+    IF NOT EXISTS`) + `20260918000002` 2 colonne timestamptz + 3 CHECK
+    constraint + index parziale + `20260918000003` hotfix biconditional
+    `approved_has_timestamp` (originale F1.5a bloccava transizione approved→
+    scheduled per contraddizione con `schedule_after_approve`; ampliato a
+    `(approved_at IS NOT NULL) = (status IN ('approved','scheduled','published'))`).
+  - 5 nuove funzioni repo (`scheduleDraft`/`unscheduleDraft`/`markPublished`
+    mutator con race guards; `listScheduledByBrandBetween` +
+    `listApprovedNotScheduledByBrand` query), tutte tenant-scoped (pattern IDOR
+    fix ripetuto per la quarta volta — impossibile dimenticare).
+  - 3 nuove server actions m03 con `requireOwnedDraft` + audit
+    `editorial.draft_scheduled|unscheduled|published` + revalidatePath lista +
+    calendario.
+  - Route `/contenuti/[slug]/calendario`: vista bisettimanale (14gg a rullo)
+    coerente con RF-3.6 doppia copertura e V-2 sessioni 30 min. Layout
+    responsive (1 col mobile, 2 col tablet, 7 col desktop). Drawer laterale
+    "Approvati in attesa" con card trascinabili via `@dnd-kit/core` (~30 KB,
+    accessible, mobile touch). Drop su cella futura programma per le 09:00
+    default; celle passate non droppable con feedback rosso.
+  - Estensione dettaglio draft: branching per status (approved→form datetime
+    picker, scheduled→banner blu + bottoni "Annulla"/"Segna pubblicato",
+    published→banner grigio terminale). `StatusBadge` a 5 stati applicato sia
+    a `[slug]/page.tsx` (lista) che a `[draftId]/page.tsx` (dettaglio) + link
+    "Calendario" nell'header lista.
+  - Card "Chiavi AI" read-only in `/impostazioni` (RNF-1 + RU-1a): status di
+    `ANTHROPIC_API_KEY` e `VOYAGE_API_KEY` letto server-side con maschera
+    parziale sicura (`prefix(8) + length`, senza fingerprint slice(-4) — hotfix
+    security post-review). Card gated al ruolo owner. Nessuna edit UI, zero
+    storage in DB — rimandato a F1.6.
+  - 7 nuovi test invarianti in 3 file (enum extended: 2, schedule invariants
+    CHECK: 3, scheduled tenant scoping IDOR: 2). Totale test dopo F1.5b-α:
+    **62** (era 55). CI locale verde 62/62.
+  - 2 nuove dep npm: `@dnd-kit/core@6.3.1` + `@dnd-kit/utilities@3.2.2` (UI
+    libraries, non SDK di servizi — RS-2 rispettato).
+  - Commit range: `ddbfcbf..HEAD` (~15 commit) su
+    `feature/f1-5b-alpha-workflow-programmazione`.
+  - Rulings prese durante il cantiere (ledger completo in
+    `.superpowers/sdd/2026-09-18-f1-5b-alpha-workflow-programmazione/progress.md`):
+    P1 test enum-extended riscritto in indirect (colonne T3 non ancora presenti);
+    P2 migrazione 000003 correttiva biconditional approved_has_timestamp
+    (plan defect emerso in implementazione);
+    P3 docstring `markPublished` fuori sync con codice (published_at
+    client-side vs "lato DB", zero impatto runtime — parked);
+    P4 minAttr in schedule-form computato al mount (protetto da server-side
+    validation, parked);
+    P5 auto security review MEDIUM su impostazioni: role gate + rimozione
+    slice(-4) fingerprint = hotfix commit a2bb652;
+    P6 approved-drawer link a /nuovo (plan-drift-vs-spec fissato in fix round);
+    P7 timezone assumption sameLocalDate (progetto UTC+1/+2, parked);
+    P8 loading skeleton semplificato (YAGNI, parked).
+  - Prossimo sotto-cantiere: F1.5b-β (stato programmato/pubblicato/misurato +
+    coda BullMQ RS-4), oppure F1.6 (edit chiavi + tetti spesa), oppure F1.3
+    (utenti Editor).
 - **17 set 2026 — Hotfix RNF-9 in F1.5a scoperto dal tour manuale.**
   - Il catch in `runGenerateSocialPost` era troppo stretto: coglieva solo errori
     API/timeout Voyage, ma la config missing (`VoyageConfigError`) veniva
