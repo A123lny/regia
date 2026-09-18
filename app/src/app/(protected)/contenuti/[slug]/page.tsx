@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles, Calendar } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { getAdminClient } from "@/lib/db/admin";
 import { BrandChip } from "@/components/brand/brand-chip";
@@ -39,6 +39,18 @@ function StatusBadge({ status }: { status: ContentDraftStatus }) {
   }
   if (status === "rejected") {
     return <Badge className="border border-danger/30 bg-danger/15 text-danger">Rifiutato</Badge>;
+  }
+  if (status === "scheduled") {
+    return (
+      <Badge className="border border-primary/30 bg-primary/10 text-primary">Programmato</Badge>
+    );
+  }
+  if (status === "published") {
+    return (
+      <Badge className="border border-text-muted/30 bg-text-muted/10 text-text-muted">
+        Pubblicato
+      </Badge>
+    );
   }
   return <Badge className="border border-border bg-surface-muted text-text-muted">Bozza</Badge>;
 }
@@ -79,11 +91,18 @@ export default async function BrandContentPage({ params }: { params: Promise<{ s
             <BrandChip brand={brandSlug as BrandSlug} />
             <h1 className="font-serif text-3xl font-semibold text-text">{displayName}</h1>
           </div>
-          <Link href={`/contenuti/${brandSlug}/nuovo`}>
-            <Button className="bg-primary text-white hover:bg-primary-hover">
-              <Sparkles className="mr-2 h-4 w-4" /> Nuovo contenuto
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href={`/contenuti/${brandSlug}/calendario`}>
+              <Button variant="outline">
+                <Calendar className="mr-2 h-4 w-4" /> Calendario
+              </Button>
+            </Link>
+            <Link href={`/contenuti/${brandSlug}/nuovo`}>
+              <Button className="bg-primary text-white hover:bg-primary-hover">
+                <Sparkles className="mr-2 h-4 w-4" /> Nuovo contenuto
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
