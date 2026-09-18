@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { scheduleContentDraft } from "@/modules/m03-editorial/public";
 import type { ContentDraft } from "@/modules/m03-editorial/public";
@@ -17,9 +18,11 @@ type Props = {
 export function CalendarClient({ brandSlug, startDateIso, scheduled, approved }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const router = useRouter();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   async function onDragEnd(ev: DragEndEvent) {
+    if (busy) return; // Ignora drop consecutivi mentre la scheduleContentDraft precedente è ancora in volo.
     setError(null);
     if (!ev.over) return;
     const draftId = String(ev.active.id);
@@ -39,9 +42,9 @@ export function CalendarClient({ brandSlug, startDateIso, scheduled, approved }:
     setBusy(true);
     try {
       await scheduleContentDraft(draftId, target.toISOString());
-      // revalidatePath dentro l'action — la RSC parent viene rirenderizzata al successivo navigate.
-      // Per feedback immediato in questa vista, ricarichiamo la pagina.
-      window.location.reload();
+      // revalidatePath dentro l'action — la RSC parent viene rirenderizzata.
+      // router.refresh() richiede il re-fetch dei Server Components senza full reload (RS-6).
+      router.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {

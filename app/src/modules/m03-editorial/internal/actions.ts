@@ -210,7 +210,11 @@ export async function scheduleContentDraft(draftId: string, scheduledAtIso: stri
 
   // 3. Repo
   const brandSlug = await getBrandSlug(draft.brand_id);
-  await scheduleDraft(draftId, session.organizationId, scheduledAt.toISOString());
+  const updated = await scheduleDraft(draftId, session.organizationId, scheduledAt.toISOString());
+  if (!updated) {
+    // Race con concurrent unschedule/publish: la state guard .eq("status","approved") non ha matchato.
+    throw new Error("Bozza modificata da un'altra sessione. Ricarica e riprova.");
+  }
 
   // 4. Audit (RF-11.3, RA-8.12)
   await logAuditEvent({
@@ -234,7 +238,11 @@ export async function unscheduleContentDraft(draftId: string): Promise<void> {
   }
 
   const brandSlug = await getBrandSlug(draft.brand_id);
-  await unscheduleDraft(draftId, session.organizationId);
+  const unscheduled = await unscheduleDraft(draftId, session.organizationId);
+  if (!unscheduled) {
+    // Race con concurrent publish: la state guard .eq("status","scheduled") non ha matchato.
+    throw new Error("Bozza modificata da un'altra sessione. Ricarica e riprova.");
+  }
 
   await logAuditEvent({
     organizationId: session.organizationId,
@@ -256,7 +264,11 @@ export async function markContentDraftPublished(draftId: string): Promise<void> 
   }
 
   const brandSlug = await getBrandSlug(draft.brand_id);
-  const updated = await markPublished(draftId, session.organizationId);
+  const published = await markPublished(draftId, session.organizationId);
+  if (!published) {
+    // Race con concurrent unschedule: la state guard .eq("status","scheduled") non ha matchato.
+    throw new Error("Bozza modificata da un'altra sessione. Ricarica e riprova.");
+  }
 
   await logAuditEvent({
     organizationId: session.organizationId,
@@ -264,7 +276,7 @@ export async function markContentDraftPublished(draftId: string): Promise<void> 
     actorKind: "user",
     action: "editorial.draft_published",
     target: `brand:${brandSlug}`,
-    details: { draftId, publishedAt: updated?.publishedAt ?? new Date().toISOString() },
+    details: { draftId, publishedAt: published.publishedAt },
   });
 
   revalidatePath(`/contenuti/${brandSlug}`);
