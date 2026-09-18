@@ -11,8 +11,11 @@ import {
   getContentDraft,
   approveContentDraft,
   rejectContentDraft,
+  unscheduleContentDraft,
+  markContentDraftPublished,
 } from "@/modules/m03-editorial/public";
 import type { ContentDraftStatus } from "@/modules/m03-editorial/public";
+import { ScheduleDraftForm } from "./schedule-form";
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("it-IT", {
@@ -30,6 +33,18 @@ function StatusBadge({ status }: { status: ContentDraftStatus }) {
   }
   if (status === "rejected") {
     return <Badge className="border border-danger/30 bg-danger/15 text-danger">Rifiutato</Badge>;
+  }
+  if (status === "scheduled") {
+    return (
+      <Badge className="border border-primary/30 bg-primary/10 text-primary">Programmato</Badge>
+    );
+  }
+  if (status === "published") {
+    return (
+      <Badge className="border border-text-muted/30 bg-text-muted/10 text-text-muted">
+        Pubblicato
+      </Badge>
+    );
   }
   return <Badge className="border border-border bg-surface-muted text-text-muted">Bozza</Badge>;
 }
@@ -121,10 +136,41 @@ export default async function DraftDetailPage({
         </div>
       )}
 
+      {draft.status === "approved" && <ScheduleDraftForm draftId={draft.id} />}
+
+      {draft.status === "scheduled" && draft.scheduledAt && (
+        <div className="space-y-3">
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
+            <strong>Programmato</strong> per {formatDateTime(draft.scheduledAt)}. Il sistema non
+            pubblica automaticamente in F1.5b-α: quando avrai pubblicato manualmente sul canale,
+            torna qui e clicca &quot;Segna come pubblicato&quot;.
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <form action={unscheduleContentDraft.bind(null, draft.id)} className="flex-1">
+              <Button type="submit" variant="outline" className="w-full">
+                Annulla programmazione
+              </Button>
+            </form>
+            <form action={markContentDraftPublished.bind(null, draft.id)} className="flex-1">
+              <Button type="submit" className="w-full bg-primary text-white hover:bg-primary-hover">
+                <Check className="mr-2 h-4 w-4" /> Segna come pubblicato adesso
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {draft.status === "approved" && draft.approvedAt && (
-        <div className="rounded-lg border border-success/30 bg-success/10 p-4 text-sm">
-          <strong>Approvato</strong> il {formatDateTime(draft.approvedAt)}. Sarà pubblicabile quando
-          M5 publishing sarà disponibile (F2).
+        <div className="rounded-lg border border-success/30 bg-success/10 p-3 text-xs text-text-muted">
+          Approvato il {formatDateTime(draft.approvedAt)}. Programmalo con il form sopra per farlo
+          apparire nel calendario editoriale.
+        </div>
+      )}
+
+      {draft.status === "published" && draft.publishedAt && (
+        <div className="rounded-lg border border-text-muted/30 bg-text-muted/10 p-4 text-sm">
+          <strong>Pubblicato</strong> il {formatDateTime(draft.publishedAt)}. Nessuna altra azione
+          disponibile su questo contenuto.
         </div>
       )}
 
