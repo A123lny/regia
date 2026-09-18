@@ -58,7 +58,7 @@
     **62** (era 55). CI locale verde 62/62.
   - 2 nuove dep npm: `@dnd-kit/core@6.3.1` + `@dnd-kit/utilities@3.2.2` (UI
     libraries, non SDK di servizi — RS-2 rispettato).
-  - Commit range: `ddbfcbf..HEAD` (~15 commit) su
+  - Commit range: `ddbfcbf..da9abf7` (16 commit inclusi 2 fix round IDOR/plan-defect + 1 security hotfix + 1 final fix wave) su
     `feature/f1-5b-alpha-workflow-programmazione`.
   - Rulings prese durante il cantiere (ledger completo in
     `.superpowers/sdd/2026-09-18-f1-5b-alpha-workflow-programmazione/progress.md`):
