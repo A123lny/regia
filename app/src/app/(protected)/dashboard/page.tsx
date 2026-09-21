@@ -106,17 +106,18 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {/* METRICS — 4 card con icona colorata + numero grande in Bricolage */}
+      {/* METRICS — 4 card con icona colorata + numero grande in Bricolage + stagger fade-in */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {metrics.map((m) => {
+        {metrics.map((m, i) => {
           const Icon = m.icon;
           return (
             <div
               key={m.label}
-              className="group relative overflow-hidden rounded-xl border border-border bg-surface p-5 transition-all hover:border-primary/30 hover:shadow-md"
+              className="group relative animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards overflow-hidden rounded-xl border border-border bg-surface p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg duration-500"
+              style={{ animationDelay: `${i * 80}ms` }}
             >
               <div
-                className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg"
+                className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6"
                 style={{ backgroundColor: `${m.color}15`, color: m.color }}
               >
                 <Icon className="h-5 w-5" />
@@ -139,30 +140,37 @@ export default async function DashboardPage() {
         })}
       </div>
 
-      {/* BRAND CARDS — 4 card grandi, colorate, con nome brand in Bricolage */}
+      {/* BRAND CARDS — 4 card grandi colorate + stagger zoom-in + hover lift + parallax ornamenti */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.going.brands.map((b) => {
+        {stats.going.brands.map((b, i) => {
           const slug = b.slug as BrandSlug;
           const color = BRAND_COLOR[slug];
           const name = BRAND_NAME[slug];
           return (
             <div
               key={b.slug}
-              className="relative overflow-hidden rounded-xl p-6 shadow-sm transition-transform hover:-translate-y-0.5"
-              style={{ backgroundColor: color }}
+              className="group relative animate-in fade-in zoom-in-95 fill-mode-backwards overflow-hidden rounded-xl p-6 shadow-sm transition-all duration-500 hover:-translate-y-1.5 hover:shadow-2xl"
+              style={{
+                backgroundColor: color,
+                animationDelay: `${400 + i * 100}ms`,
+                animationDuration: "600ms",
+              }}
             >
-              {/* Ornamento circolare bianco sfumato in alto a destra */}
+              {/* Ornamenti animati: espansione al hover */}
               <div
-                className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/15"
+                className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/15 transition-transform duration-700 ease-out group-hover:scale-150"
                 aria-hidden="true"
               />
-              <div className="absolute -bottom-6 -left-6 h-20 w-20 rounded-full bg-black/10" aria-hidden="true" />
+              <div
+                className="absolute -bottom-6 -left-6 h-20 w-20 rounded-full bg-black/10 transition-transform duration-700 ease-out group-hover:scale-125"
+                aria-hidden="true"
+              />
               <div className="relative">
-                <div className="mb-8 text-xs font-medium uppercase tracking-widest text-white/70">
+                <div className="mb-8 text-xs font-medium uppercase tracking-widest text-white/70 transition-opacity duration-300 group-hover:text-white/90">
                   Marchio
                 </div>
                 <h3
-                  className="text-3xl font-extrabold uppercase tracking-wide text-white"
+                  className="text-3xl font-extrabold uppercase tracking-wide text-white transition-transform duration-300 group-hover:translate-x-1"
                   style={{ fontFamily: "var(--font-bricolage)" }}
                 >
                   {name}
