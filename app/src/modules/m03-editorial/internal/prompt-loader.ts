@@ -7,7 +7,7 @@ import { join } from "node:path";
 
 const cache = new Map<string, string>();
 
-export function loadPromptTemplate(name: "social-post"): string {
+export function loadPromptTemplate(name: "social-post" | "image-prompt"): string {
   const cached = cache.get(name);
   if (cached) return cached;
 
