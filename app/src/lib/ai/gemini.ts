@@ -54,13 +54,14 @@ export class GeminiRateLimitError extends Error {
 }
 
 const TIMEOUT_MS = 20_000;
-const DEFAULT_MODEL = "gemini-1.5-flash";
+// gemini-2.0-flash è il default stable 2026 (gemini-1.5-flash deprecato Q3 2025 / rimosso Q1 2026).
+const DEFAULT_MODEL = "gemini-2.0-flash";
 
 // Pricing 2026-09 (aggiornare quando Gemini cambia listino, verifica ~annuale
 // su https://ai.google.dev/pricing). Free tier: 1500 req/day.
 // Sotto free tier: costUsd = 0.
-const PRICE_INPUT_PER_M_USD = 0.075;
-const PRICE_OUTPUT_PER_M_USD = 0.3;
+const PRICE_INPUT_PER_M_USD = 0.1;
+const PRICE_OUTPUT_PER_M_USD = 0.4;
 
 export async function generateText(input: GenerateTextInput): Promise<GenerateTextResult> {
   const apiKey = process.env["GEMINI_API_KEY"];
