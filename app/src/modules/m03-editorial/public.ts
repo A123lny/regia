@@ -24,4 +24,7 @@ export {
   scheduleContentDraft,
   unscheduleContentDraft,
   markContentDraftPublished,
+  suggestImagePrompt,
+  generateContentDraftImage,
+  deleteContentDraftImage,
 } from "./internal/actions";
