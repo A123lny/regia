@@ -348,3 +348,90 @@ export async function listApprovedNotScheduledByBrand(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((data ?? []) as any[]).map(rowToDraft);
 }
+
+export type SetDraftImageInput = {
+  url: string;
+  prompt: string;
+  model: string;
+  costUsd: number;
+  generatedAt: string;
+};
+
+/**
+ * Tenant-scoped: aggiorna i 5 campi image_* del draft.
+ * Ritorna null se draft non appartiene a organizationId (IDOR bloccato).
+ * Ruling P1: status guard difensivo — rifiuta aggiornamenti su draft 'published'
+ * (RF-5.7) anche se un futuro caller bypassa il server action.
+ */
+export async function setDraftImage(
+  draftId: string,
+  organizationId: string,
+  data: SetDraftImageInput,
+): Promise<ContentDraft | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data: row, error } = await admin
+    .from("content_drafts")
+    .update({
+      image_url: data.url,
+      image_prompt: data.prompt,
+      image_model: data.model,
+      image_cost_usd: data.costUsd,
+      image_generated_at: data.generatedAt,
+    })
+    .eq("id", draftId)
+    .eq("organization_id", organizationId)
+    .in("status", ["draft", "approved", "scheduled"]) // ADDED: defensive status guard (Ruling P1)
+    .select(SELECT_COLS)
+    .maybeSingle();
+  if (error) throw new Error(`Errore setDraftImage: ${error.message}`);
+  return row ? rowToDraft(row) : null;
+}
+
+/**
+ * Tenant-scoped: azzera tutti i 5 campi image_* del draft.
+ * Ruling P1: status guard difensivo — rifiuta aggiornamenti su draft 'published' (RF-5.7).
+ */
+export async function clearDraftImage(
+  draftId: string,
+  organizationId: string,
+): Promise<ContentDraft | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin
+    .from("content_drafts")
+    .update({
+      image_url: null,
+      image_prompt: null,
+      image_model: null,
+      image_cost_usd: null,
+      image_generated_at: null,
+    })
+    .eq("id", draftId)
+    .eq("organization_id", organizationId)
+    .in("status", ["draft", "approved", "scheduled"]) // ADDED: defensive status guard (Ruling P1)
+    .select(SELECT_COLS)
+    .maybeSingle();
+  if (error) throw new Error(`Errore clearDraftImage: ${error.message}`);
+  return data ? rowToDraft(data) : null;
+}
+
+/**
+ * Tenant-scoped: ritorna solo image_url path (per generare signed URL o cleanup).
+ * Read-only: nessuna status guard necessaria.
+ */
+export async function getDraftImagePath(
+  draftId: string,
+  organizationId: string,
+): Promise<string | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin
+    .from("content_drafts")
+    .select("image_url")
+    .eq("id", draftId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (error) throw new Error(`Errore getDraftImagePath: ${error.message}`);
+  return (data as { image_url: string | null } | null)?.image_url ?? null;
+}
