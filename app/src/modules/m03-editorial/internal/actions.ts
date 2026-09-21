@@ -11,11 +11,11 @@ import { logAuditEvent } from "@/lib/audit/log";
 import { embedText } from "@/lib/ai/voyage";
 import {
   generateText,
-  AiTimeoutError,
-  AiRateLimitError,
-  AiApiError,
-  AiConfigError,
-} from "@/lib/ai/anthropic";
+  GeminiTimeoutError,
+  GeminiRateLimitError,
+  GeminiApiError,
+  GeminiConfigError,
+} from "@/lib/ai/gemini";
 import { formatBrandContextForAI } from "@/modules/m02-brand/public";
 import {
   composeImagePromptSystemMessage,
@@ -341,10 +341,10 @@ export async function suggestImagePrompt(
     return { ok: true, prompt: result.text.trim() };
   } catch (err) {
     if (
-      err instanceof AiTimeoutError ||
-      err instanceof AiRateLimitError ||
-      err instanceof AiApiError ||
-      err instanceof AiConfigError
+      err instanceof GeminiTimeoutError ||
+      err instanceof GeminiRateLimitError ||
+      err instanceof GeminiApiError ||
+      err instanceof GeminiConfigError
     ) {
       return { ok: false, error: `Impossibile suggerire il prompt: ${(err as Error).message}` };
     }
