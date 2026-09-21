@@ -82,6 +82,22 @@ export default async function CalendarioPage({
     listApprovedNotScheduledByBrand(brandId, session.organizationId, 50),
   ]);
 
+  // Pre-genera signed URLs per tutti i drafts scheduled con immagine
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminStorage = admin as any;
+  const scheduledWithSignedUrls = await Promise.all(
+    scheduled.map(async (d) => {
+      if (!d.imageUrl) return { ...d, imageSignedUrl: null as string | null };
+      const { data } = await adminStorage.storage
+        .from("content-media")
+        .createSignedUrl(d.imageUrl, 3600);
+      return {
+        ...d,
+        imageSignedUrl: (data as { signedUrl: string } | null)?.signedUrl ?? null,
+      };
+    }),
+  );
+
   return (
     <div className="space-y-6">
       <header className="space-y-2">
@@ -121,7 +137,7 @@ export default async function CalendarioPage({
       <CalendarClient
         brandSlug={slug}
         startDateIso={startDate.toISOString()}
-        scheduled={scheduled}
+        scheduled={scheduledWithSignedUrls}
         approved={approved}
       />
     </div>

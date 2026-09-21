@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { listContentDraftsByBrand } from "@/modules/m03-editorial/public";
 import type { ContentDraftStatus } from "@/modules/m03-editorial/public";
+import { ImageThumbnail } from "@/components/media/image-thumbnail";
 
 type BrandSlug = "lenny" | "stazione" | "eni-cafe" | "officina";
 
@@ -119,6 +120,7 @@ export default async function BrandContentPage({ params }: { params: Promise<{ s
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12"></TableHead>
                 <TableHead className="w-24">Canale</TableHead>
                 <TableHead>Tema / anteprima</TableHead>
                 <TableHead className="w-28">Stato</TableHead>
@@ -129,6 +131,13 @@ export default async function BrandContentPage({ params }: { params: Promise<{ s
             <TableBody>
               {drafts.map((d) => (
                 <TableRow key={d.id} className="cursor-pointer hover:bg-surface-muted">
+                  <TableCell className="w-12">
+                    <ImageThumbnail
+                      imagePath={d.imageUrl}
+                      size={40}
+                      alt={d.themeInput.slice(0, 30)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Badge className="border border-border bg-surface-muted text-text-muted">
                       Social
