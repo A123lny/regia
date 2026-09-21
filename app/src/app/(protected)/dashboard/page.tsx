@@ -1,10 +1,23 @@
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { getDashboardStats } from "@/modules/m12-daily-use/public";
-import { MetricCard } from "@/components/dashboard/metric-card";
 import { EnvironmentBadge } from "@/components/dashboard/environment-badge";
-import { BrandChip } from "@/components/brand/brand-chip";
+import { Sparkles, Star, Thermometer, Bell, Database, Shield, Server } from "lucide-react";
 
 type BrandSlug = "lenny" | "stazione" | "eni-cafe" | "officina";
+
+const BRAND_COLOR: Record<BrandSlug, string> = {
+  lenny: "#FF6B35",
+  stazione: "#1E5F8C",
+  "eni-cafe": "#8C5E1E",
+  officina: "#3E4C59",
+};
+
+const BRAND_NAME: Record<BrandSlug, string> = {
+  lenny: "Lenny",
+  stazione: "Stazione",
+  "eni-cafe": "Eni Cafè",
+  officina: "Officina",
+};
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -22,98 +35,186 @@ export default async function DashboardPage() {
   const session = await getSessionOrRedirect();
   const stats = await getDashboardStats(session.organizationId);
 
+  const metrics = [
+    {
+      icon: Sparkles,
+      label: "Contenuti",
+      subtitle: "da approvare",
+      value: stats.toDo.contentsPending,
+      color: "#c25a3b",
+      inactive: stats.toDo.contentsPending === 0,
+    },
+    {
+      icon: Star,
+      label: "Recensioni",
+      subtitle: "da gestire",
+      value: stats.toDo.reviewsPending,
+      color: "#87a96b",
+      inactive: stats.toDo.reviewsPending === 0,
+    },
+    {
+      icon: Thermometer,
+      label: "Ristoranti",
+      subtitle: "in raffreddamento",
+      value: stats.toDo.restaurantsCooling,
+      color: "#d89b4a",
+      inactive: stats.toDo.restaurantsCooling === 0,
+    },
+    {
+      icon: Bell,
+      label: "Allarmi",
+      subtitle: "costi",
+      value: stats.toDo.costAlerts,
+      color: "#b04a3c",
+      inactive: stats.toDo.costAlerts === 0,
+    },
+  ];
+
   return (
-    <div className="relative space-y-8">
-      {/* Header con blob decor top-right (subtle, non invasivo) */}
-      <header className="relative overflow-hidden rounded-2xl border border-border bg-surface p-8">
-        {/* Blob decor SVG (i 4 marchi) — solo nell'angolo destro, opacità bassa */}
+    <div className="space-y-6">
+      {/* HERO — 4 blob brand a tutta larghezza, saluto grande */}
+      <section className="relative overflow-hidden rounded-2xl border border-border bg-bg p-8 lg:p-12">
         <svg
-          className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 opacity-40"
-          viewBox="0 0 400 400"
+          className="absolute inset-0 h-full w-full"
+          viewBox="0 0 800 400"
+          preserveAspectRatio="xMidYMid slice"
           aria-hidden="true"
         >
           <defs>
-            <filter id="dashBlobBlur" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="40" />
+            <filter id="heroBlobBlur" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="60" />
             </filter>
           </defs>
-          <g filter="url(#dashBlobBlur)" opacity="0.85">
-            <circle cx="120" cy="120" r="90" fill="#FF6B35" />
-            <circle cx="280" cy="140" r="80" fill="#1E5F8C" />
-            <circle cx="140" cy="280" r="85" fill="#8C5E1E" />
-            <circle cx="290" cy="290" r="90" fill="#3E4C59" />
+          <g filter="url(#heroBlobBlur)" opacity="0.65">
+            <circle cx="100" cy="80" r="150" fill="#FF6B35" />
+            <circle cx="700" cy="100" r="140" fill="#1E5F8C" />
+            <circle cx="150" cy="320" r="140" fill="#8C5E1E" />
+            <circle cx="680" cy="320" r="150" fill="#3E4C59" />
           </g>
         </svg>
-        <div className="relative">
+        <div className="absolute inset-0 bg-white/55 backdrop-blur-[3px]" />
+        <div className="relative z-10 max-w-3xl">
           <h1
-            className="text-4xl font-extrabold uppercase tracking-[0.08em] text-text"
+            className="text-5xl font-extrabold uppercase tracking-[0.06em] text-text lg:text-6xl"
             style={{ fontFamily: "var(--font-bricolage)" }}
           >
             Buongiorno
           </h1>
-          <p className="mt-2 text-sm text-text-muted">
+          <p className="mt-3 text-base text-text lg:text-lg">
             Panoramica di oggi. Come sta andando la piattaforma.
           </p>
         </div>
-      </header>
-
-      <section aria-labelledby="todo">
-        <h2 id="todo" className="mb-3 font-serif text-xl font-semibold text-text">
-          Cosa devi fare
-        </h2>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <MetricCard
-            label="Contenuti da approvare"
-            value={stats.toDo.contentsPending}
-            {...(stats.toDo.contentsPending === 0 && { footer: "Attivo in F2" })}
-          />
-          <MetricCard
-            label="Recensioni da gestire"
-            value={stats.toDo.reviewsPending}
-            {...(stats.toDo.reviewsPending === 0 && { footer: "Attivo in F2" })}
-          />
-          <MetricCard
-            label="Ristoranti in raffreddamento"
-            value={stats.toDo.restaurantsCooling}
-            {...(stats.toDo.restaurantsCooling === 0 && { footer: "Attivo in F3" })}
-          />
-          <MetricCard
-            label="Allarmi costi"
-            value={stats.toDo.costAlerts}
-            {...(stats.toDo.costAlerts === 0 && { footer: "Attivo in F2" })}
-          />
-        </div>
       </section>
 
-      <section aria-labelledby="going" className="space-y-4">
-        <h2 id="going" className="font-serif text-xl font-semibold text-text">
-          Come sta andando
-        </h2>
+      {/* METRICS — 4 card con icona colorata + numero grande in Bricolage */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {metrics.map((m) => {
+          const Icon = m.icon;
+          return (
+            <div
+              key={m.label}
+              className="group relative overflow-hidden rounded-xl border border-border bg-surface p-5 transition-all hover:border-primary/30 hover:shadow-md"
+            >
+              <div
+                className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg"
+                style={{ backgroundColor: `${m.color}15`, color: m.color }}
+              >
+                <Icon className="h-5 w-5" />
+              </div>
+              <div
+                className="text-4xl font-bold text-text"
+                style={{ fontFamily: "var(--font-bricolage)" }}
+              >
+                {m.value}
+              </div>
+              <div className="mt-1 text-sm font-medium text-text">{m.label}</div>
+              <div className="text-xs text-text-muted">{m.subtitle}</div>
+              {m.inactive && (
+                <div className="mt-3 text-[10px] uppercase tracking-wider text-text-muted/70">
+                  Attivo in F2/F3
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
-        <div className="rounded-lg border border-border bg-surface p-6">
-          <h3 className="mb-3 text-sm font-medium text-text-muted">Marchi attivi</h3>
-          <div className="flex flex-wrap gap-2">
-            {stats.going.brands.map((b) => (
-              <BrandChip key={b.slug} brand={b.slug as BrandSlug} />
-            ))}
+      {/* BRAND CARDS — 4 card grandi, colorate, con nome brand in Bricolage */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.going.brands.map((b) => {
+          const slug = b.slug as BrandSlug;
+          const color = BRAND_COLOR[slug];
+          const name = BRAND_NAME[slug];
+          return (
+            <div
+              key={b.slug}
+              className="relative overflow-hidden rounded-xl p-6 shadow-sm transition-transform hover:-translate-y-0.5"
+              style={{ backgroundColor: color }}
+            >
+              {/* Ornamento circolare bianco sfumato in alto a destra */}
+              <div
+                className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/15"
+                aria-hidden="true"
+              />
+              <div className="absolute -bottom-6 -left-6 h-20 w-20 rounded-full bg-black/10" aria-hidden="true" />
+              <div className="relative">
+                <div className="mb-8 text-xs font-medium uppercase tracking-widest text-white/70">
+                  Marchio
+                </div>
+                <h3
+                  className="text-3xl font-extrabold uppercase tracking-wide text-white"
+                  style={{ fontFamily: "var(--font-bricolage)" }}
+                >
+                  {name}
+                </h3>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* SYSTEM STRIP — info di sistema, orizzontale compatto */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="flex items-center gap-4 rounded-xl border border-border bg-surface p-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Shield className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs uppercase tracking-wider text-text-muted">Ultimo accesso</div>
+            <div className="mt-0.5 truncate text-sm font-medium text-text">
+              {formatDate(stats.going.lastAuthEventAt)}
+            </div>
           </div>
         </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-lg border border-border bg-surface p-6">
-            <h3 className="mb-2 text-sm font-medium text-text-muted">Ultimo accesso al sistema</h3>
-            <p className="text-base text-text">{formatDate(stats.going.lastAuthEventAt)}</p>
+        <div className="flex items-center gap-4 rounded-xl border border-border bg-surface p-4">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-lg"
+            style={{ backgroundColor: "#87a96b26", color: "#5f8347" }}
+          >
+            <Database className="h-5 w-5" />
           </div>
-          <div className="rounded-lg border border-border bg-surface p-6">
-            <h3 className="mb-2 text-sm font-medium text-text-muted">Ultimo backup</h3>
-            <p className="text-base text-text">{formatDate(stats.going.lastBackupAt)}</p>
-          </div>
-          <div className="rounded-lg border border-border bg-surface p-6">
-            <h3 className="mb-2 text-sm font-medium text-text-muted">Ambiente</h3>
-            <EnvironmentBadge environment={stats.going.environment} />
+          <div className="min-w-0 flex-1">
+            <div className="text-xs uppercase tracking-wider text-text-muted">Ultimo backup</div>
+            <div className="mt-0.5 truncate text-sm font-medium text-text">
+              {formatDate(stats.going.lastBackupAt)}
+            </div>
           </div>
         </div>
-      </section>
+        <div className="flex items-center gap-4 rounded-xl border border-border bg-surface p-4">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-lg"
+            style={{ backgroundColor: "#d89b4a26", color: "#a97722" }}
+          >
+            <Server className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs uppercase tracking-wider text-text-muted">Ambiente</div>
+            <div className="mt-0.5">
+              <EnvironmentBadge environment={stats.going.environment} />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
