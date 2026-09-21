@@ -30,6 +30,14 @@ function rowToDraft(row: any): ContentDraft {
     rejectedAt: row.rejected_at ?? null,
     scheduledAt: row.scheduled_at ?? null,
     publishedAt: row.published_at ?? null,
+    imageUrl: row.image_url ?? null,
+    imagePrompt: row.image_prompt ?? null,
+    imageModel: row.image_model ?? null,
+    imageCostUsd:
+      row.image_cost_usd !== null && row.image_cost_usd !== undefined
+        ? Number(row.image_cost_usd)
+        : null,
+    imageGeneratedAt: row.image_generated_at ?? null,
   };
 }
 
@@ -37,7 +45,8 @@ const SELECT_COLS =
   "id, organization_id, brand_id, channel, theme_input, generated_text, " +
   "prompt_version, model_used, tokens_in, tokens_out, cost_usd, latency_ms, " +
   "status, rejection_reason, created_by, created_at, approved_at, rejected_at, " +
-  "scheduled_at, published_at";
+  "scheduled_at, published_at, " +
+  "image_url, image_prompt, image_model, image_cost_usd, image_generated_at";
 
 /**
  * Tenant-scoped: filtra su organization_id per prevenire IDOR cross-tenant (RN-87).

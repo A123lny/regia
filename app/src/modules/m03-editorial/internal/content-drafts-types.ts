@@ -29,4 +29,9 @@ export type ContentDraft = {
   rejectedAt: string | null;
   scheduledAt: string | null; // ISO — null se non programmato (F1.5b-α)
   publishedAt: string | null; // ISO — null se non pubblicato (F1.5b-α)
+  imageUrl: string | null; // path Supabase Storage, es. "{orgId}/{draftId}.jpg" (M4-γ)
+  imagePrompt: string | null; // prompt inglese usato per FLUX (M4-γ)
+  imageModel: string | null; // "flux-dev" o "flux-schnell" (M4-γ)
+  imageCostUsd: number | null; // costo call fal.ai (M4-γ)
+  imageGeneratedAt: string | null; // ISO timestamp (M4-γ)
 };
