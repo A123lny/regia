@@ -35,7 +35,11 @@ export async function Header({
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-surface px-4">
       <div className="flex items-center gap-3">
         <MobileSidebar />
-        <Link href="/dashboard" className="font-serif text-xl font-semibold text-text">
+        <Link
+          href="/dashboard"
+          className="text-lg font-extrabold uppercase tracking-[0.1em] text-text"
+          style={{ fontFamily: "var(--font-bricolage)" }}
+        >
           Regìa
         </Link>
       </div>

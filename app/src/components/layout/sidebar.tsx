@@ -33,7 +33,8 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
             key={item.href}
             href={item.href}
             {...(onNavigate !== undefined ? { onClick: onNavigate } : {})}
-            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            style={{ fontFamily: "var(--font-bricolage)" }}
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-bold transition-colors ${
               active
                 ? "border-l-[3px] border-primary bg-surface-muted text-primary"
                 : "text-text hover:bg-surface-muted"
@@ -48,7 +49,8 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
         <Button
           type="submit"
           variant="ghost"
-          className="w-full justify-start gap-3 text-sm font-medium"
+          className="w-full justify-start gap-3 text-sm font-bold"
+          style={{ fontFamily: "var(--font-bricolage)" }}
         >
           <LogOut className="h-4 w-4" aria-hidden="true" />
           Esci
@@ -76,7 +78,12 @@ export function MobileSidebar() {
       </SheetTrigger>
       <SheetContent side="left" className="w-60 p-0">
         <SheetHeader className="border-b border-border p-4">
-          <SheetTitle className="font-serif text-lg">Regìa</SheetTitle>
+          <SheetTitle
+            className="text-lg font-extrabold uppercase tracking-[0.1em]"
+            style={{ fontFamily: "var(--font-bricolage)" }}
+          >
+            Regìa
+          </SheetTitle>
         </SheetHeader>
         <NavList />
       </SheetContent>
