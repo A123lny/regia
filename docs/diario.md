@@ -206,6 +206,7 @@
 - La deroga RF-6.25 è **dormiente**: al lancio si implementa solo il Modello A.
 - **Hosting applicazione ancora aperto** (App Platform vs Droplet su DigitalOcean): decidere prima di aprire F0-b.
 - **Rotare la chiave FAL_API_KEY** dopo il tour manuale M4-γ (se è finita nel transcript Claude Code): dashboard fal.ai → API Keys → rigenera → sostituire in `app/.env.local`. Nessuna urgenza operativa.
+- **Rotare la chiave GEMINI_API_KEY** dopo il tour manuale M4-γ-patch (finita nel transcript Claude Code): dashboard https://aistudio.google.com/apikey → cancella `AQ.Ab8…9EOg` → crea nuova → sostituire in `app/.env.local`. Nessuna urgenza operativa (free tier).
 - **Verificare annualmente il pricing fal.ai** su https://fal.ai/pricing e aggiornare `PRICE_PER_IMAGE_USD` in `lib/ai/fal.ts` se cambia significativamente.
 - **Rotare la chiave Anthropic in `app/.env.local`** (finita nel transcript Claude Code del 17 set): console.anthropic.com → API Keys → rigenera → sostituisci nel file. Nessuna urgenza operativa, solo igiene.
 - **Aggiungere credito Anthropic** ($5 basta) prima di riprendere il tour manuale F1.5a.
