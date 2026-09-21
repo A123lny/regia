@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, X } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
+import { getAdminClient } from "@/lib/db/admin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -16,6 +17,7 @@ import {
 } from "@/modules/m03-editorial/public";
 import type { ContentDraftStatus } from "@/modules/m03-editorial/public";
 import { ScheduleDraftForm } from "./schedule-form";
+import { ImageSection } from "./image-section";
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("it-IT", {
@@ -60,6 +62,17 @@ export default async function DraftDetailPage({
   const { slug, draftId } = await params;
   const draft = await getContentDraft(draftId, session.organizationId);
   if (!draft) notFound();
+
+  // Signed URL per immagine se presente
+  let imageSignedUrl: string | null = null;
+  if (draft.imageUrl) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const adminForStorage = getAdminClient() as any;
+    const { data: signedData } = await adminForStorage.storage
+      .from("content-media")
+      .createSignedUrl(draft.imageUrl, 3600);
+    imageSignedUrl = (signedData as { signedUrl: string } | null)?.signedUrl ?? null;
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -184,6 +197,16 @@ export default async function DraftDetailPage({
           </div>
         </div>
       )}
+
+      <ImageSection
+        draftId={draft.id}
+        status={draft.status}
+        currentImageSignedUrl={imageSignedUrl}
+        currentImagePrompt={draft.imagePrompt}
+        currentImageModel={draft.imageModel}
+        currentImageCost={draft.imageCostUsd}
+        currentImageGeneratedAt={draft.imageGeneratedAt}
+      />
     </div>
   );
 }
