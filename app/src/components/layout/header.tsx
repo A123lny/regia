@@ -32,7 +32,7 @@ export async function Header({
   }));
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-surface px-4">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-surface px-4">
       <div className="flex items-center gap-3">
         <MobileSidebar />
         <Link href="/dashboard" className="font-serif text-xl font-semibold text-text">

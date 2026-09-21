@@ -60,7 +60,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
 
 export function DesktopSidebar() {
   return (
-    <aside className="hidden w-60 shrink-0 border-r border-border bg-surface md:flex md:flex-col">
+    <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-60 shrink-0 overflow-y-auto border-r border-border bg-surface md:flex md:flex-col">
       <NavList />
     </aside>
   );
