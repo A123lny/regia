@@ -23,12 +23,38 @@ export default async function DashboardPage() {
   const stats = await getDashboardStats(session.organizationId);
 
   return (
-    <div className="space-y-8">
-      <header>
-        <h1 className="font-serif text-3xl font-semibold text-text">Buongiorno</h1>
-        <p className="mt-1 text-sm text-text-muted">
-          Panoramica di oggi. Come sta andando la piattaforma.
-        </p>
+    <div className="relative space-y-8">
+      {/* Header con blob decor top-right (subtle, non invasivo) */}
+      <header className="relative overflow-hidden rounded-2xl border border-border bg-surface p-8">
+        {/* Blob decor SVG (i 4 marchi) — solo nell'angolo destro, opacità bassa */}
+        <svg
+          className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 opacity-40"
+          viewBox="0 0 400 400"
+          aria-hidden="true"
+        >
+          <defs>
+            <filter id="dashBlobBlur" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="40" />
+            </filter>
+          </defs>
+          <g filter="url(#dashBlobBlur)" opacity="0.85">
+            <circle cx="120" cy="120" r="90" fill="#FF6B35" />
+            <circle cx="280" cy="140" r="80" fill="#1E5F8C" />
+            <circle cx="140" cy="280" r="85" fill="#8C5E1E" />
+            <circle cx="290" cy="290" r="90" fill="#3E4C59" />
+          </g>
+        </svg>
+        <div className="relative">
+          <h1
+            className="text-4xl font-extrabold uppercase tracking-[0.08em] text-text"
+            style={{ fontFamily: "var(--font-bricolage)" }}
+          >
+            Buongiorno
+          </h1>
+          <p className="mt-2 text-sm text-text-muted">
+            Panoramica di oggi. Come sta andando la piattaforma.
+          </p>
+        </div>
       </header>
 
       <section aria-labelledby="todo">
