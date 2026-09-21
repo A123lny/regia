@@ -1,23 +1,74 @@
 # Diario di bordo — Regìa
 
-> Aggiornato: 18 settembre 2026 · Una pagina al massimo. Le voci vecchie si potano:
+> Aggiornato: 21 settembre 2026 · Una pagina al massimo. Le voci vecchie si potano:
 > la storia completa sta in git. Regole d'uso: vedi CLAUDE.md, sezione "Rito di sessione".
 
 ## Adesso
 
-- F1.5b-α chiuso su branch `feature/f1-5b-alpha-workflow-programmazione`, pronto
-  per merge in `feature/f1-1-layout-shell`. Workflow scheduled+published + calendario
-  bisettimanale con drag-and-drop + card impostazioni "Chiavi AI" read-only,
-  tutto verificato in locale (62 test verdi). Prossima decisione:
-  (a) F1.5b-β (coda BullMQ + scheduler, richiede Redis/Docker o Upstash),
-  (b) F1.5c (sessione RF-3.6 guidata + canali multipli),
-  (c) F1.6 (edit + test connessione chiavi AI + tetti spesa),
-  (d) F1.3 (utenti Editor),
-  (e) F1.4 (Data Hub reale),
-  (f) merge F1.5b-α ora e riprendere il tour manuale end-to-end di F1.5a+b una
-  volta ripristinato il credito Anthropic.
+- M4-γ chiuso su branch `feature/m4-gamma-image-generation`, pronto per merge in
+  `feature/f1-1-layout-shell`. Generazione immagini AI (fal.ai + FLUX) integrata
+  nel dettaglio draft: bottone "Suggerisci prompt" → Claude compone prompt
+  inglese contestualizzato → Owner conferma/modifica → fal.ai genera → Supabase
+  Storage privato con RLS per org. Thumbnail in lista + calendario. Card
+  impostazioni estesa con status FAL_API_KEY (75 test verdi). Prossima decisione:
+  (a) merge M4-γ, (b) M4-α (libreria foto reali RF-4.1), (c) M4-ε (multi-aspect
+  ratio Story 9:16, feed 4:5), (d) F1.5b-β (coda BullMQ + scheduler), (e) F1.6
+  (edit chiavi + tetti spesa), (f) F1.3 (utenti Editor), (g) F1.4 (Data Hub
+  reale), (h) M5 (publishing adapter canali reali).
 
 ## Fatto
+
+- **21 set 2026 — M4-γ Generazione immagini AI (fal.ai FLUX) completato.**
+  - Adapter `lib/ai/fal.ts` (RS-2 unica porta, 156 righe): FLUX-dev (qualità
+    piena, ~10s, $0.025/img) e FLUX-schnell (veloce, ~2s, $0.003/img), timeout
+    30s con AbortController, 4 error classes tipizzate (FalConfigError,
+    FalApiError, FalTimeoutError, FalDownloadError), pricing hardcoded (RS-5
+    nota: aggiornare annualmente su https://fal.ai/pricing).
+  - Bucket Supabase Storage `content-media` privato con 4 RLS policy org-scoped
+    (SELECT/INSERT/UPDATE/DELETE — UPDATE con WITH CHECK per cross-org path
+    rename hardening, security review T2), file limit 5MB, MIME whitelist
+    image/jpeg|png|webp.
+  - 5 nuove colonne su `content_drafts` (image_url, image_prompt, image_model,
+    image_cost_usd, image_generated_at) + 4 CHECK individuali (length,
+    enum flux-dev/schnell, non-negative) + 1 CHECK all-or-nothing (RS-3):
+    impedisce stati parziali dei 5 campi image_*. Ruling P1 defensive: repo
+    `setDraftImage`/`clearDraftImage` con `.in("status", mutable)` per
+    difesa-in-profondità RF-5.7.
+  - Composer prompt in `internal/image-prompt-composer.ts` (funzione pura) +
+    template `prompts/image-prompt.md` versionato (`image-prompt-v1`) +
+    orchestratore `generate-image.ts` che chiama fal.ai + upload Supabase
+    Storage + cleanup file precedente (best-effort).
+  - 3 nuove server actions m03 (`suggestImagePrompt`, `generateContentDraftImage`,
+    `deleteContentDraftImage`) con race-guard throw se repo returns null,
+    audit `editorial.draft_image_generated|deleted` con hash SHA-256 primi/
+    ultimi 8 char del prompt (non prompt full), revalidatePath lista +
+    calendario + dettaglio.
+  - UI dettaglio draft: nuova sezione "Immagine del post" (`image-section.tsx`
+    client, 5 stati: vuoto / prompt-suggerito / generazione-corso / immagine-
+    presente / editing-prompt). Thumbnail `<ImageThumbnail>` (RSC async con
+    signed URL 1h) su lista drafts + card calendario. Calendario refactored
+    per pre-generare signed URLs nella RSC parent e passarle lungo la chain
+    CalendarClient → BiweeklyGrid → DroppableCell (nuovo type
+    `ScheduledDraftWithUrl` in `calendario/types.ts` per evitare ciclo
+    dep-cruiser). Card "Chiavi AI" in `/impostazioni` estesa con status
+    FAL_API_KEY. `next.config.ts` con `remotePatterns` per bucket Supabase
+    Storage (necessario per next/image).
+  - Vincoli capitolato rispettati: RF-5.7 draft published→immagine immutabile
+    (defensive status guard nel repo, test invariante a repo layer per
+    Ruling P1); RNF-9 fallback graceful se fal.ai down/config-missing/
+    timeout/download-fail (return {ok:false, error} no partial state);
+    RN-72 system prompt Claude include "NON inventare dati concreti";
+    RA-8.12 audit con promptHash non prompt full.
+  - 13 nuovi test in 5 file (3 all-or-nothing + 4 column CHECK + 2 Storage
+    RLS + 2 tenant scoping IDOR + 2 published immutable). Totale test dopo
+    M4-γ: **75** (era 62). CI locale verde 75/75.
+  - Costo stimato mensile: ~$2.30 (150 img/mese × $0.025 FLUX-dev + Claude
+    suggest ~$0.05). Budget V-4 non impattato.
+  - Commit range: `5f4706e..HEAD` (~11 commit) su
+    `feature/m4-gamma-image-generation`.
+  - Prossimo sotto-cantiere: M4-α (libreria foto reali RF-4.1), M4-ε
+    (multi-aspect ratio Story/feed), altri cantieri fuori M4.
+- **18 set 2026 — F1.5b-α Workflow + calendario + programmazione manuale completato.**
 
 - **18 set 2026 — F1.5b-α Workflow + calendario + programmazione manuale completato.**
   - State machine `content_drafts` estesa con `scheduled` e `published` (RF-3.5,
@@ -154,5 +205,7 @@
 - Il QR alla colonnina è **l'unica voce con scadenza di calendario** (picco di agosto).
 - La deroga RF-6.25 è **dormiente**: al lancio si implementa solo il Modello A.
 - **Hosting applicazione ancora aperto** (App Platform vs Droplet su DigitalOcean): decidere prima di aprire F0-b.
+- **Rotare la chiave FAL_API_KEY** dopo il tour manuale M4-γ (se è finita nel transcript Claude Code): dashboard fal.ai → API Keys → rigenera → sostituire in `app/.env.local`. Nessuna urgenza operativa.
+- **Verificare annualmente il pricing fal.ai** su https://fal.ai/pricing e aggiornare `PRICE_PER_IMAGE_USD` in `lib/ai/fal.ts` se cambia significativamente.
 - **Rotare la chiave Anthropic in `app/.env.local`** (finita nel transcript Claude Code del 17 set): console.anthropic.com → API Keys → rigenera → sostituisci nel file. Nessuna urgenza operativa, solo igiene.
 - **Aggiungere credito Anthropic** ($5 basta) prima di riprendere il tour manuale F1.5a.
