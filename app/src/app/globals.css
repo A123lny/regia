@@ -89,6 +89,13 @@
   --color-background: var(--background);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
+  /* Palette custom Regìa esposta come utility Tailwind (bg-surface, text-text, etc.) */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-primary-hover: var(--primary-hover);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
