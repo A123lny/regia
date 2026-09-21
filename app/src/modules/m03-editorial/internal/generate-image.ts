@@ -1,15 +1,23 @@
 // M03 — Orchestrazione generazione immagine (M4-γ RF-4.5).
-// Chiama fal.ai adapter + upload Supabase Storage + cleanup file precedente.
+// Chiama adapter immagini (fal.ai o gemini) + upload Supabase Storage + cleanup file precedente.
+// Switch provider via IMAGE_PROVIDER env (default: gemini). RS-2, M4-γ-patch-2.
 
 import { getAdminClient } from "@/lib/db/admin";
 import {
-  generateImage,
+  generateImage as generateImageFal,
   FalConfigError,
   FalApiError,
   FalTimeoutError,
   FalDownloadError,
   type FluxModel,
 } from "@/lib/ai/fal";
+import {
+  generateImage as generateImageGemini,
+  GeminiImageConfigError,
+  GeminiImageApiError,
+  GeminiImageTimeoutError,
+  GeminiImageDecodeError,
+} from "@/lib/ai/gemini-image";
 import { getDraftImagePath } from "./content-drafts-repo";
 
 const BUCKET = "content-media";
@@ -34,11 +42,19 @@ export type RunGenerateImageOutput =
 export async function runGenerateImage(
   input: RunGenerateImageInput,
 ): Promise<RunGenerateImageOutput> {
-  // 1. Call fal.ai (con fallback graceful RNF-9)
-  let result;
+  const provider = (process.env["IMAGE_PROVIDER"] ?? "gemini").toLowerCase();
+
+  // 1. Call image adapter con fallback graceful (RNF-9)
+  let result: { imageBytes: Uint8Array; contentType: string; model: string; costUsd: number };
   try {
-    result = await generateImage({ prompt: input.prompt, model: input.model });
+    if (provider === "fal") {
+      result = await generateImageFal({ prompt: input.prompt, model: input.model });
+    } else {
+      // Default: gemini (finché fal.ai TOP_UP non è risolto).
+      result = await generateImageGemini({ prompt: input.prompt });
+    }
   } catch (err) {
+    // fal.ai errors
     if (err instanceof FalConfigError) {
       return { ok: false, error: "Servizio immagini AI non configurato (FAL_API_KEY mancante)." };
     }
@@ -49,6 +65,22 @@ export async function runGenerateImage(
       return { ok: false, error: `Download immagine fallito: ${(err as Error).message}` };
     }
     if (err instanceof FalApiError) {
+      return { ok: false, error: `Servizio immagini AI errore ${err.status}. Riprova.` };
+    }
+    // gemini-image errors
+    if (err instanceof GeminiImageConfigError) {
+      return {
+        ok: false,
+        error: "Servizio immagini AI non configurato (GEMINI_API_KEY mancante).",
+      };
+    }
+    if (err instanceof GeminiImageTimeoutError) {
+      return { ok: false, error: "Servizio immagini AI non disponibile (timeout). Riprova." };
+    }
+    if (err instanceof GeminiImageDecodeError) {
+      return { ok: false, error: `Decode immagine fallito: ${(err as Error).message}` };
+    }
+    if (err instanceof GeminiImageApiError) {
       return { ok: false, error: `Servizio immagini AI errore ${err.status}. Riprova.` };
     }
     throw err;
