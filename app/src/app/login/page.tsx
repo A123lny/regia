@@ -51,7 +51,7 @@ export default async function LoginPage({
       <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-8">
         {/* Brand + tagline */}
         <div className="text-center">
-          <h1 className="mb-3 font-serif text-6xl font-semibold tracking-tight text-text">
+          <h1 className="mb-3 font-sans text-6xl font-black uppercase tracking-[0.15em] text-text">
             Regìa
           </h1>
           <p className="mx-auto max-w-md text-sm text-text">
