@@ -55,6 +55,7 @@ export default async function ImpostazioniPage() {
 
   const anthropic = maskApiKey(process.env["ANTHROPIC_API_KEY"]);
   const voyage = maskApiKey(process.env["VOYAGE_API_KEY"]);
+  const fal = maskApiKey(process.env["FAL_API_KEY"]);
 
   return (
     <div className="space-y-8">
@@ -180,6 +181,24 @@ export default async function ImpostazioniPage() {
               ) : (
                 <span className="text-sm text-danger">
                   ❌ non configurata (opzionale — F1.5a degrada senza)
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                fal.ai (FLUX, immagini AI)
+              </span>
+              {fal.present ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-success">✅ configurata</span>
+                  <code className="rounded bg-surface-muted px-2 py-1 text-xs text-text">
+                    {fal.masked}
+                  </code>
+                </div>
+              ) : (
+                <span className="text-sm text-danger">
+                  ❌ non configurata (M4-γ non funzionerà senza)
                 </span>
               )}
             </div>
