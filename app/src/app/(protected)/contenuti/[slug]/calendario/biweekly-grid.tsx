@@ -1,11 +1,11 @@
 "use client";
 
-import type { ContentDraft } from "@/modules/m03-editorial/public";
+import type { ScheduledDraftWithUrl } from "./types";
 import { DroppableCell } from "./droppable-cell";
 
 type Props = {
   startDateIso: string;
-  scheduled: ContentDraft[];
+  scheduled: ScheduledDraftWithUrl[];
   brandSlug: string;
 };
 

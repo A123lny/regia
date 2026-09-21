@@ -9,6 +9,22 @@ import { getAdminClient } from "@/lib/db/admin";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { logAuditEvent } from "@/lib/audit/log";
 import { embedText } from "@/lib/ai/voyage";
+import {
+  generateText,
+  GeminiTimeoutError,
+  GeminiRateLimitError,
+  GeminiApiError,
+  GeminiConfigError,
+} from "@/lib/ai/gemini";
+import { formatBrandContextForAI } from "@/modules/m02-brand/public";
+import {
+  composeImagePromptSystemMessage,
+  composeImagePromptUserMessage,
+  IMAGE_PROMPT_VERSION,
+} from "./image-prompt-composer";
+import { runGenerateImage } from "./generate-image";
+import type { FluxModel } from "@/lib/ai/fal";
+import { createHash } from "crypto";
 import { runGenerateSocialPost } from "./generate-social-post";
 import {
   markApproved,
@@ -17,6 +33,9 @@ import {
   scheduleDraft,
   unscheduleDraft,
   markPublished,
+  setDraftImage,
+  clearDraftImage,
+  getDraftImagePath,
 } from "./content-drafts-repo";
 
 async function requireOwnedBrand(brandId: string) {
@@ -281,4 +300,155 @@ export async function markContentDraftPublished(draftId: string): Promise<void> 
 
   revalidatePath(`/contenuti/${brandSlug}`);
   revalidatePath(`/contenuti/${brandSlug}/calendario`);
+}
+
+const IMAGE_MUTABLE_STATES = ["draft", "approved", "scheduled"] as const;
+
+function hashPromptShort(prompt: string): string {
+  const full = createHash("sha256").update(prompt).digest("hex");
+  return `${full.slice(0, 8)}...${full.slice(-8)}`;
+}
+
+export async function suggestImagePrompt(
+  draftId: string,
+): Promise<{ ok: true; prompt: string } | { ok: false; error: string }> {
+  const { draft } = await requireOwnedDraft(draftId);
+  if (!IMAGE_MUTABLE_STATES.includes(draft.status as (typeof IMAGE_MUTABLE_STATES)[number])) {
+    return { ok: false, error: `Bozza in stato ${draft.status}, immagine non modificabile.` };
+  }
+
+  // Fetch dati draft completi (per generated_text) e brand display_name
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const [draftRes, brandRes] = await Promise.all([
+    admin.from("content_drafts").select("generated_text").eq("id", draftId).maybeSingle(),
+    admin.from("brands").select("display_name").eq("id", draft.brand_id).maybeSingle(),
+  ]);
+  if (!draftRes.data) return { ok: false, error: "Bozza non trovata." };
+  if (!brandRes.data) return { ok: false, error: "Brand non trovato." };
+
+  const brandContext = await formatBrandContextForAI(draft.brand_id);
+
+  const systemPrompt = composeImagePromptSystemMessage();
+  const userMessage = composeImagePromptUserMessage({
+    brandDisplayName: (brandRes.data as { display_name: string }).display_name,
+    brandContext,
+    postText: (draftRes.data as { generated_text: string }).generated_text,
+  });
+
+  try {
+    const result = await generateText({ systemPrompt, userMessage, maxTokens: 300 });
+    return { ok: true, prompt: result.text.trim() };
+  } catch (err) {
+    if (
+      err instanceof GeminiTimeoutError ||
+      err instanceof GeminiRateLimitError ||
+      err instanceof GeminiApiError ||
+      err instanceof GeminiConfigError
+    ) {
+      return { ok: false, error: `Impossibile suggerire il prompt: ${(err as Error).message}` };
+    }
+    throw err;
+  }
+}
+
+export async function generateContentDraftImage(
+  draftId: string,
+  prompt: string,
+  model: FluxModel = "flux-dev",
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const trimmed = prompt.trim();
+  if (trimmed.length < 1 || trimmed.length > 2000) {
+    return { ok: false, error: "Prompt non valido (1-2000 caratteri)" };
+  }
+  if (model !== "flux-dev" && model !== "flux-schnell") {
+    return { ok: false, error: "Modello non valido (flux-dev o flux-schnell)" };
+  }
+
+  const { session, draft } = await requireOwnedDraft(draftId);
+  if (!IMAGE_MUTABLE_STATES.includes(draft.status as (typeof IMAGE_MUTABLE_STATES)[number])) {
+    return { ok: false, error: `Bozza in stato ${draft.status}, immagine non modificabile.` };
+  }
+
+  const result = await runGenerateImage({
+    organizationId: session.organizationId,
+    draftId,
+    prompt: trimmed,
+    model,
+  });
+  if (!result.ok) return result;
+
+  const updated = await setDraftImage(draftId, session.organizationId, {
+    url: result.imagePath,
+    prompt: trimmed,
+    model: result.model,
+    costUsd: result.costUsd,
+    generatedAt: result.generatedAt,
+  });
+  if (!updated) {
+    return { ok: false, error: "Bozza modificata da un'altra sessione. Ricarica e riprova." };
+  }
+
+  const brandSlug = await getBrandSlug(draft.brand_id);
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "editorial.draft_image_generated",
+    target: `brand:${brandSlug}`,
+    details: {
+      draftId,
+      model: result.model,
+      costUsd: result.costUsd,
+      promptLength: trimmed.length,
+      promptHash: hashPromptShort(trimmed),
+      promptVersion: IMAGE_PROMPT_VERSION,
+    },
+  });
+
+  revalidatePath(`/contenuti/${brandSlug}`);
+  revalidatePath(`/contenuti/${brandSlug}/calendario`);
+  revalidatePath(`/contenuti/${brandSlug}/${draftId}`);
+
+  return { ok: true };
+}
+
+export async function deleteContentDraftImage(draftId: string): Promise<void> {
+  const { session, draft } = await requireOwnedDraft(draftId);
+  if (!IMAGE_MUTABLE_STATES.includes(draft.status as (typeof IMAGE_MUTABLE_STATES)[number])) {
+    throw new Error(`Bozza in stato ${draft.status}, immagine non modificabile.`);
+  }
+
+  const imagePath = await getDraftImagePath(draftId, session.organizationId);
+  if (!imagePath) return; // no-op
+
+  const brandSlug = await getBrandSlug(draft.brand_id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminClient = getAdminClient() as any;
+  const { error: removeError } = await adminClient.storage
+    .from("content-media")
+    .remove([imagePath]);
+  if (removeError) {
+    // Best-effort: log warning ma continua a azzerare DB (per non lasciare orfano)
+    console.warn(`[m03] Storage remove fallito: ${removeError.message}`);
+  }
+
+  const cleared = await clearDraftImage(draftId, session.organizationId);
+  if (!cleared) {
+    throw new Error("Impossibile azzerare i campi immagine del draft.");
+  }
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "editorial.draft_image_deleted",
+    target: `brand:${brandSlug}`,
+    details: { draftId, deletedPath: imagePath },
+  });
+
+  revalidatePath(`/contenuti/${brandSlug}`);
+  revalidatePath(`/contenuti/${brandSlug}/calendario`);
+  revalidatePath(`/contenuti/${brandSlug}/${draftId}`);
 }

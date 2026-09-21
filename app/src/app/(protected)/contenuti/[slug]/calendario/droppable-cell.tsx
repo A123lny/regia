@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useDroppable } from "@dnd-kit/core";
-import type { ContentDraft } from "@/modules/m03-editorial/public";
+import type { ScheduledDraftWithUrl } from "./types";
 import { Badge } from "@/components/ui/badge";
 
 type Props = {
   date: Date;
   dateYmd: string; // usato come id per useDroppable
-  drafts: ContentDraft[];
+  drafts: ScheduledDraftWithUrl[];
   isPast: boolean;
   brandSlug: string;
 };
@@ -53,6 +54,17 @@ export function DroppableCell({ date, dateYmd, drafts, isPast, brandSlug }: Prop
           href={`/contenuti/${brandSlug}/${d.id}`}
           className="block rounded border border-border/60 bg-surface-muted/60 p-1.5 hover:border-primary/60"
         >
+          {d.imageSignedUrl && (
+            <div className="relative mb-1 h-16 w-full overflow-hidden rounded">
+              <Image
+                src={d.imageSignedUrl}
+                alt="Anteprima post"
+                fill
+                className="object-cover"
+                sizes="200px"
+              />
+            </div>
+          )}
           <div className="mb-0.5 flex items-center justify-between gap-1">
             <Badge
               className={

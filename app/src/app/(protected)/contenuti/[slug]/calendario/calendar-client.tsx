@@ -7,11 +7,14 @@ import { scheduleContentDraft } from "@/modules/m03-editorial/public";
 import type { ContentDraft } from "@/modules/m03-editorial/public";
 import { BiweeklyGrid } from "./biweekly-grid";
 import { ApprovedDrawer } from "./approved-drawer";
+import type { ScheduledDraftWithUrl } from "./types";
+
+export type { ScheduledDraftWithUrl } from "./types";
 
 type Props = {
   brandSlug: string;
   startDateIso: string;
-  scheduled: ContentDraft[];
+  scheduled: ScheduledDraftWithUrl[];
   approved: ContentDraft[];
 };
 
