@@ -2,6 +2,7 @@ import { login } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordField } from "./password-field";
 
 function safeDecodeError(raw: string): string {
   try {
@@ -34,13 +35,7 @@ export default async function LoginPage({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-            />
+            <PasswordField />
           </div>
           <Button type="submit" className="bg-primary text-white hover:bg-primary-hover">
             Accedi
