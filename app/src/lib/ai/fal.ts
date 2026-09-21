@@ -5,6 +5,15 @@
 // API docs: https://fal.ai/models/fal-ai/flux/dev, https://fal.ai/models/fal-ai/flux/schnell
 
 export type FluxModel = "flux-dev" | "flux-schnell";
+
+/**
+ * Aspect ratios supported by fal.ai FLUX (mirror fal.ai `image_size` API values).
+ * NOTA convenzione fal.ai (contro-intuitiva):
+ * - "portrait_16_9" produce immagine 9:16 (Instagram Story format, altezza > larghezza)
+ * - "landscape_16_9" produce immagine 16:9 (widescreen, larghezza > altezza)
+ * - "square_hd" produce 1024x1024
+ * Ref: https://fal.ai/models/fal-ai/flux/dev
+ */
 export type FluxAspectRatio = "square_hd" | "portrait_16_9" | "landscape_16_9";
 
 export type GenerateImageInput = {
@@ -53,7 +62,7 @@ export class FalDownloadError extends Error {
   }
 }
 
-const GEN_TIMEOUT_MS = 20_000; // per la generation call
+const GEN_TIMEOUT_MS = 30_000; // per la generation call (fal.ai queue may spike to 15-25s under load)
 const DOWNLOAD_TIMEOUT_MS = 10_000; // per il download bytes
 
 // Pricing FLUX 2026-09 (aggiornare quando fal.ai cambia listino, verifica ~annuale su https://fal.ai/pricing).
