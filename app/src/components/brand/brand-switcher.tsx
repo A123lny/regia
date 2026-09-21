@@ -14,8 +14,11 @@ import {
 import { BrandChip, type BrandSlug } from "@/components/brand/brand-chip";
 import { setBrandScope } from "@/lib/brand/scope";
 import { useTransition } from "react";
+import { Layers } from "lucide-react";
 
 type Brand = { slug: BrandSlug; displayName: string };
+
+const BRICOLAGE_STYLE = { fontFamily: "var(--font-bricolage)" };
 
 export function BrandSwitcher({ currentScope, brands }: { currentScope: string; brands: Brand[] }) {
   const [isPending, startTransition] = useTransition();
@@ -30,11 +33,23 @@ export function BrandSwitcher({ currentScope, brands }: { currentScope: string; 
         });
       }}
     >
-      <SelectTrigger className="w-[180px]">
+      <SelectTrigger
+        className="w-[210px] border-border bg-surface-muted text-xs font-bold uppercase tracking-widest text-text hover:bg-surface"
+        style={BRICOLAGE_STYLE}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all">Tutti i marchi</SelectItem>
+        <SelectItem
+          value="all"
+          className="text-xs font-bold uppercase tracking-widest"
+          style={BRICOLAGE_STYLE}
+        >
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-primary" aria-hidden="true" />
+            <span>Tutti i marchi</span>
+          </div>
+        </SelectItem>
         {brands.map((b) => (
           <SelectItem key={b.slug} value={b.slug}>
             <div className="flex items-center gap-2">
