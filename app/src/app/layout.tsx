@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, Geist } from "next/font/google";
+import { Fraunces, Geist, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -14,6 +14,13 @@ const geist = Geist({
   display: "swap",
 });
 
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin"],
+  variable: "--font-bricolage",
+  display: "swap",
+  weight: ["700", "800"],
+});
+
 export const metadata: Metadata = {
   title: "Regìa",
   description:
@@ -22,7 +29,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="it" className={`${fraunces.variable} ${geist.variable}`}>
+    <html lang="it" className={`${fraunces.variable} ${geist.variable} ${bricolage.variable}`}>
       <body>{children}</body>
     </html>
   );
