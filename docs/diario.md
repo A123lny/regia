@@ -64,7 +64,7 @@
     M4-γ: **75** (era 62). CI locale verde 75/75.
   - Costo stimato mensile: ~$2.30 (150 img/mese × $0.025 FLUX-dev + Claude
     suggest ~$0.05). Budget V-4 non impattato.
-  - Commit range: `5f4706e..HEAD` (~11 commit) su
+  - Commit range: `5f4706e..173fb21` (13 commit inclusi 1 fix round T2 RLS security + 1 final fix wave timeout+comment) su
     `feature/m4-gamma-image-generation`.
   - Prossimo sotto-cantiere: M4-α (libreria foto reali RF-4.1), M4-ε
     (multi-aspect ratio Story/feed), altri cantieri fuori M4.
