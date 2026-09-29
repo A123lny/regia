@@ -1,23 +1,26 @@
+import Link from "next/link";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { getDashboardStats } from "@/modules/m12-daily-use/public";
+import {
+  listUpcomingRecurrences,
+  listOpenMaterialRequests,
+  computeEditorialBalance,
+} from "@/modules/m03-editorial/public";
 import { EnvironmentBadge } from "@/components/dashboard/environment-badge";
-import { Sparkles, Star, Thermometer, Bell, Database, Shield, Server } from "lucide-react";
-
-type BrandSlug = "lenny" | "stazione" | "eni-cafe" | "officina";
-
-const BRAND_COLOR: Record<BrandSlug, string> = {
-  lenny: "#FF6B35",
-  stazione: "#1E5F8C",
-  "eni-cafe": "#8C5E1E",
-  officina: "#3E4C59",
-};
-
-const BRAND_NAME: Record<BrandSlug, string> = {
-  lenny: "Lenny",
-  stazione: "Stazione",
-  "eni-cafe": "Eni Cafè",
-  officina: "Officina",
-};
+import { RecurrencesBanner } from "@/components/dashboard/recurrences-banner";
+import { MaterialRequestsBanner } from "@/components/dashboard/material-requests-banner";
+import { EditorialBalanceCard } from "@/components/dashboard/editorial-balance-card";
+import { WelcomeBackBanner } from "@/components/dashboard/welcome-back-banner";
+import { HelpButton } from "@/components/help/help-button";
+import {
+  FileEdit,
+  CalendarClock,
+  CalendarCheck2,
+  CheckCircle2,
+  Database,
+  Shield,
+  Server,
+} from "lucide-react";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -31,42 +34,60 @@ function formatDate(iso: string | null): string {
   });
 }
 
+const HERO_BLOB_POSITIONS: Array<{ cx: number; cy: number; r: number }> = [
+  { cx: 100, cy: 80, r: 150 },
+  { cx: 700, cy: 100, r: 140 },
+  { cx: 150, cy: 320, r: 140 },
+  { cx: 680, cy: 320, r: 150 },
+];
+
+const HERO_FALLBACK = "#7a6857";
+
 export default async function DashboardPage() {
   const session = await getSessionOrRedirect();
-  const stats = await getDashboardStats(session.organizationId);
+  const [stats, upcomingRecurrences, materialRequests, editorialBalance] = await Promise.all([
+    getDashboardStats(session.organizationId),
+    listUpcomingRecurrences(session.organizationId),
+    listOpenMaterialRequests(session.organizationId),
+    computeEditorialBalance(session.organizationId, 30),
+  ]);
+  const heroColors = HERO_BLOB_POSITIONS.map(
+    (_, i) => stats.going.brands[i]?.color ?? HERO_FALLBACK,
+  );
 
   const metrics = [
     {
-      icon: Sparkles,
-      label: "Contenuti",
+      icon: FileEdit,
+      label: "Bozze",
       subtitle: "da approvare",
-      value: stats.toDo.contentsPending,
+      value: stats.toDo.draftsPending,
       color: "#c25a3b",
-      inactive: stats.toDo.contentsPending === 0,
+      // Se ci sono bozze da processare, apri direttamente la sessione guidata (RF-3.6)
+      href: stats.toDo.draftsPending > 0 ? "/contenuti/sessione" : "/contenuti?status=draft",
     },
     {
-      icon: Star,
-      label: "Recensioni",
-      subtitle: "da gestire",
-      value: stats.toDo.reviewsPending,
-      color: "#87a96b",
-      inactive: stats.toDo.reviewsPending === 0,
-    },
-    {
-      icon: Thermometer,
-      label: "Ristoranti",
-      subtitle: "in raffreddamento",
-      value: stats.toDo.restaurantsCooling,
+      icon: CalendarClock,
+      label: "Approvate",
+      subtitle: "da programmare",
+      value: stats.toDo.approvedNotScheduled,
       color: "#d89b4a",
-      inactive: stats.toDo.restaurantsCooling === 0,
+      href: "/contenuti?status=approved",
     },
     {
-      icon: Bell,
-      label: "Allarmi",
-      subtitle: "costi",
-      value: stats.toDo.costAlerts,
-      color: "#b04a3c",
-      inactive: stats.toDo.costAlerts === 0,
+      icon: CalendarCheck2,
+      label: "In calendario",
+      subtitle: "prossimi 7 giorni",
+      value: stats.toDo.scheduledUpcoming,
+      color: "#87a96b",
+      href: "/contenuti/calendario",
+    },
+    {
+      icon: CheckCircle2,
+      label: "Pubblicate",
+      subtitle: "questa settimana",
+      value: stats.toDo.publishedThisWeek,
+      color: "#7a6857",
+      href: "/contenuti?status=published",
     },
   ];
 
@@ -86,14 +107,23 @@ export default async function DashboardPage() {
             </filter>
           </defs>
           <g filter="url(#heroBlobBlur)" opacity="0.65">
-            <circle cx="100" cy="80" r="150" fill="#FF6B35" />
-            <circle cx="700" cy="100" r="140" fill="#1E5F8C" />
-            <circle cx="150" cy="320" r="140" fill="#8C5E1E" />
-            <circle cx="680" cy="320" r="150" fill="#3E4C59" />
+            {HERO_BLOB_POSITIONS.map((pos, i) => (
+              <circle
+                key={i}
+                cx={pos.cx}
+                cy={pos.cy}
+                r={pos.r}
+                fill={heroColors[i] ?? HERO_FALLBACK}
+              />
+            ))}
           </g>
         </svg>
         <div className="absolute inset-0 bg-white/55 backdrop-blur-[3px]" />
         <div className="relative z-10 max-w-3xl">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs uppercase tracking-widest text-text-muted">Home</span>
+            <HelpButton pageKey="dashboard" />
+          </div>
           <h1
             className="text-5xl font-extrabold uppercase tracking-[0.06em] text-text lg:text-6xl"
             style={{ fontFamily: "var(--font-bricolage)" }}
@@ -106,14 +136,15 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {/* METRICS — 4 card con icona colorata + numero grande in Bricolage + stagger fade-in */}
+      {/* METRICS — 4 card cliccabili con icona colorata + numero grande in Bricolage + stagger fade-in */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {metrics.map((m, i) => {
           const Icon = m.icon;
           return (
-            <div
+            <Link
               key={m.label}
-              className="group relative animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards overflow-hidden rounded-xl border border-border bg-surface p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg duration-500"
+              href={m.href}
+              className="group relative animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards overflow-hidden rounded-xl border border-border bg-surface p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg duration-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               style={{ animationDelay: `${i * 80}ms` }}
             >
               <div
@@ -130,26 +161,38 @@ export default async function DashboardPage() {
               </div>
               <div className="mt-1 text-sm font-medium text-text">{m.label}</div>
               <div className="text-xs text-text-muted">{m.subtitle}</div>
-              {m.inactive && (
-                <div className="mt-3 text-[10px] uppercase tracking-wider text-text-muted/70">
-                  Attivo in F2/F3
-                </div>
-              )}
-            </div>
+            </Link>
           );
         })}
       </div>
 
-      {/* BRAND CARDS — 4 card grandi colorate + stagger zoom-in + hover lift + parallax ornamenti */}
+      {/* RICORRENZE ANNUALI — appare solo se ci sono eventi in finestra (RF-3.4) */}
+      <RecurrencesBanner items={upcomingRecurrences} />
+
+      {/* MATERIALI DA RACCOGLIERE — foto/video pendenti (RF-3.9) */}
+      <MaterialRequestsBanner items={materialRequests} />
+
+      {/* RF-12.6 Bentornato dopo assenza */}
+      <WelcomeBackBanner
+        previousLoginAt={session.previousLoginAt}
+        role={session.role}
+        pendingDraftsCount={stats.toDo.draftsPending}
+      />
+
+      {/* EQUILIBRIO EDITORIALE — distribuzione contenuti ultimi 30gg (RF-12.3) */}
+      <EditorialBalanceCard balance={editorialBalance} />
+
+      {/* BRAND CARDS — card grandi colorate (fino a 4) + stagger zoom-in + hover lift + parallax ornamenti */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {stats.going.brands.map((b, i) => {
-          const slug = b.slug as BrandSlug;
-          const color = BRAND_COLOR[slug];
-          const name = BRAND_NAME[slug];
+          const color = b.color;
+          const name = b.displayName;
           return (
-            <div
+            <Link
               key={b.slug}
-              className="group relative animate-in fade-in zoom-in-95 fill-mode-backwards overflow-hidden rounded-xl p-6 shadow-sm transition-all duration-500 hover:-translate-y-1.5 hover:shadow-2xl"
+              href={`/marchi/${b.slug}`}
+              aria-label={`Apri brand kit di ${name}`}
+              className="group relative block animate-in fade-in zoom-in-95 fill-mode-backwards overflow-hidden rounded-xl p-6 shadow-sm transition-all duration-500 hover:-translate-y-1.5 hover:shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2"
               style={{
                 backgroundColor: color,
                 animationDelay: `${400 + i * 100}ms`,
@@ -176,7 +219,7 @@ export default async function DashboardPage() {
                   {name}
                 </h3>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>

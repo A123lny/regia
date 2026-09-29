@@ -129,8 +129,8 @@ export default function LandingPage() {
             <Card className="border-border bg-surface hover:shadow-md transition-shadow duration-200">
               <CardContent className="p-6">
                 <div className="mb-4 flex items-center gap-2">
-                  <Wrench className="h-5 w-5 text-[#3E4C59]" aria-hidden="true" />
-                  <BrandDot color="#3E4C59" />
+                  <Wrench className="h-5 w-5 text-[#556B2F]" aria-hidden="true" />
+                  <BrandDot color="#556B2F" />
                   <span className="font-semibold text-text">Officina</span>
                 </div>
                 <p className="text-sm leading-relaxed text-text-muted">

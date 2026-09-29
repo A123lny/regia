@@ -1,10 +1,10 @@
 // M12 daily use — dashboard stats aggregation (RF-12.1).
-// Query aggregate per Home M12: contatori "cosa devi fare" + info "come sta andando".
-// I contatori per tabelle non ancora esistenti (contents, reviews, restaurants, cost_alerts)
-// ritornano 0 senza throw grazie al catch su Postgres error 42P01 (undefined_table).
-// Quando F1.2+ aggiunge le tabelle, i valori si popolano automaticamente.
+// Query aggregate per Home M12: contatori pipeline editoriale (F1.5a/b, dati vivi)
+// + info "come sta andando".
+// I contatori del pipeline editoriale vengono da m03-editorial via public.ts (RS-1).
 
 import { getAdminClient } from "@/lib/db/admin";
+import { getContentDraftsDashboardCounts } from "@/modules/m03-editorial/public";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -13,36 +13,18 @@ export type Environment = "sviluppo-locale" | "staging" | "produzione";
 export type DashboardStats = {
   organizationId: string;
   toDo: {
-    contentsPending: number;
-    reviewsPending: number;
-    restaurantsCooling: number;
-    costAlerts: number;
+    draftsPending: number;
+    approvedNotScheduled: number;
+    scheduledUpcoming: number;
+    publishedThisWeek: number;
   };
   going: {
-    brands: Array<{ slug: string; displayName: string }>;
+    brands: Array<{ slug: string; displayName: string; color: string; logoUrl: string | null }>;
     lastAuthEventAt: string | null;
     lastBackupAt: string | null;
     environment: Environment;
   };
 };
-
-const UNDEFINED_TABLE_CODE = "42P01";
-
-async function safeCount(table: string, organizationId: string): Promise<number> {
-  const admin = getAdminClient();
-  const { count, error } = await admin
-    .from(table)
-    .select("*", { count: "exact", head: true })
-    .eq("organization_id", organizationId);
-  if (error) {
-    if (error.code === UNDEFINED_TABLE_CODE) return 0;
-    // Anche errori di colonna mancante (42703) sono tollerati: tabelle future
-    // potrebbero non avere ancora organization_id.
-    if (error.code === "42703") return 0;
-    throw error;
-  }
-  return count ?? 0;
-}
 
 async function getLastAuthEvent(organizationId: string): Promise<string | null> {
   const admin = getAdminClient();
@@ -90,41 +72,30 @@ function getEnvironment(): Environment {
 export async function getDashboardStats(organizationId: string): Promise<DashboardStats> {
   const admin = getAdminClient();
 
-  const [
-    contentsPending,
-    reviewsPending,
-    restaurantsCooling,
-    costAlerts,
-    brandsResult,
-    lastAuthEventAt,
-    lastBackupAt,
-  ] = await Promise.all([
-    safeCount("contents", organizationId),
-    safeCount("reviews", organizationId),
-    safeCount("restaurants", organizationId),
-    safeCount("cost_alerts", organizationId),
+  const [toDo, brandsResult, lastAuthEventAt, lastBackupAt] = await Promise.all([
+    getContentDraftsDashboardCounts(organizationId),
     admin
       .from("brands")
-      .select("slug, display_name")
+      .select("slug, display_name, color, logo_url")
       .eq("organization_id", organizationId)
+      .eq("is_archived", false)
       .order("display_name"),
     getLastAuthEvent(organizationId),
     getLastBackupAt(),
   ]);
 
-  const brands = (brandsResult.data ?? []).map((b: { slug: string; display_name: string }) => ({
-    slug: b.slug,
-    displayName: b.display_name,
-  }));
+  const brands = (brandsResult.data ?? []).map(
+    (b: { slug: string; display_name: string; color: string; logo_url: string | null }) => ({
+      slug: b.slug,
+      displayName: b.display_name,
+      color: b.color,
+      logoUrl: b.logo_url ?? null,
+    }),
+  );
 
   return {
     organizationId,
-    toDo: {
-      contentsPending,
-      reviewsPending,
-      restaurantsCooling,
-      costAlerts,
-    },
+    toDo,
     going: {
       brands,
       lastAuthEventAt,

@@ -41,7 +41,7 @@ export default async function LoginPage({
           {/* Eni Cafè — marrone caldo */}
           <circle cx="180" cy="660" r="210" fill="#8C5E1E" />
           {/* Officina — grigio-blu */}
-          <circle cx="650" cy="640" r="220" fill="#3E4C59" />
+          <circle cx="650" cy="640" r="220" fill="#556B2F" />
         </g>
       </svg>
       {/* Overlay leggibilità */}
@@ -71,7 +71,7 @@ export default async function LoginPage({
               Eni Cafè
             </span>{" "}
             e{" "}
-            <span className="font-medium" style={{ color: "#3E4C59" }}>
+            <span className="font-medium" style={{ color: "#556B2F" }}>
               Officina
             </span>
             .
@@ -97,10 +97,7 @@ export default async function LoginPage({
               <Label htmlFor="password">Password</Label>
               <PasswordField />
             </div>
-            <Button
-              type="submit"
-              className="mt-2 bg-primary text-white hover:bg-primary-hover"
-            >
+            <Button type="submit" className="mt-2 bg-primary text-white hover:bg-primary-hover">
               Accedi
             </Button>
           </form>
