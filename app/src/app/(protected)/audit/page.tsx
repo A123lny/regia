@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getSessionOrRedirect } from "@/lib/auth/session";
+import { hasCapability } from "@/lib/auth/permissions";
 import { getRecentAuditEvents } from "@/modules/m11-admin/public";
 import {
   Table,
@@ -9,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { HelpButton } from "@/components/help/help-button";
 
 type ActorKind = "user" | "agent" | "system";
 
@@ -35,7 +37,7 @@ export default async function AuditPage({
   searchParams: Promise<{ actor?: string }>;
 }) {
   const session = await getSessionOrRedirect();
-  if (session.role !== "owner") notFound(); // RU-1a: audit log solo owner
+  if (!hasCapability(session.role, "audit.read")) notFound();
 
   const params = await searchParams;
   const actorFilter = params.actor;
@@ -49,7 +51,10 @@ export default async function AuditPage({
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-serif text-3xl font-semibold text-text">Audit log</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="font-serif text-3xl font-semibold text-text">Audit log</h1>
+          <HelpButton pageKey="audit" />
+        </div>
         <p className="mt-1 text-sm text-text-muted">
           Traccia di ogni azione umana e agente (RF-11.3). Append-only garantito in DB.
         </p>

@@ -1,19 +1,31 @@
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, Share2 } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { getAdminClient } from "@/lib/db/admin";
+import { ROLE_LABELS, hasCapability, type Role } from "@/lib/auth/permissions";
+import {
+  listBrands,
+  listBrandSocialAccounts,
+  SOCIAL_PLATFORMS,
+  type BrandSocialAccount,
+} from "@/modules/m02-brand/public";
+import {
+  getAiSafetyStatus,
+  getSpendSummaries,
+  getPlatformBranding,
+} from "@/modules/m11-admin/public";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { logout } from "@/app/(protected)/logout-action";
+import { SocialConfigClient } from "./social-config-client";
+import { AiKillSwitchCard } from "@/components/admin/ai-kill-switch-card";
+import { AiBudgetsCard } from "@/components/admin/ai-budgets-card";
+import { ConnectionsHealthCard } from "@/components/admin/connections-health-card";
+import { PlatformBrandingCard } from "@/components/admin/platform-branding-card";
+import { HelpButton } from "@/components/help/help-button";
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: "Proprietario",
-  editor: "Editor",
-  delegate: "Delegato",
-  agent: "Agente",
-};
-
-const ROLE_VARIANTS: Record<string, "default" | "secondary" | "outline"> = {
+const ROLE_VARIANTS: Record<Role, "default" | "secondary" | "outline"> = {
   owner: "default",
   editor: "secondary",
   delegate: "outline",
@@ -49,6 +61,27 @@ export default async function ImpostazioniPage() {
   const { data: userRow } = await admin.auth.admin.getUserById(session.userId);
   const email = userRow.user?.email ?? "—";
 
+  // AI kill switch + budget: solo Owner (team.manage)
+  const canManageAiSafety = hasCapability(session.role, "team.manage");
+  const aiSafetyStatus = canManageAiSafety ? await getAiSafetyStatus(session.organizationId) : null;
+  const aiSpendSummaries = canManageAiSafety
+    ? await getSpendSummaries(session.organizationId)
+    : null;
+  const platformBranding = canManageAiSafety
+    ? await getPlatformBranding(session.organizationId)
+    : null;
+
+  // Social accounts config: solo Owner (credentials sono dati sensibili)
+  const canConfigureSocial = hasCapability(session.role, "brand.crud");
+  const brands = canConfigureSocial ? await listBrands(session.organizationId, "active") : [];
+  const socialAccounts: BrandSocialAccount[] = [];
+  if (canConfigureSocial) {
+    for (const b of brands) {
+      const accs = await listBrandSocialAccounts(session.organizationId, b.id);
+      socialAccounts.push(...accs);
+    }
+  }
+
   const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"] ?? "";
   const appVersion = process.env["npm_package_version"] ?? "0.1.0";
   const gitSha = process.env["GIT_SHA"] ?? "n/d";
@@ -59,7 +92,10 @@ export default async function ImpostazioniPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-serif text-3xl font-semibold text-text">Impostazioni</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="font-serif text-3xl font-semibold text-text">Impostazioni</h1>
+          <HelpButton pageKey="impostazioni" />
+        </div>
         <p className="mt-1 text-sm text-text-muted">
           Profilo utente e informazioni sull&apos;ambiente di esecuzione.
         </p>
@@ -107,6 +143,57 @@ export default async function ImpostazioniPage() {
               </span>
             </span>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* RF-11.4 AI kill switch — solo Owner */}
+      {canManageAiSafety && aiSafetyStatus && <AiKillSwitchCard initialStatus={aiSafetyStatus} />}
+
+      {/* RF-11.5 Tetti spesa AI — solo Owner */}
+      {canManageAiSafety && aiSpendSummaries && <AiBudgetsCard summaries={aiSpendSummaries} />}
+
+      {/* RF-11.2 Salute connessioni social — solo Owner */}
+      {canConfigureSocial && <ConnectionsHealthCard brands={brands} accounts={socialAccounts} />}
+
+      {/* RF-2.7 White label piattaforma — solo Owner */}
+      {canManageAiSafety && platformBranding && <PlatformBrandingCard initial={platformBranding} />}
+
+      {/* Sezione Account social (per-brand, per-platform) — solo Owner */}
+      {canConfigureSocial && (
+        <Card className="border-border bg-surface">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-serif text-xl">
+              <Share2 className="h-5 w-5" /> Account social
+            </CardTitle>
+            <CardDescription>
+              Credenziali di pubblicazione per ogni marchio e piattaforma (predisposizione M14
+              auto-publishing). Le credenziali sono al sicuro nel DB e mai mostrate in chiaro dopo
+              il primo salvataggio.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SocialConfigClient
+              brands={brands}
+              accounts={socialAccounts}
+              schemas={SOCIAL_PLATFORMS}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Link a sotto-pagine di config avanzata */}
+      <Card className="border-border bg-surface">
+        <CardHeader>
+          <CardTitle className="font-serif text-xl">Configurazioni avanzate</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <Link
+            href="/impostazioni/ricorrenze"
+            className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 hover:border-primary/40"
+          >
+            <span className="text-text">Ricorrenze annuali (RF-12.4)</span>
+            <span className="text-xs text-text-muted">Natale, gomme, ferie...</span>
+          </Link>
         </CardContent>
       </Card>
 
