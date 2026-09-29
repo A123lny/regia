@@ -11,15 +11,14 @@
 
 import { getAdminClient } from "@/lib/db/admin";
 import { getSessionOrRedirect } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/auth/permissions";
 import { logAuditEvent } from "@/lib/audit/log";
 import { revalidatePath } from "next/cache";
 import type { SensitiveTopicKind } from "./brand-kit-types";
 
 async function requireOwner() {
   const session = await getSessionOrRedirect();
-  if (session.role !== "owner") {
-    throw new Error("Solo Owner può editare il brand kit (RU-1a)");
-  }
+  requireCapability(session, "brand.kit.edit");
   return session;
 }
 

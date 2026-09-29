@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, Trash2, ChevronUp, ChevronDown, ImagePlus } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
-import { getAdminClient } from "@/lib/db/admin";
+import { hasCapability } from "@/lib/auth/permissions";
 import { BrandChip } from "@/components/brand/brand-chip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  getBrandBySlug,
   getBrandKitWithLists,
   formatBrandContextForAI,
   updateBrandKitTone,
@@ -38,8 +39,7 @@ import {
   addBrandSensitiveTopic,
   removeBrandSensitiveTopic,
 } from "@/modules/m02-brand/public";
-
-type BrandSlug = "lenny" | "stazione" | "eni-cafe" | "officina";
+import { HelpButton } from "@/components/help/help-button";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString("it-IT", {
@@ -53,25 +53,17 @@ function formatDate(iso: string): string {
 
 export default async function BrandKitPage({ params }: { params: Promise<{ slug: string }> }) {
   const session = await getSessionOrRedirect();
-  if (session.role !== "owner") notFound(); // RU-1a
+  if (!hasCapability(session.role, "brand.kit.edit")) notFound();
 
   const { slug } = await params;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = getAdminClient() as any;
-  const { data: brandRow } = (await admin
-    .from("brands")
-    .select("id, slug, display_name")
-    .eq("slug", slug)
-    .eq("organization_id", session.organizationId)
-    .maybeSingle()) as {
-    data: { id: string; slug: string; display_name: string } | null;
-  };
-  if (!brandRow) notFound();
+  const brand = await getBrandBySlug(session.organizationId, slug);
+  if (!brand) notFound();
 
-  const brandId = brandRow.id;
-  const displayName = brandRow.display_name;
-  const brandSlug = brandRow.slug;
+  const brandId = brand.id;
+  const displayName = brand.displayName;
+  const brandSlug = brand.slug;
+  const brandColor = brand.color;
 
   const bundle = await getBrandKitWithLists(brandId);
   const aiContext = await formatBrandContextForAI(brandId);
@@ -90,9 +82,19 @@ export default async function BrandKitPage({ params }: { params: Promise<{ slug:
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Torna ai marchi
         </Link>
-        <div className="flex items-center gap-3">
-          <BrandChip brand={brandSlug as BrandSlug} />
-          <h1 className="font-serif text-3xl font-semibold text-text">{displayName}</h1>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <BrandChip slug={brandSlug} name={displayName} color={brandColor} />
+            <h1 className="font-serif text-3xl font-semibold text-text">{displayName}</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href={`/marchi/${brandSlug}/media`}>
+              <Button variant="outline">
+                <ImagePlus className="mr-2 h-4 w-4" /> Libreria media
+              </Button>
+            </Link>
+            <HelpButton pageKey="brand-kit" />
+          </div>
         </div>
         {kit && (
           <p className="text-xs text-text-muted">

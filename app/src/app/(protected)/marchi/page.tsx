@@ -1,92 +1,37 @@
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
-import { getAdminClient } from "@/lib/db/admin";
-import { BrandChip } from "@/components/brand/brand-chip";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { listBrands } from "@/modules/m02-brand/public";
+import { BrandsAdminClient } from "./brands-admin-client";
+import { HelpButton } from "@/components/help/help-button";
 
-type BrandSlug = "lenny" | "stazione" | "eni-cafe" | "officina";
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("it-IT", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-export default async function MarchiPage() {
+export default async function MarchiPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ showArchived?: string }>;
+}) {
   const session = await getSessionOrRedirect();
-  const admin = getAdminClient();
-  // F0: no RLS select policy yet — bypass via service_role. Rimosso in F1.3.
-  const { data } = await admin
-    .from("brands")
-    .select("id, slug, display_name, created_at")
-    .eq("organization_id", session.organizationId)
-    .order("display_name");
-
-  const brands = (data ?? []) as Array<{
-    id: string;
-    slug: string;
-    display_name: string;
-    created_at: string;
-  }>;
+  const { showArchived: showArchivedParam } = await searchParams;
+  const showArchived = showArchivedParam === "1";
+  const brands = await listBrands(session.organizationId, showArchived ? "archived" : "active");
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-serif text-3xl font-semibold text-text">Marchi</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1
+            className="text-3xl font-extrabold uppercase tracking-[0.04em] text-text"
+            style={{ fontFamily: "var(--font-bricolage)" }}
+          >
+            Marchi
+          </h1>
+          <HelpButton pageKey="marchi" />
+        </div>
         <p className="mt-1 text-sm text-text-muted">
-          I quattro marchi del gruppo (RF-2.1). Clicca un marchio per editarne il brand kit (tono,
-          contesto strategico, rubriche, vincoli redazionali).
+          Aggiungi, modifica, archivia i marchi del gruppo (RF-2.1). Il brand kit (tono, contesto,
+          rubriche, vincoli) si apre dalla riga del marchio.
         </p>
       </header>
 
-      <div className="rounded-lg border border-border bg-surface">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Marchio</TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead>Slug</TableHead>
-              <TableHead>Creato</TableHead>
-              <TableHead className="w-10"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {brands.map((b) => (
-              <TableRow key={b.id} className="cursor-pointer hover:bg-surface-muted">
-                <TableCell>
-                  <Link href={`/marchi/${b.slug}`}>
-                    <BrandChip brand={b.slug as BrandSlug} />
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <Link href={`/marchi/${b.slug}`} className="font-medium hover:text-primary">
-                    {b.display_name}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <code className="rounded bg-surface-muted px-1.5 py-0.5 text-xs">{b.slug}</code>
-                </TableCell>
-                <TableCell className="text-text-muted">{formatDate(b.created_at)}</TableCell>
-                <TableCell>
-                  <Link href={`/marchi/${b.slug}`} aria-label={`Modifica ${b.display_name}`}>
-                    <ChevronRight className="h-4 w-4 text-text-muted" />
-                  </Link>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <BrandsAdminClient brands={brands} showArchived={showArchived} />
     </div>
   );
 }

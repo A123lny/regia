@@ -2,32 +2,53 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { BrandChip } from "@/components/brand/brand-chip";
 
+// Con RF-2.2 completamento (logo al posto del pallino colorato), i test
+// verificano che il chip mostri nome + placeholder logo o logo caricato.
+
 describe("BrandChip", () => {
-  it("renders Lenny with orange dot", () => {
+  it("renders Lenny name", () => {
     render(<BrandChip brand="lenny" />);
     expect(screen.getByText("Lenny")).toBeDefined();
-    const dot = screen.getByTestId("brand-dot-lenny");
-    expect(dot.style.backgroundColor).toBe("rgb(255, 107, 53)"); // #FF6B35
+    expect(screen.getByTestId("brand-chip-lenny")).toBeDefined();
   });
 
-  it("renders Stazione with blue dot", () => {
+  it("renders Stazione name", () => {
     render(<BrandChip brand="stazione" />);
     expect(screen.getByText("Stazione")).toBeDefined();
-    const dot = screen.getByTestId("brand-dot-stazione");
-    expect(dot.style.backgroundColor).toBe("rgb(30, 95, 140)"); // #1E5F8C
+    expect(screen.getByTestId("brand-chip-stazione")).toBeDefined();
   });
 
-  it("renders Eni Cafè with brown dot", () => {
+  it("renders Eni Cafè name", () => {
     render(<BrandChip brand="eni-cafe" />);
     expect(screen.getByText("Eni Cafè")).toBeDefined();
-    const dot = screen.getByTestId("brand-dot-eni-cafe");
-    expect(dot.style.backgroundColor).toBe("rgb(140, 94, 30)"); // #8C5E1E
+    expect(screen.getByTestId("brand-chip-eni-cafe")).toBeDefined();
   });
 
-  it("renders Officina with graphite dot", () => {
+  it("renders Officina name", () => {
     render(<BrandChip brand="officina" />);
     expect(screen.getByText("Officina")).toBeDefined();
-    const dot = screen.getByTestId("brand-dot-officina");
-    expect(dot.style.backgroundColor).toBe("rgb(62, 76, 89)"); // #3E4C59
+    expect(screen.getByTestId("brand-chip-officina")).toBeDefined();
+  });
+
+  it("renders dynamic brand with custom name and logoUrl", () => {
+    render(
+      <BrandChip
+        slug="custom"
+        name="Custom Brand"
+        color="#123456"
+        logoUrl="https://example.com/logo.png"
+      />,
+    );
+    expect(screen.getByText("Custom Brand")).toBeDefined();
+    const img = screen.getByAltText("Logo Custom Brand");
+    expect(img.getAttribute("src")).toBe("https://example.com/logo.png");
+  });
+
+  it("renders placeholder when logoUrl is null", () => {
+    render(<BrandChip slug="empty" name="Empty Brand" color="#000000" logoUrl={null} />);
+    expect(screen.getByText("Empty Brand")).toBeDefined();
+    // Nessuna img → placeholder icona
+    const imgs = screen.queryAllByRole("img");
+    expect(imgs.length).toBe(0);
   });
 });
