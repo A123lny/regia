@@ -22,4 +22,6 @@ export {
 
 export { getAdapter } from "./internal/adapter-registry";
 
-// Server actions e sendMessage arrivano nei task successivi.
+export { sendMessage } from "./internal/send-message";
+export type { SendMessageInput } from "./internal/send-message";
+export type { Job, JobStatus } from "./internal/publish-jobs-repo";
