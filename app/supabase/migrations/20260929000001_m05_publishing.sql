@@ -119,3 +119,26 @@ values
   ('00000000-0000-0000-0000-000000000001','whatsapp','09:00','21:00',false,2),
   ('00000000-0000-0000-0000-000000000001','email','00:00','23:59',true,4)
 on conflict do nothing;
+
+create or replace function m05_claim_jobs(p_limit int, p_claim_token uuid)
+returns setof m05_publish_jobs
+language plpgsql
+as $$
+begin
+  return query
+  with picked as (
+    select id from m05_publish_jobs
+    where status = 'queued'
+      and next_retry_at <= now()
+      and send_after <= now()
+    order by created_at
+    limit p_limit
+    for update skip locked
+  )
+  update m05_publish_jobs
+  set status = 'claimed', claim_token = p_claim_token, claimed_at = now()
+  from picked
+  where m05_publish_jobs.id = picked.id
+  returning m05_publish_jobs.*;
+end;
+$$;
