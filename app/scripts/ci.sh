@@ -32,20 +32,23 @@ npm run typecheck
 echo "==> 4/6  Confini di modulo (RS-1, dependency-cruiser)"
 npx depcruise src --config .dependency-cruiser.cjs
 
-echo "==> 5/6  Migrazioni idempotenti (RS-8, supabase db reset)"
+echo "==> 5/7  Migrazioni idempotenti (RS-8, supabase db reset)"
 # Applica tutte le migrazioni su un DB locale pulito. Se una migrazione
 # non è idempotente rispetto al reset o rompe lo schema, fallisce qui.
 # Il seed dati è incluso nella migrazione 000006: non serve un passo separato.
-# Nota: dopo il reset auth.users è svuotato; riesegui dev-create-owner.sh per ricreare l'Owner.
+# Nota: dopo il reset auth.users è svuotato: il passo 7 ricrea l'Owner dev.
 # Nota: su Windows con Docker Desktop + Hyper-V, `supabase db reset` a caldo
 # subito dopo un reset precedente può fallire con timeout Docker (~1 min).
 # Rimedio: attendere 5-10 secondi e rieseguire `npm run ci`. Non riproducibile
 # su Linux nativo (GitHub Actions, F0-b).
 npx supabase db reset --no-seed >/dev/null
 
-echo "==> 6/6  Test invarianti + boundaries (Vitest)"
+echo "==> 6/7  Test invarianti + boundaries (Vitest)"
 npm test
+
+echo "==> 7/7  Ripristino Owner dev (auth.users svuotato dal reset del punto 5)"
+bash scripts/dev-create-owner.sh >/dev/null
 
 echo ""
 echo "==> CI locale verde ✓"
-echo "    Puoi committare."
+echo "    Puoi committare. Login dev: admin@admin.com / admin123"
