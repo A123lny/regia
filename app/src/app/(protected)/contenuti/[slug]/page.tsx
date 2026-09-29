@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Sparkles, Calendar } from "lucide-react";
+import { ArrowLeft, Sparkles, Calendar, ListChecks, Zap } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
-import { getAdminClient } from "@/lib/db/admin";
 import { BrandChip } from "@/components/brand/brand-chip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,10 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { listContentDraftsByBrand } from "@/modules/m03-editorial/public";
+import { listContentDraftsByBrand, listDraftsByPlanBatch } from "@/modules/m03-editorial/public";
 import type { ContentDraftStatus } from "@/modules/m03-editorial/public";
-
-type BrandSlug = "lenny" | "stazione" | "eni-cafe" | "officina";
+import { getBrandBySlug } from "@/modules/m02-brand/public";
+import { HelpButton } from "@/components/help/help-button";
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("it-IT", {
@@ -55,27 +54,29 @@ function StatusBadge({ status }: { status: ContentDraftStatus }) {
   return <Badge className="border border-border bg-surface-muted text-text-muted">Bozza</Badge>;
 }
 
-export default async function BrandContentPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function BrandContentPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ planBatchId?: string }>;
+}) {
   const session = await getSessionOrRedirect();
-  if (session.role !== "owner") notFound();
 
   const { slug } = await params;
+  const { planBatchId } = await searchParams;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = getAdminClient() as any;
-  const { data: brandRow } = await admin
-    .from("brands")
-    .select("id, slug, display_name")
-    .eq("slug", slug)
-    .eq("organization_id", session.organizationId)
-    .maybeSingle();
-  if (!brandRow) notFound();
+  const brand = await getBrandBySlug(session.organizationId, slug);
+  if (!brand) notFound();
 
-  const brandId = brandRow.id as string;
-  const brandSlug = brandRow.slug as string;
-  const displayName = brandRow.display_name as string;
+  const brandId = brand.id;
+  const brandSlug = brand.slug;
+  const displayName = brand.displayName;
+  const brandColor = brand.color;
 
-  const drafts = await listContentDraftsByBrand(brandId, session.organizationId, 20);
+  const drafts = planBatchId
+    ? await listDraftsByPlanBatch(session.organizationId, planBatchId)
+    : await listContentDraftsByBrand(brandId, session.organizationId, 20);
 
   return (
     <div className="space-y-6">
@@ -88,7 +89,7 @@ export default async function BrandContentPage({ params }: { params: Promise<{ s
         </Link>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <BrandChip brand={brandSlug as BrandSlug} />
+            <BrandChip slug={brandSlug} name={displayName} color={brandColor} />
             <h1 className="font-serif text-3xl font-semibold text-text">{displayName}</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -97,13 +98,32 @@ export default async function BrandContentPage({ params }: { params: Promise<{ s
                 <Calendar className="mr-2 h-4 w-4" /> Calendario
               </Button>
             </Link>
+            <Link href={`/contenuti/${brandSlug}/piano`}>
+              <Button variant="outline">
+                <ListChecks className="mr-2 h-4 w-4" /> Piano 14gg
+              </Button>
+            </Link>
+            <Link href={`/contenuti/${brandSlug}/servizio`}>
+              <Button variant="outline">
+                <Zap className="mr-2 h-4 w-4" /> Corsia veloce
+              </Button>
+            </Link>
             <Link href={`/contenuti/${brandSlug}/nuovo`}>
               <Button className="bg-primary text-white hover:bg-primary-hover">
                 <Sparkles className="mr-2 h-4 w-4" /> Nuovo contenuto
               </Button>
             </Link>
+            <HelpButton pageKey="contenuti" />
           </div>
         </div>
+        {planBatchId && (
+          <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary">
+            Stai visualizzando le {drafts.length} bozze del piano appena generato.{" "}
+            <Link href={`/contenuti/${brandSlug}`} className="underline hover:no-underline">
+              Torna a tutte le bozze
+            </Link>
+          </div>
+        )}
       </header>
 
       <div className="rounded-lg border border-border bg-surface">

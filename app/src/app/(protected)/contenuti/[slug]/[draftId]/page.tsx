@@ -15,7 +15,18 @@ import {
   markContentDraftPublished,
 } from "@/modules/m03-editorial/public";
 import type { ContentDraftStatus } from "@/modules/m03-editorial/public";
+import {
+  getMediaAssetById,
+  listMediaAssetsByBrand,
+  listTemplatesForBrand,
+} from "@/modules/m04-media/public";
+import { getBrandBySlug } from "@/modules/m02-brand/public";
 import { ScheduleDraftForm } from "./schedule-form";
+import { MaterialRequestForm } from "./material-request-form";
+import { DraftMediaPicker } from "./media-picker";
+import { ChannelPreviews } from "./channel-previews";
+import { UtmPreviewCard } from "@/components/editorial/utm-preview-card";
+import { TopicLabelEditor } from "@/components/editorial/topic-label-editor";
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("it-IT", {
@@ -55,11 +66,22 @@ export default async function DraftDetailPage({
   params: Promise<{ slug: string; draftId: string }>;
 }) {
   const session = await getSessionOrRedirect();
-  if (session.role !== "owner") notFound();
 
   const { slug, draftId } = await params;
   const draft = await getContentDraft(draftId, session.organizationId);
   if (!draft) notFound();
+
+  // Immagine allegata + libreria disponibile per il picker (RF-4.1)
+  const [currentAsset, brand] = await Promise.all([
+    draft.mediaAssetId
+      ? getMediaAssetById(session.organizationId, draft.mediaAssetId)
+      : Promise.resolve(null),
+    getBrandBySlug(session.organizationId, slug),
+  ]);
+  const availableAssets = brand
+    ? await listMediaAssetsByBrand(session.organizationId, brand.id, 200)
+    : [];
+  const availableTemplates = listTemplatesForBrand(slug);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -94,8 +116,52 @@ export default async function DraftDetailPage({
             <Badge variant="outline">Prompt: {draft.promptVersion}</Badge>
             <Badge variant="outline">Data: {formatDateTime(draft.createdAt)}</Badge>
           </div>
+          <div className="mt-4">
+            <TopicLabelEditor
+              draftId={draft.id}
+              currentLabel={draft.topicLabel}
+              disabled={draft.status === "published" || draft.status === "rejected"}
+            />
+          </div>
         </CardContent>
       </Card>
+
+      {/* RN-85 Anteprima link tracciati (compare solo se il testo contiene URL) */}
+      <UtmPreviewCard text={draft.generatedText} brandSlug={slug} draftId={draft.id} />
+
+      {/* RF-4.1 + RF-4.2: media picker (non su rejected/published) */}
+      {draft.status !== "rejected" && draft.status !== "published" && (
+        <DraftMediaPicker
+          draftId={draft.id}
+          brandSlug={slug}
+          currentAsset={currentAsset}
+          availableAssets={availableAssets}
+          availableTemplates={availableTemplates}
+        />
+      )}
+
+      {/* RF-4.6 Anteprima per canale (RF-2.2 font brand applicato) */}
+      {brand && (
+        <ChannelPreviews
+          brandDisplayName={brand.displayName}
+          brandLogoUrl={brand.logoUrl}
+          brandFontFamily={brand.fontFamily}
+          text={draft.generatedText}
+          imageUrl={currentAsset?.signedUrl ?? null}
+        />
+      )}
+      {/* Su published: mostra immagine ma read-only */}
+      {draft.status === "published" && currentAsset && (
+        <div className="rounded-lg border border-border bg-surface p-4">
+          <h3 className="mb-2 text-sm font-medium text-text">Immagine pubblicata</h3>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={currentAsset.signedUrl}
+            alt={currentAsset.caption || "media"}
+            className="max-h-64 rounded-md border border-border object-contain"
+          />
+        </div>
+      )}
 
       {draft.status === "draft" && (
         <div className="flex flex-col gap-4 sm:flex-row">
@@ -182,6 +248,13 @@ export default async function DraftDetailPage({
           <div className="mt-2">
             <strong>Motivo:</strong> {draft.rejectionReason}
           </div>
+        </div>
+      )}
+
+      {/* RF-3.9 Richiesta materiali (foto/video). Non mostrato su rejected/published. */}
+      {draft.status !== "rejected" && draft.status !== "published" && (
+        <div className="border-t border-border pt-4">
+          <MaterialRequestForm draftId={draft.id} />
         </div>
       )}
     </div>

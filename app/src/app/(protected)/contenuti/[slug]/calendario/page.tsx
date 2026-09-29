@@ -47,7 +47,6 @@ export default async function CalendarioPage({
   searchParams: Promise<{ start?: string }>;
 }) {
   const session = await getSessionOrRedirect();
-  if (session.role !== "owner") notFound();
 
   const { slug } = await params;
   const { start } = await searchParams;

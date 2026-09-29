@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
+import { hasCapability } from "@/lib/auth/permissions";
 import { getAdminClient } from "@/lib/db/admin";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -23,7 +24,7 @@ export default async function NewContentPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const session = await getSessionOrRedirect();
-  if (session.role !== "owner") notFound();
+  if (!hasCapability(session.role, "content.generate")) notFound();
 
   const { slug } = await params;
   const { error: errorParam } = await searchParams;

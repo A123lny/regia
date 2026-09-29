@@ -53,7 +53,7 @@ export function CalendarClient({ brandSlug, startDateIso, scheduled, approved }:
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+    <DndContext id="calendario-brand" sensors={sensors} onDragEnd={onDragEnd}>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
         <BiweeklyGrid startDateIso={startDateIso} scheduled={scheduled} brandSlug={brandSlug} />
         <ApprovedDrawer approved={approved} brandSlug={brandSlug} />

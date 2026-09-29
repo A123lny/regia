@@ -29,4 +29,7 @@ export type ContentDraft = {
   rejectedAt: string | null;
   scheduledAt: string | null; // ISO — null se non programmato (F1.5b-α)
   publishedAt: string | null; // ISO — null se non pubblicato (F1.5b-α)
+  planBatchId: string | null; // raggruppamento per RF-3.1 piano multi-post
+  mediaAssetId: string | null; // FK opzionale a brand_media_assets (RF-4.1)
+  topicLabel: string | null; // RF-12.2 etichetta di argomento (classifier heuristico)
 };
