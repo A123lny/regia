@@ -85,7 +85,12 @@ export type Capability =
   // Anti-abbandono (m09-reminders esteso) — RN-40, RF-9.x
   | "abandonment.read"
   | "abandonment.resolve"
-  | "abandonment.detect";
+  | "abandonment.detect"
+  // M05 Publishing (RF-5.x) - invii verso l'esterno
+  | "publishing.credentials.manage"
+  | "publishing.send"
+  | "publishing.send_bulk"
+  | "publishing.retry_dead";
 
 const CAPABILITIES: Record<Capability, Role[]> = {
   // Editor puo generare bozze, l'Owner decide se pubblicare
@@ -149,6 +154,10 @@ const CAPABILITIES: Record<Capability, Role[]> = {
   "abandonment.read": ["owner", "editor"],
   "abandonment.resolve": ["owner", "editor"],
   "abandonment.detect": ["owner"],
+  "publishing.credentials.manage": ["owner"],  // API keys strategiche
+  "publishing.send": ["owner", "editor"],       // invio singolo (test o operativo)
+  "publishing.send_bulk": ["owner"],            // bulk = costo + rischio, Owner-only (v2)
+  "publishing.retry_dead": ["owner"],           // recovery manuale
 };
 
 export function hasCapability(role: Role, cap: Capability): boolean {
@@ -235,4 +244,8 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   "abandonment.read": "Vedere segnali di abbandono clienti",
   "abandonment.resolve": "Risolvere segnali di abbandono",
   "abandonment.detect": "Ricalcolare i segnali di abbandono",
+  "publishing.credentials.manage": "Configurare canali di invio (API keys)",
+  "publishing.send": "Inviare un messaggio (test o singolo)",
+  "publishing.send_bulk": "Inviare a piu destinatari (bulk)",
+  "publishing.retry_dead": "Rilanciare invii falliti definitivamente",
 };

@@ -54,6 +54,10 @@ describe("permissions matrix (RU-1a)", () => {
         "abandonment.read",
         "abandonment.resolve",
         "abandonment.detect",
+        "publishing.credentials.manage",
+        "publishing.send",
+        "publishing.send_bulk",
+        "publishing.retry_dead",
       ];
       for (const cap of all) {
         expect(hasCapability("owner", cap), `owner deve poter ${cap}`).toBe(true);
@@ -62,7 +66,7 @@ describe("permissions matrix (RU-1a)", () => {
   });
 
   describe("editor (marketing)", () => {
-    it("PUO: generate, schedule, unschedule, reschedule, publish, brand.kit.edit, team.read, contacts.*", () => {
+    it("PUO: generate, schedule, unschedule, reschedule, publish, brand.kit.edit, team.read, contacts.*, publishing.send", () => {
       expect(hasCapability("editor", "content.generate")).toBe(true);
       expect(hasCapability("editor", "content.schedule")).toBe(true);
       expect(hasCapability("editor", "content.unschedule")).toBe(true);
@@ -101,6 +105,8 @@ describe("permissions matrix (RU-1a)", () => {
       // Anti-abbandono (RN-40): read + resolve operativi
       expect(hasCapability("editor", "abandonment.read")).toBe(true);
       expect(hasCapability("editor", "abandonment.resolve")).toBe(true);
+      // Publishing (RF-5.x): send operativo, il rest è Owner-only
+      expect(hasCapability("editor", "publishing.send")).toBe(true);
     });
 
     it("NON puo: approve, reject, delete, brand.crud, team.manage, audit.read, contacts.consent.manage, pricing.manage, loyalty.crud.*, voucher.cancel", () => {
@@ -133,6 +139,10 @@ describe("permissions matrix (RU-1a)", () => {
       expect(hasCapability("editor", "reminders.refresh")).toBe(false);
       // Anti-abbandono detect: scan pesante, Owner-only
       expect(hasCapability("editor", "abandonment.detect")).toBe(false);
+      // Publishing (RF-5.x): credenziali, bulk, retry sono Owner-only
+      expect(hasCapability("editor", "publishing.credentials.manage")).toBe(false);
+      expect(hasCapability("editor", "publishing.send_bulk")).toBe(false);
+      expect(hasCapability("editor", "publishing.retry_dead")).toBe(false);
     });
   });
 
