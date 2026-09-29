@@ -125,12 +125,16 @@ export function formatReward(
   return "—";
 }
 
-// Genera codice voucher pseudo-random (formato leggibile, 8 char alfanumerici uppercase)
+import { randomInt } from "node:crypto";
+
+// RNF-1 · RF-6.7: codici voucher devono essere non-predicibili (rappresentano
+// valore riscattabile). Usiamo crypto.randomInt (CSPRNG) invece di Math.random.
+// Formato: 8 char alfanumerici uppercase, alfabeto ridotto per leggibilita.
 export function generateVoucherCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no I/O/0/1 per leggibilita
   let code = "";
   for (let i = 0; i < 8; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
+    code += chars[randomInt(0, chars.length)];
   }
   return code;
 }

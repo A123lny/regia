@@ -535,8 +535,12 @@ export async function searchArchive(input: ArchiveSearchInput): Promise<{
     .eq("brands.is_archived", false);
 
   if (input.query && input.query.trim().length > 0) {
-    const term = `%${input.query.trim()}%`;
-    q = q.or(`theme_input.ilike.${term},generated_text.ilike.${term}`);
+    // RNF-1: escape backslash e doppie virgolette + wrap in double quotes.
+    // Senza questo, un input tipo `foo,organization_id.neq.x` bypasserebbe
+    // il filtro tenant iniettando condizioni OR nella query PostgREST.
+    const escaped = input.query.trim().replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const term = `%${escaped}%`;
+    q = q.or(`theme_input.ilike."${term}",generated_text.ilike."${term}"`);
   }
   if (input.brandId) q = q.eq("brand_id", input.brandId);
   if (input.status) q = q.eq("status", input.status);
