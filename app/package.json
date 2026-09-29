@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:staging": "dotenv -e .env.staging -- next dev",
     "build": "next build",
+    "build:staging": "dotenv -e .env.staging -- next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
