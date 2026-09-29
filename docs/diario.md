@@ -5,24 +5,18 @@
 
 ## Adesso
 
-- **F1 commerciale chiuso e committato.** Sul branch `feature/design-refresh`, dopo il
-  rush marketing del 23 set sono arrivate altre due sessioni (24 e 25 set) che hanno
-  completato tutti i moduli commerciali con schema DB, repo, azioni, UI e test invariante.
-  Oggi (29 set) tutto committato in **11 commit ordinati per modulo** (RA-8.6 permessi,
-  M02 brand, M04 media, M11 admin, M03 editorial, M12 daily-use, M01 data-hub+dedup,
-  M06 loyalty+M6a supply, M07 outreach+M07b partners, M09 reminders+anti-abbandono,
-  M10 signup+M13 governance+M08 analytics). Totale: **53 file di test · 212 test verdi**
-  · CI locale green (typecheck + lint + prettier + build + boundaries).
-- **Audit capitolato v1.5 fatto (25 set):** F1 è avanti su marketing e commerciale;
-  restano fuori M05 Publishing (nessun adapter social/email/WhatsApp), M08b Email
-  assistenza, connettori reali M1 verso gestionali, M13 advertising RF-13.x,
-  RN-41/42/43 capacità rider, RF-1.9 richieste dati personali.
-- **Da fare oggi/prossimo:** decidere se pushare i 11 commit su GitHub
-  (`feature/design-refresh` → `origin`) e poi aprire brainstorming per M05 Publishing
-  (prossimo bloccante per andare in produzione).
+- **M05 Publishing Task 7 completato.** Implementati 6 gate obbligatori (consent + enabled
+  + quiet hours + pressure limit + governance + budget) nell'orchestrator `sendMessage`.
+  File: gates.ts, send-message.ts, 2 test invariante (consent + quiet hours), exports in
+  public.ts. Commit e55f629 su `feature/design-refresh`. Prossimo: Task 8 (worker +
+  retries).
 
 ## Fatto
 
+- **29 set 2026 — M05 Task 7: gate implementation + sendMessage orchestrator.**
+  gates.ts (124 righe, 6 funzioni gate), send-message.ts (44 righe, orchestrator),
+  public.ts aggiornato, 2 test invariante (consent + quiet hours) passanti, lint clean.
+  Commit e55f629.
 - **29 set 2026 — Commit ordinato dei rush di sessione 23/24/25 set (11 commit).**
   In ordine di dipendenza: fondamenta permessi (RA-8.6 RU-1a, 50 capabilities + matrice
   centralizzata), M02 brand esteso, M04 media, M11 admin, M03 editorial esteso, M12
