@@ -25,3 +25,6 @@ export { getAdapter } from "./internal/adapter-registry";
 export { sendMessage } from "./internal/send-message";
 export type { SendMessageInput } from "./internal/send-message";
 export type { Job, JobStatus } from "./internal/publish-jobs-repo";
+
+export { tickBatch } from "./internal/worker";
+export type { TickResult } from "./internal/worker";

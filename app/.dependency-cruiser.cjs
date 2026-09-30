@@ -51,6 +51,7 @@ module.exports = {
           "^src/modules/m02-brand/internal/",
           "^src/modules/m03-editorial/internal/",
           "^src/modules/m04-media/internal/",
+          "^src/modules/m05-publishing/internal/",
           "^src/modules/m06-loyalty/internal/",
           "^src/modules/m07-outreach/internal/",
           "^src/modules/m07-partners/internal/",
