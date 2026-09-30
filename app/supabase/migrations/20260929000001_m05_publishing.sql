@@ -146,3 +146,27 @@ $$;
 -- Vault access (RNF-1): il schema `vault` e' esposto in api.schemas (config.toml)
 -- cosi supabase-js puo' chiamare vault.create_secret / update_secret / decrypted_secrets
 -- direttamente con service_role. Nessun wrapper custom necessario.
+
+-- pg_cron scheduling (opzionale, richiede extension pg_cron abilitata su Cloud).
+-- In locale non serve (usa manual tick per test).
+-- Su Cloud: enable extension via dashboard o
+--   create extension if not exists pg_cron with schema extensions;
+-- La schedule viene creata solo se extension e' presente:
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.schedule(
+      'm05-publisher-tick',
+      '* * * * *',  -- ogni 1min (limite Free)
+      $body$
+      select net.http_post(
+        url := current_setting('app.settings.publisher_url', true),
+        headers := jsonb_build_object(
+          'authorization', 'Bearer ' || current_setting('app.settings.publisher_cron_secret', true),
+          'content-type', 'application/json'
+        )
+      )
+      $body$
+    );
+  end if;
+end $$;
