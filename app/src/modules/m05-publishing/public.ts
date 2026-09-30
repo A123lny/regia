@@ -28,3 +28,10 @@ export type { Job, JobStatus } from "./internal/publish-jobs-repo";
 
 export { tickBatch } from "./internal/worker";
 export type { TickResult } from "./internal/worker";
+
+export {
+  updateChannelCredentialsAction,
+  setChannelEnabledAction,
+  testChannelAction,
+  listChannelsAction,
+} from "./internal/actions";

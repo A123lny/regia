@@ -24,6 +24,8 @@ import { AiBudgetsCard } from "@/components/admin/ai-budgets-card";
 import { ConnectionsHealthCard } from "@/components/admin/connections-health-card";
 import { PlatformBrandingCard } from "@/components/admin/platform-branding-card";
 import { HelpButton } from "@/components/help/help-button";
+import { ChannelCredentialsCard } from "@/components/admin/channel-credentials-card";
+import { listChannelsAction } from "@/modules/m05-publishing/public-actions";
 
 const ROLE_VARIANTS: Record<Role, "default" | "secondary" | "outline"> = {
   owner: "default",
@@ -81,6 +83,12 @@ export default async function ImpostazioniPage() {
       socialAccounts.push(...accs);
     }
   }
+
+  // Canali di invio (RF-2.7): solo Owner (publishing.credentials.manage)
+  const canManageChannels = hasCapability(session.role, "publishing.credentials.manage");
+  const channels = canManageChannels ? await listChannelsAction() : [];
+  const emailCred = channels.find((c) => c.channel === "email");
+  const waCred = channels.find((c) => c.channel === "whatsapp");
 
   const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"] ?? "";
   const appVersion = process.env["npm_package_version"] ?? "0.1.0";
@@ -179,6 +187,29 @@ export default async function ImpostazioniPage() {
             />
           </CardContent>
         </Card>
+      )}
+
+      {/* RF-2.7 Canali di invio (email/WhatsApp) — solo Owner */}
+      {canManageChannels && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold">Canali di invio</h2>
+          <p className="text-sm text-gray-600">
+            Configura le API key dei provider (Resend per email, Twilio per WhatsApp). Le chiavi
+            sono cifrate in Supabase Vault, mai visibili in chiaro dopo il salvataggio.
+          </p>
+          <ChannelCredentialsCard
+            channel="email" provider="resend"
+            configured={!!emailCred} enabled={emailCred?.enabled ?? false}
+            verifiedAt={emailCred?.verifiedAt ?? null}
+            lastTestError={emailCred?.lastTestError ?? null}
+          />
+          <ChannelCredentialsCard
+            channel="whatsapp" provider="twilio"
+            configured={!!waCred} enabled={waCred?.enabled ?? false}
+            verifiedAt={waCred?.verifiedAt ?? null}
+            lastTestError={waCred?.lastTestError ?? null}
+          />
+        </section>
       )}
 
       {/* Link a sotto-pagine di config avanzata */}

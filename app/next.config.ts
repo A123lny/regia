@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Modulo nativo (N-API): turbopack non lo bundle. Va risolto a runtime da Node.
-  // Usato da m04-media/internal/templates/renderer.ts (satori + resvg → PNG).
-  serverExternalPackages: ["@resvg/resvg-js"],
+  // Moduli nativi / Node.js-only: turbopack non li bundle. Risolti a runtime da Node.
+  // @resvg/resvg-js: m04-media renderer (satori → PNG).
+  // twilio + https-proxy-agent: m05-publishing adapter Twilio (Node.js SDK).
+  serverExternalPackages: ["@resvg/resvg-js", "twilio", "https-proxy-agent"],
 };
 
 export default nextConfig;

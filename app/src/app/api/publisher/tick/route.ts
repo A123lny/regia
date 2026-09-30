@@ -2,12 +2,12 @@
 // Protetto con secret in header authorization (env M05_CRON_SECRET).
 
 import { NextResponse } from "next/server";
-import { tickBatch } from "@/modules/m05-publishing";  // RS-1: via public.ts
+import { tickBatch } from "@/modules/m05-publishing/public";  // RS-1: via public.ts
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
-  const expected = `Bearer ${process.env.M05_CRON_SECRET}`;
-  if (!process.env.M05_CRON_SECRET || authHeader !== expected) {
+  const expected = `Bearer ${process.env["M05_CRON_SECRET"]}`;
+  if (!process.env["M05_CRON_SECRET"] || authHeader !== expected) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
