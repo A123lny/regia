@@ -4,14 +4,26 @@
 import { getAdminClient } from "@/lib/db/admin";
 import {
   ConsentMissingError, ChannelDisabledError, PressureLimitError, BudgetExceededError,
+  PromotionalNotAllowedError, RecipientMismatchError,
 } from "./types";
 import type { Channel } from "./types";
 import { getChannelCredentials } from "./credentials-repo";
 import { getChannelConfig } from "./channel-config-repo";
 
-/** Gate 1: consenso RF-1.4 per canale. */
-export async function gateConsent(organizationId: string, contactId: string | null, channel: Channel): Promise<void> {
-  if (!contactId) return;  // test send senza contactId (destinatario ad-hoc) è permesso
+export type SourceKind = "test" | "reminder" | "voucher" | "campaign" | "signup_welcome" | "manual";
+
+/**
+ * Gate 1: consenso RF-1.4 per canale.
+ *
+ * Security: il bypass con contactId=null e' consentito SOLO per sourceKind='test'.
+ * Ogni altro sourceKind (reminder/voucher/campaign/signup_welcome/manual) DEVE fornire
+ * un contactId valido, altrimenti l'invio e' rifiutato (fail-closed).
+ */
+export async function gateConsent(organizationId: string, contactId: string | null, channel: Channel, sourceKind: SourceKind): Promise<void> {
+  if (!contactId) {
+    if (sourceKind === "test") return;  // ad-hoc test send permesso solo per test
+    throw new ConsentMissingError(`Invio non-test senza contactId non permesso (sourceKind=${sourceKind})`);
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const { data, error } = await admin.from("contact_consents")
@@ -21,6 +33,49 @@ export async function gateConsent(organizationId: string, contactId: string | nu
   if (!data || data.status !== "granted") {
     throw new ConsentMissingError(`Consenso ${channel} mancante o revocato per contatto ${contactId}`);
   }
+}
+
+/** Normalizzazione recipient: email lower+trim, telefono strip di caratteri non-cifra. */
+function normalizeEmail(v: string): string { return v.trim().toLowerCase(); }
+function normalizePhone(v: string): string { return v.replace(/[^0-9]/g, ""); }
+
+/**
+ * Security gate: verifica che payload.to combaci col recipient del contatto per il canale.
+ * Previene consent laundering: attaccante passa contactId di Bob (consenziente) ma
+ * payload.to punta a un indirizzo diverso.
+ * Ritorna l'indirizzo canonico dal contatto (da usare come recipient_address del job).
+ */
+export async function gateRecipientMatchesContact(
+  organizationId: string,
+  contactId: string,
+  channel: Channel,
+  payloadTo: string,
+): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin.from("contacts")
+    .select("email, phone_e164, whatsapp_e164")
+    .eq("organization_id", organizationId).eq("id", contactId).maybeSingle();
+  if (error) throw new Error(`gateRecipientMatchesContact: ${error.message}`);
+  if (!data) throw new RecipientMismatchError(`Contatto ${contactId} non trovato in organization ${organizationId}`);
+  let canonical: string | null = null;
+  if (channel === "email") {
+    canonical = data.email ? normalizeEmail(data.email as string) : null;
+    if (!canonical || canonical !== normalizeEmail(payloadTo)) {
+      throw new RecipientMismatchError(`payload.to non combacia con email del contatto ${contactId}`);
+    }
+    return data.email as string;
+  }
+  if (channel === "whatsapp") {
+    const stored = (data.whatsapp_e164 ?? data.phone_e164) as string | null;
+    canonical = stored ? normalizePhone(stored) : null;
+    if (!canonical || canonical !== normalizePhone(payloadTo)) {
+      throw new RecipientMismatchError(`payload.to non combacia con whatsapp/phone del contatto ${contactId}`);
+    }
+    return stored as string;
+  }
+  // Altri canali in v1 non sono ancora implementati per contact-based send.
+  return payloadTo;
 }
 
 /** Gate 2: canale abilitato + verificato. */
@@ -36,8 +91,10 @@ export async function gateQuietHours(organizationId: string, channel: Channel): 
   const config = await getChannelConfig(organizationId, channel);
   const now = new Date();
   if (channel !== "whatsapp") return now;  // quiet applica solo a WA in v1
-  const [sh, sm] = config.quietHoursStart.split(":").map(Number);
-  const [eh, em] = config.quietHoursEnd.split(":").map(Number);
+  const [shRaw, smRaw] = config.quietHoursStart.split(":");
+  const [ehRaw, emRaw] = config.quietHoursEnd.split(":");
+  const sh = Number(shRaw ?? 0), sm = Number(smRaw ?? 0);
+  const eh = Number(ehRaw ?? 0), em = Number(emRaw ?? 0);
   const hh = now.getHours();
   const mm = now.getMinutes();
   const cur = hh * 60 + mm;
@@ -52,10 +109,19 @@ export async function gateQuietHours(organizationId: string, channel: Channel): 
   return target;
 }
 
-/** Gate 4: pressione commerciale (RA-8.4) - solo per is_promotional=true. */
+/**
+ * Gate 4: pressione commerciale (RA-8.4) + regola RF-5.5a "solo utilita" per WA.
+ * Rifiuta l'invio promozionale quando allow_promotional=false sul canale (WA di default).
+ * Applica il limite mensile solo se contactId presente e isPromotional=true.
+ */
 export async function gatePressureLimit(organizationId: string, contactId: string | null, channel: Channel, isPromotional: boolean): Promise<void> {
-  if (!contactId || !isPromotional) return;
+  if (!isPromotional) return;
   const config = await getChannelConfig(organizationId, channel);
+  // RF-5.5a: se il canale non consente promo (default WA=false), rifiuta a prescindere dal limite.
+  if (!config.allowPromotional) {
+    throw new PromotionalNotAllowedError(`Canale ${channel} non consente contenuti promozionali (RF-5.5a)`);
+  }
+  if (!contactId) return;  // ad-hoc promo senza contactId non ha limite mensile
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const monthStart = new Date();

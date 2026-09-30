@@ -125,7 +125,7 @@ export async function markFailed(jobId: string, claimToken: string, errorMessage
     if (error) throw new Error(`markFailed(dead): ${error.message}`);
     return { dead: true };
   }
-  const backoff = BACKOFF_SECONDS[nextCount - 1];
+  const backoff = BACKOFF_SECONDS[nextCount - 1] ?? BACKOFF_SECONDS[BACKOFF_SECONDS.length - 1] ?? 60;
   const nextRetry = new Date(Date.now() + backoff * 1000).toISOString();
   const { error } = await admin.from("m05_publish_jobs").update({
     status: "queued", retry_count: nextCount, next_retry_at: nextRetry,

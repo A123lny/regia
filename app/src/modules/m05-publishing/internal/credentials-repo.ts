@@ -89,7 +89,7 @@ export async function markChannelVerified(organizationId: string, channel: Chann
   const admin = getAdminClient() as any;
   const now = new Date().toISOString();
   const patch: Record<string, unknown> = { last_test_at: now, last_test_error: errorMsg ?? null, updated_at: now };
-  if (success) patch.verified_at = now;
+  if (success) patch["verified_at"] = now;
   const { error } = await admin.from("m05_channel_credentials")
     .update(patch).eq("organization_id", organizationId).eq("channel", channel);
   if (error) throw new Error(`markChannelVerified: ${error.message}`);

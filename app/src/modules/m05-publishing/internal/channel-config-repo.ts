@@ -46,10 +46,10 @@ export async function updateChannelConfig(input: UpdateChannelConfigInput): Prom
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (input.quietHoursStart !== undefined) patch.quiet_hours_start = input.quietHoursStart;
-  if (input.quietHoursEnd !== undefined) patch.quiet_hours_end = input.quietHoursEnd;
-  if (input.allowPromotional !== undefined) patch.allow_promotional = input.allowPromotional;
-  if (input.maxPerMonthPerContact !== undefined) patch.max_per_month_per_contact = input.maxPerMonthPerContact;
+  if (input.quietHoursStart !== undefined) patch["quiet_hours_start"] = input.quietHoursStart;
+  if (input.quietHoursEnd !== undefined) patch["quiet_hours_end"] = input.quietHoursEnd;
+  if (input.allowPromotional !== undefined) patch["allow_promotional"] = input.allowPromotional;
+  if (input.maxPerMonthPerContact !== undefined) patch["max_per_month_per_contact"] = input.maxPerMonthPerContact;
   const { data, error } = await admin.from("m05_channel_config").upsert({
     organization_id: input.organizationId, channel: input.channel, ...patch,
   }, { onConflict: "organization_id,channel" }).select("*").single();

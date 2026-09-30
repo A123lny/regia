@@ -9,7 +9,7 @@ export class TwilioWhatsAppAdapter implements PublishAdapter {
   async send(input: OutgoingMessage, credentials: AdapterCredentials): Promise<SendResult> {
     if (input.channel !== "whatsapp") throw new Error("TwilioWhatsAppAdapter: input non e' whatsapp");
     const msg = input as WhatsAppMessage;
-    const accountSid = credentials.config.accountSid as string;
+    const accountSid = credentials.config["accountSid"] as string;
     if (!accountSid) throw new Error("Twilio: accountSid mancante in config");
     const client = twilio(accountSid, credentials.apiKey);
     const message = await client.messages.create({
@@ -24,7 +24,7 @@ export class TwilioWhatsAppAdapter implements PublishAdapter {
 
   async ping(credentials: AdapterCredentials): Promise<{ ok: true } | { ok: false; error: string }> {
     try {
-      const accountSid = credentials.config.accountSid as string;
+      const accountSid = credentials.config["accountSid"] as string;
       if (!accountSid) return { ok: false, error: "accountSid mancante in config" };
       const client = twilio(accountSid, credentials.apiKey);
       const acct = await client.api.v2010.accounts(accountSid).fetch();
@@ -41,7 +41,7 @@ export class TwilioWhatsAppAdapter implements PublishAdapter {
 
   async getStatus(externalId: string, credentials: AdapterCredentials): Promise<"sent" | "delivered" | "failed" | "unknown"> {
     try {
-      const accountSid = credentials.config.accountSid as string;
+      const accountSid = credentials.config["accountSid"] as string;
       const client = twilio(accountSid, credentials.apiKey);
       const msg = await client.messages(externalId).fetch();
       if (msg.status === "delivered" || msg.status === "read") return "delivered";

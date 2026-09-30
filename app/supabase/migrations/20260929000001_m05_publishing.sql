@@ -142,3 +142,7 @@ begin
   returning m05_publish_jobs.*;
 end;
 $$;
+
+-- Vault access (RNF-1): il schema `vault` e' esposto in api.schemas (config.toml)
+-- cosi supabase-js puo' chiamare vault.create_secret / update_secret / decrypted_secrets
+-- direttamente con service_role. Nessun wrapper custom necessario.

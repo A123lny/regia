@@ -1,7 +1,10 @@
 // M05 - orchestrator sendMessage: 6 gate + enqueue.
 
 import type { OutgoingMessage, Channel } from "./types";
-import { gateConsent, gateChannelEnabled, gateQuietHours, gatePressureLimit, gateGovernanceContent, gateBudget } from "./gates";
+import {
+  gateConsent, gateChannelEnabled, gateQuietHours, gatePressureLimit,
+  gateGovernanceContent, gateBudget, gateRecipientMatchesContact, type SourceKind,
+} from "./gates";
 import { getChannelCredentials } from "./credentials-repo";
 import { getAdapter } from "./adapter-registry";
 import { enqueueJob, type Job } from "./publish-jobs-repo";
@@ -11,7 +14,7 @@ export type SendMessageInput = {
   channel: Channel;
   recipientContactId: string | null;
   payload: OutgoingMessage;
-  sourceKind: "test" | "reminder" | "voucher" | "campaign" | "signup_welcome" | "manual";
+  sourceKind: SourceKind;
   sourceId: string | null;
   isPromotional: boolean;
 };
@@ -23,8 +26,16 @@ export async function sendMessage(input: SendMessageInput): Promise<Job> {
   const creds = await getChannelCredentials(organizationId, channel);
   if (!creds) throw new Error(`Nessuna credenziale ${channel}`);
 
-  // Gate 1-4
-  await gateConsent(organizationId, recipientContactId, channel);
+  // Gate 1: consent (fail-closed su null contactId per non-test)
+  await gateConsent(organizationId, recipientContactId, channel, sourceKind);
+
+  // Security gate: recipient in payload deve combaciare col contatto (previene consent laundering).
+  // Se contactId=null (solo per sourceKind=test), usiamo payload.to as-is.
+  let recipientAddress = payload.to;
+  if (recipientContactId) {
+    recipientAddress = await gateRecipientMatchesContact(organizationId, recipientContactId, channel, payload.to);
+  }
+
   await gateChannelEnabled(organizationId, channel);
   const sendAfter = await gateQuietHours(organizationId, channel);
   await gatePressureLimit(organizationId, recipientContactId, channel, isPromotional);
@@ -35,8 +46,6 @@ export async function sendMessage(input: SendMessageInput): Promise<Job> {
   const estCost = await adapter.estimateCost(payload);
   await gateBudget(organizationId, channel, estCost);
 
-  // Enqueue
-  const recipientAddress = payload.channel === "email" ? payload.to : payload.to;
   return enqueueJob({
     organizationId, channel, provider: creds.provider,
     recipientContactId, recipientAddress,

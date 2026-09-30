@@ -1,5 +1,7 @@
-// M05 - accesso a Supabase Vault per credenziali provider.
-// Solo service_role puo leggere/scrivere vault.secrets.
+// M05 - accesso a Supabase Vault per credenziali provider (RNF-1).
+// Il vault schema e' esposto in config.toml (api.schemas). Usiamo le
+// funzioni built-in `vault.create_secret` / `vault.update_secret` che
+// sono gia' SECURITY DEFINER come supabase_admin.
 
 import { getAdminClient } from "@/lib/db/admin";
 
@@ -10,19 +12,11 @@ import { getAdminClient } from "@/lib/db/admin";
 export async function createVaultSecret(value: string, name: string, description?: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  const { data, error } = await admin.rpc("vault_create_secret", {
-    p_value: value,
-    p_name: name,
-    p_description: description ?? null,
+  const { data, error } = await admin.schema("vault").rpc("create_secret", {
+    new_secret: value,
+    new_name: name,
+    new_description: description ?? "",
   });
-  // Se la rpc non esiste, chiamare direttamente vault.create_secret via SQL:
-  if (error && error.code === "42883") {
-    const { data: sql, error: sqlErr } = await admin.from("vault.secrets").insert({
-      name, description: description ?? null, secret: value,
-    }).select("id").single();
-    if (sqlErr) throw new Error(`Vault createSecret: ${sqlErr.message}`);
-    return sql.id as string;
-  }
   if (error) throw new Error(`Vault createSecret: ${error.message}`);
   return data as string;
 }
@@ -32,11 +26,10 @@ export async function decryptVaultSecret(secretId: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const { data, error } = await admin
-    .from("vault.decrypted_secrets")
-    .select("decrypted_secret")
-    .eq("id", secretId)
-    .single();
-  if (error || !data) throw new Error(`Vault decryptSecret: ${error?.message ?? "not found"}`);
+    .schema("vault").from("decrypted_secrets")
+    .select("decrypted_secret").eq("id", secretId).maybeSingle();
+  if (error) throw new Error(`Vault decryptSecret: ${error.message}`);
+  if (!data) throw new Error(`Vault decryptSecret: secret ${secretId} not found`);
   return data.decrypted_secret as string;
 }
 
@@ -44,7 +37,12 @@ export async function decryptVaultSecret(secretId: string): Promise<string> {
 export async function updateVaultSecret(secretId: string, newValue: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  const { error } = await admin.from("vault.secrets").update({ secret: newValue }).eq("id", secretId);
+  const { error } = await admin.schema("vault").rpc("update_secret", {
+    secret_id: secretId,
+    new_secret: newValue,
+    new_name: null,
+    new_description: null,
+  });
   if (error) throw new Error(`Vault updateSecret: ${error.message}`);
 }
 
@@ -52,6 +50,7 @@ export async function updateVaultSecret(secretId: string, newValue: string): Pro
 export async function deleteVaultSecret(secretId: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  const { error } = await admin.from("vault.secrets").delete().eq("id", secretId);
+  const { error } = await admin
+    .schema("vault").from("secrets").delete().eq("id", secretId);
   if (error) throw new Error(`Vault deleteSecret: ${error.message}`);
 }

@@ -55,3 +55,5 @@ export class PressureLimitError extends PublishError { constructor(msg: string) 
 export class BudgetExceededError extends PublishError { constructor(msg: string) { super("BUDGET_EXCEEDED", msg); } }
 export class QueueFullError extends PublishError { constructor(msg: string) { super("QUEUE_FULL", msg); } }
 export class DuplicateJobError extends PublishError { constructor(msg: string) { super("DUPLICATE_JOB", msg); } }
+export class PromotionalNotAllowedError extends PublishError { constructor(msg: string) { super("PROMOTIONAL_NOT_ALLOWED", msg); } }
+export class RecipientMismatchError extends PublishError { constructor(msg: string) { super("RECIPIENT_MISMATCH", msg); } }
