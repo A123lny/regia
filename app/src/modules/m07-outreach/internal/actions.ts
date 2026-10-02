@@ -230,3 +230,102 @@ export async function cancelCampaignAction(campaignId: string): Promise<void> {
   });
   revalidatePath("/campagne");
 }
+
+// ============================================================================
+// RN-62 Bulk send protection (preview + test + staged launch)
+// ============================================================================
+
+import {
+  previewCampaignRecipients,
+  sendCampaignTest,
+  launchCampaign,
+  cancelLaunchedCampaign,
+  type CampaignPreview,
+  type LaunchResult,
+} from "./campaign-launcher";
+
+export async function previewCampaignRecipientsAction(
+  campaignId: string,
+): Promise<{ ok: true; preview: CampaignPreview } | { ok: false; error: string }> {
+  const session = await requireAuth("campaign.read");
+  return previewCampaignRecipients(campaignId, session.organizationId);
+}
+
+export async function sendCampaignTestAction(input: {
+  campaignId: string;
+  recipientEmail: string;
+}): Promise<{ ok: true; jobId: string } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "campaign.read");
+  requireCapability(session, "publishing.send");
+  if (!input.recipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.recipientEmail)) {
+    return { ok: false, error: "Email di prova non valida" };
+  }
+  const result = await sendCampaignTest({
+    campaignId: input.campaignId,
+    organizationId: session.organizationId,
+    recipientEmail: input.recipientEmail,
+  });
+  if (result.ok) {
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "outreach.campaign_test_sent",
+      target: `campaign:${input.campaignId}`,
+      details: { recipientEmail: input.recipientEmail, jobId: result.jobId },
+    });
+    revalidatePath("/campagne");
+  }
+  return result;
+}
+
+export async function launchCampaignAction(input: {
+  campaignId: string;
+  confirmedCount: number;
+}): Promise<LaunchResult | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "campaign.crud");
+  requireCapability(session, "publishing.send_bulk");
+  const result = await launchCampaign({
+    campaignId: input.campaignId,
+    organizationId: session.organizationId,
+    confirmedCount: input.confirmedCount,
+  });
+  if (result.ok) {
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "outreach.campaign_launched",
+      target: `campaign:${input.campaignId}`,
+      details: {
+        confirmedCount: input.confirmedCount,
+        enqueued: result.enqueued,
+        skipped: result.skipped,
+        errorCount: result.errors.length,
+      },
+    });
+    revalidatePath("/campagne");
+  }
+  return result;
+}
+
+export async function cancelLaunchedCampaignAction(
+  campaignId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "campaign.crud");
+  const result = await cancelLaunchedCampaign(campaignId, session.organizationId);
+  if (result.ok) {
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "outreach.campaign_cancelled_sending",
+      target: `campaign:${campaignId}`,
+    });
+    revalidatePath("/campagne");
+  }
+  return result;
+}

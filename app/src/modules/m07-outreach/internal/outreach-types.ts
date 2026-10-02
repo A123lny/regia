@@ -2,7 +2,7 @@
 
 export type ConsentChannel = "email" | "sms" | "whatsapp";
 export type CampaignChannel = "email" | "sms" | "whatsapp" | "misto";
-export type CampaignStatus = "draft" | "scheduled" | "sent" | "cancelled";
+export type CampaignStatus = "draft" | "scheduled" | "sending" | "sent" | "cancelled";
 
 /**
  * RF-1.8 Criteri segmentazione. Tutti opzionali, applicati in AND.
@@ -84,6 +84,7 @@ export const CAMPAIGN_CHANNEL_LABELS: Record<CampaignChannel, string> = {
 export const CAMPAIGN_STATUS_LABELS: Record<CampaignStatus, string> = {
   draft: "Bozza",
   scheduled: "Programmata",
+  sending: "In invio",
   sent: "Inviata",
   cancelled: "Annullata",
 };

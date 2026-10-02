@@ -59,16 +59,17 @@ async function loadBrandIdentity(
 ): Promise<{ fromEmail: string | null; replyTo: string | null; displayName: string | null }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
+  // RF-2.2a: email identity vive su colonne di `brands`, non tabella separata.
   const { data } = await admin
-    .from("brand_email_identity")
-    .select("from_email, reply_to, display_name")
+    .from("brands")
+    .select("email_from_address, email_reply_to, email_from_display_name")
     .eq("organization_id", organizationId)
-    .eq("brand_id", brandId)
+    .eq("id", brandId)
     .maybeSingle();
   return {
-    fromEmail: data?.from_email ?? null,
-    replyTo: data?.reply_to ?? null,
-    displayName: data?.display_name ?? null,
+    fromEmail: (data?.email_from_address as string | null) ?? null,
+    replyTo: (data?.email_reply_to as string | null) ?? null,
+    displayName: (data?.email_from_display_name as string | null) ?? null,
   };
 }
 

@@ -3,7 +3,7 @@
 // Client per campagne: lista + form CRUD + marker "inviata" con contatori.
 
 import { useState, useTransition } from "react";
-import { Plus, Send, X as XIcon, CheckCircle2 } from "lucide-react";
+import { Plus, Send, X as XIcon, CheckCircle2, Rocket } from "lucide-react";
 import { BrandChip } from "@/components/brand/brand-chip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,9 @@ import {
   upsertCampaignAction,
   markCampaignSentAction,
   cancelCampaignAction,
+  previewCampaignRecipientsAction,
+  sendCampaignTestAction,
+  launchCampaignAction,
   CAMPAIGN_CHANNEL_LABELS,
   CAMPAIGN_STATUS_LABELS,
 } from "@/modules/m07-outreach/public";
@@ -23,6 +26,7 @@ import type {
   CampaignRow,
   CampaignStatus,
   SegmentRow,
+  CampaignPreview,
 } from "@/modules/m07-outreach/public";
 
 type BrandOpt = { id: string; slug: string; displayName: string; color: string };
@@ -38,6 +42,7 @@ type Props = {
 const STATUS_STYLE: Record<CampaignStatus, string> = {
   draft: "border-border bg-surface-muted text-text-muted",
   scheduled: "border-primary/40 bg-primary/15 text-primary",
+  sending: "border-primary/60 bg-primary/20 text-primary",
   sent: "border-success/40 bg-success/15 text-success",
   cancelled: "border-danger/40 bg-danger/15 text-danger",
 };
@@ -56,6 +61,7 @@ export function CampaignsClient({ campaigns, segments, brands, canCrud, canMarkS
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CampaignRow | null>(null);
   const [markingSent, setMarkingSent] = useState<CampaignRow | null>(null);
+  const [launching, setLaunching] = useState<CampaignRow | null>(null);
   const [pending, startTransition] = useTransition();
 
   return (
@@ -165,13 +171,26 @@ export function CampaignsClient({ campaigns, segments, brands, canCrud, canMarkS
                   </td>
                   <td className="p-3">
                     <div className="flex gap-1">
+                      {canCrud &&
+                        c.channel === "email" &&
+                        (c.status === "draft" || c.status === "scheduled") && (
+                          <button
+                            type="button"
+                            onClick={() => setLaunching(c)}
+                            className="rounded-md p-1 text-text-muted hover:bg-primary/10 hover:text-primary"
+                            aria-label="Lancia campagna via M05 (RN-62)"
+                            title="Lancia campagna via M05 (preview + test + partenza scaglionata)"
+                          >
+                            <Rocket className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       {canMarkSent && (c.status === "draft" || c.status === "scheduled") && (
                         <button
                           type="button"
                           onClick={() => setMarkingSent(c)}
                           className="rounded-md p-1 text-text-muted hover:bg-success/10 hover:text-success"
-                          aria-label="Marca inviata"
-                          title="Marca come inviata"
+                          aria-label="Marca inviata manualmente"
+                          title="Marca come inviata (manuale, senza M05)"
                         >
                           <Send className="h-3.5 w-3.5" />
                         </button>
@@ -213,6 +232,198 @@ export function CampaignsClient({ campaigns, segments, brands, canCrud, canMarkS
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Dialog "Lancia campagna RN-62" (3 step: preview → test → launch) */}
+      <Sheet open={launching !== null} onOpenChange={(o) => !o && setLaunching(null)}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle className="font-serif">Lancia campagna via M05 (RN-62)</SheetTitle>
+          </SheetHeader>
+          {launching && (
+            <div className="mt-4 px-4 pb-8">
+              <RN62LaunchForm campaign={launching} onDone={() => setLaunching(null)} />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+// ============================================================================
+// RN-62 Launch form: 3 step preview → test → confirm count → launch
+// ============================================================================
+
+function RN62LaunchForm({ campaign, onDone }: { campaign: CampaignRow; onDone: () => void }) {
+  const [preview, setPreview] = useState<CampaignPreview | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState("");
+  const [testStatus, setTestStatus] = useState<string | null>(null);
+  const [confirmNumber, setConfirmNumber] = useState("");
+  const [launchStatus, setLaunchStatus] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function loadPreview() {
+    setLoadingPreview(true);
+    setPreviewError(null);
+    startTransition(async () => {
+      const res = await previewCampaignRecipientsAction(campaign.id);
+      setLoadingPreview(false);
+      if (res.ok) setPreview(res.preview);
+      else setPreviewError(res.error);
+    });
+  }
+
+  function sendTest() {
+    if (!testEmail) return;
+    setTestStatus(null);
+    startTransition(async () => {
+      const res = await sendCampaignTestAction({
+        campaignId: campaign.id,
+        recipientEmail: testEmail,
+      });
+      setTestStatus(
+        res.ok ? `Prova accodata (job ${res.jobId.slice(0, 8)}…)` : `Errore: ${res.error}`,
+      );
+    });
+  }
+
+  function launch() {
+    const num = Number(confirmNumber);
+    if (!Number.isFinite(num)) {
+      setLaunchStatus("Devi digitare il numero esatto dei destinatari");
+      return;
+    }
+    setLaunchStatus(null);
+    startTransition(async () => {
+      const res = await launchCampaignAction({
+        campaignId: campaign.id,
+        confirmedCount: num,
+      });
+      if (res.ok) {
+        setLaunchStatus(
+          `Lanciata! ${res.enqueued} accodati, ${res.skipped} saltati${res.errors.length > 0 ? `, ${res.errors.length} errori` : ""}.`,
+        );
+        setTimeout(onDone, 2500);
+      } else {
+        setLaunchStatus(`Errore: ${(res as { error: string }).error}`);
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-md bg-surface-muted p-3 text-sm">
+        <strong>Campagna:</strong> {campaign.name}
+        <br />
+        <strong>Canale:</strong> {campaign.channel} · <strong>Marchio:</strong>{" "}
+        {campaign.brandDisplayName}
+      </div>
+
+      {/* STEP 1 — Preview */}
+      <section className="space-y-2">
+        <h3 className="font-semibold">1 · Anteprima destinatari</h3>
+        {!preview && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pending || loadingPreview}
+            onClick={loadPreview}
+          >
+            {loadingPreview ? "Carico…" : "Carica anteprima"}
+          </Button>
+        )}
+        {previewError && <p className="text-sm text-danger">{previewError}</p>}
+        {preview && (
+          <div className="space-y-2 text-sm">
+            <div>
+              <strong>Destinatari totali:</strong> {preview.totalRecipients}
+            </div>
+            <div>
+              <strong>Segmento:</strong> {preview.segmentName}
+            </div>
+            <div>
+              <strong>Oggetto:</strong> {preview.resolvedSubject}
+            </div>
+            <div className="rounded border bg-surface-muted p-2 text-xs">
+              {preview.resolvedBody.slice(0, 200)}
+              {preview.resolvedBody.length > 200 ? "…" : ""}
+            </div>
+            <div>
+              <strong>Esempi (3 destinatari):</strong>
+              <ul className="list-disc pl-5">
+                {preview.sampleContacts.map((c) => (
+                  <li key={c.id}>
+                    {c.fullName ?? "(senza nome)"} — {c.email ?? c.phone ?? "nessun recapito"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* STEP 2 — Test */}
+      {preview && (
+        <section className="space-y-2">
+          <h3 className="font-semibold">2 · Invio di prova</h3>
+          <p className="text-sm text-text-muted">
+            Invia a te stesso per vedere come appare prima della partenza reale.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="tua@email.it"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              disabled={pending}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending || !testEmail}
+              onClick={sendTest}
+            >
+              Invia prova
+            </Button>
+          </div>
+          {testStatus && <p className="text-sm">{testStatus}</p>}
+        </section>
+      )}
+
+      {/* STEP 3 — Launch con conferma */}
+      {preview && (
+        <section className="space-y-2 rounded-md border-2 border-danger/40 p-3">
+          <h3 className="font-semibold text-danger">3 · Partenza (irreversibile)</h3>
+          <p className="text-sm text-text-muted">
+            Digita <strong>{preview.totalRecipients}</strong> per confermare. La campagna partirà
+            scaglionata (primi 100, pausa 10min, poi resto).
+          </p>
+          <Input
+            type="number"
+            placeholder={String(preview.totalRecipients)}
+            value={confirmNumber}
+            onChange={(e) => setConfirmNumber(e.target.value)}
+            disabled={pending}
+          />
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={pending || Number(confirmNumber) !== preview.totalRecipients}
+            onClick={launch}
+          >
+            Lancia ora
+          </Button>
+          {launchStatus && <p className="text-sm">{launchStatus}</p>}
+        </section>
+      )}
+
+      <div className="flex justify-end">
+        <Button type="button" variant="outline" onClick={onDone}>
+          Chiudi
+        </Button>
+      </div>
     </div>
   );
 }
