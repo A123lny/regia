@@ -35,3 +35,18 @@ export {
   testChannelAction,
   listChannelsAction,
 } from "./internal/actions";
+
+// RN-64..67 Unsubscribe flow
+export {
+  resolveUnsubscribeToken,
+  revokeConsentFromToken,
+  applyUnsubscribe,
+  getUnsubscribePressureAlerts,
+} from "./internal/unsubscribe-repo";
+export type {
+  UnsubscribeReason,
+  ApplyUnsubscribeInput,
+  ApplyUnsubscribeResult,
+  PressureAlert,
+  ResolvedToken,
+} from "./internal/unsubscribe-repo";

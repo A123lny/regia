@@ -348,7 +348,7 @@ export async function launchCampaign(
       continue;
     }
     const batchIndex = Math.floor(i / batchSize);
-    const sendAfterMs = now + batchIndex * pauseSeconds * 1000;
+    const sendAfterIso = new Date(now + batchIndex * pauseSeconds * 1000).toISOString();
     try {
       const payload: Parameters<typeof sendMessage>[0]["payload"] = {
         channel: "email",
@@ -366,6 +366,7 @@ export async function launchCampaign(
         sourceKind: "campaign",
         sourceId: campaign.id,
         isPromotional: true, // campagne email sono promozionali per definizione (RF-5.5a non si applica a email)
+        sendAfterOverrideIso: sendAfterIso,
       });
       enqueued++;
     } catch (err) {

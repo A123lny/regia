@@ -11,6 +11,8 @@ import { RecurrencesBanner } from "@/components/dashboard/recurrences-banner";
 import { MaterialRequestsBanner } from "@/components/dashboard/material-requests-banner";
 import { EditorialBalanceCard } from "@/components/dashboard/editorial-balance-card";
 import { WelcomeBackBanner } from "@/components/dashboard/welcome-back-banner";
+import { PressureAlertBanner } from "@/components/dashboard/pressure-alert-banner";
+import { getUnsubscribePressureAlerts } from "@/modules/m05-publishing/public";
 import { HelpButton } from "@/components/help/help-button";
 import {
   FileEdit,
@@ -45,12 +47,14 @@ const HERO_FALLBACK = "#7a6857";
 
 export default async function DashboardPage() {
   const session = await getSessionOrRedirect();
-  const [stats, upcomingRecurrences, materialRequests, editorialBalance] = await Promise.all([
-    getDashboardStats(session.organizationId),
-    listUpcomingRecurrences(session.organizationId),
-    listOpenMaterialRequests(session.organizationId),
-    computeEditorialBalance(session.organizationId, 30),
-  ]);
+  const [stats, upcomingRecurrences, materialRequests, editorialBalance, pressureAlerts] =
+    await Promise.all([
+      getDashboardStats(session.organizationId),
+      listUpcomingRecurrences(session.organizationId),
+      listOpenMaterialRequests(session.organizationId),
+      computeEditorialBalance(session.organizationId, 30),
+      getUnsubscribePressureAlerts(session.organizationId),
+    ]);
   const heroColors = HERO_BLOB_POSITIONS.map(
     (_, i) => stats.going.brands[i]?.color ?? HERO_FALLBACK,
   );
@@ -167,6 +171,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* RICORRENZE ANNUALI — appare solo se ci sono eventi in finestra (RF-3.4) */}
+      <PressureAlertBanner alerts={pressureAlerts} />
       <RecurrencesBanner items={upcomingRecurrences} />
 
       {/* MATERIALI DA RACCOGLIERE — foto/video pendenti (RF-3.9) */}
