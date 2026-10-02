@@ -58,6 +58,12 @@ describe("permissions matrix (RU-1a)", () => {
         "publishing.send",
         "publishing.send_bulk",
         "publishing.retry_dead",
+        "advertising.read",
+        "advertising.budgets.manage",
+        "advertising.toggle",
+        "advertising.classify",
+        "advertising.overrun.request",
+        "advertising.overrun.decide",
       ];
       for (const cap of all) {
         expect(hasCapability("owner", cap), `owner deve poter ${cap}`).toBe(true);
@@ -107,6 +113,10 @@ describe("permissions matrix (RU-1a)", () => {
       expect(hasCapability("editor", "abandonment.resolve")).toBe(true);
       // Publishing (RF-5.x): send operativo, il rest è Owner-only
       expect(hasCapability("editor", "publishing.send")).toBe(true);
+      // M13 Advertising: read + classify + overrun.request operativi
+      expect(hasCapability("editor", "advertising.read")).toBe(true);
+      expect(hasCapability("editor", "advertising.classify")).toBe(true);
+      expect(hasCapability("editor", "advertising.overrun.request")).toBe(true);
     });
 
     it("NON puo: approve, reject, delete, brand.crud, team.manage, audit.read, contacts.consent.manage, pricing.manage, loyalty.crud.*, voucher.cancel", () => {
@@ -143,6 +153,10 @@ describe("permissions matrix (RU-1a)", () => {
       expect(hasCapability("editor", "publishing.credentials.manage")).toBe(false);
       expect(hasCapability("editor", "publishing.send_bulk")).toBe(false);
       expect(hasCapability("editor", "publishing.retry_dead")).toBe(false);
+      // M13 Advertising: strategico/decisional Owner-only
+      expect(hasCapability("editor", "advertising.budgets.manage")).toBe(false);
+      expect(hasCapability("editor", "advertising.toggle")).toBe(false);
+      expect(hasCapability("editor", "advertising.overrun.decide")).toBe(false);
     });
   });
 

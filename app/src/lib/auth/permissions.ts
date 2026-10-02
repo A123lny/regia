@@ -90,7 +90,14 @@ export type Capability =
   | "publishing.credentials.manage"
   | "publishing.send"
   | "publishing.send_bulk"
-  | "publishing.retry_dead";
+  | "publishing.retry_dead"
+  // M13 Advertising (RF-13.x) - motore promo
+  | "advertising.read"
+  | "advertising.budgets.manage"
+  | "advertising.toggle"
+  | "advertising.classify"
+  | "advertising.overrun.request"
+  | "advertising.overrun.decide";
 
 const CAPABILITIES: Record<Capability, Role[]> = {
   // Editor puo generare bozze, l'Owner decide se pubblicare
@@ -154,10 +161,17 @@ const CAPABILITIES: Record<Capability, Role[]> = {
   "abandonment.read": ["owner", "editor"],
   "abandonment.resolve": ["owner", "editor"],
   "abandonment.detect": ["owner"],
-  "publishing.credentials.manage": ["owner"],  // API keys strategiche
-  "publishing.send": ["owner", "editor"],       // invio singolo (test o operativo)
-  "publishing.send_bulk": ["owner"],            // bulk = costo + rischio, Owner-only (v2)
-  "publishing.retry_dead": ["owner"],           // recovery manuale
+  "publishing.credentials.manage": ["owner"], // API keys strategiche
+  "publishing.send": ["owner", "editor"], // invio singolo (test o operativo)
+  "publishing.send_bulk": ["owner"], // bulk = costo + rischio, Owner-only (v2)
+  "publishing.retry_dead": ["owner"], // recovery manuale
+  // M13 Advertising RF-13.x
+  "advertising.read": ["owner", "editor"],
+  "advertising.budgets.manage": ["owner"], // strategica
+  "advertising.toggle": ["owner"], // RF-13.2 accensione sempre esplicita del titolare
+  "advertising.classify": ["owner", "editor"], // classificazione draft
+  "advertising.overrun.request": ["owner", "editor"], // apre la richiesta
+  "advertising.overrun.decide": ["owner"], // RF-13.6 decisione mai automatica, Owner-only
 };
 
 export function hasCapability(role: Role, cap: Capability): boolean {
@@ -248,4 +262,10 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   "publishing.send": "Inviare un messaggio (test o singolo)",
   "publishing.send_bulk": "Inviare a piu destinatari (bulk)",
   "publishing.retry_dead": "Rilanciare invii falliti definitivamente",
+  "advertising.read": "Vedere budget e campagne pubblicitarie",
+  "advertising.budgets.manage": "Impostare tetti di spesa per marchio e categoria",
+  "advertising.toggle": "Accendere/spegnere categoria pubblicitaria",
+  "advertising.classify": "Classificare un contenuto per advertising (organico/spinto)",
+  "advertising.overrun.request": "Richiedere sforamento tetto",
+  "advertising.overrun.decide": "Approvare/rifiutare sforamento tetto (RF-13.6)",
 };

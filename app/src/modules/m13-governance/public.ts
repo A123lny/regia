@@ -27,3 +27,27 @@ export {
 
 // Server actions
 export { updateAutonomyRuleAction, toggleProductDiscountForbiddenAction } from "./internal/actions";
+
+// RF-13.x Advertising
+export {
+  listAdvertisingBudgets,
+  getAdvertisingBudget,
+  listOverrunRequests,
+  AD_CATEGORY_LABELS,
+  AD_CLASSIFICATION_LABELS,
+} from "./internal/advertising-repo";
+export type {
+  AdCategory,
+  AdClassification,
+  AdvertisingBudget,
+  AdvertisingBudgetWithSpend,
+  OverrunRequest,
+  OverrunRequestRow,
+} from "./internal/advertising-repo";
+export {
+  upsertAdvertisingBudgetAction,
+  toggleAdvertisingCategoryAction,
+  classifyDraftForAdvertisingAction,
+  requestAdvertisingOverrunAction,
+  decideAdvertisingOverrunAction,
+} from "./internal/actions";
