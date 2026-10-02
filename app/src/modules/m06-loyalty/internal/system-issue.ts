@@ -7,6 +7,7 @@ import { insertVoucher } from "./vouchers-repo";
 import { getOffer } from "./offers-repo";
 import { generateVoucherCode } from "./loyalty-types";
 import { getAdminClient } from "@/lib/db/admin";
+import { scheduleVoucherExpiringReminderOnIssue } from "@/modules/m09-reminders/public";
 
 export type IssueSystemVoucherInput = {
   organizationId: string;
@@ -66,6 +67,24 @@ export async function issueVoucherForSignup(
     if (input.notes !== undefined) issueInput.notes = input.notes;
 
     const voucher = await insertVoucher(issueInput);
+
+    // Event-driven: schedula reminder voucher_expiring (non-bloccante).
+    try {
+      await scheduleVoucherExpiringReminderOnIssue({
+        organizationId: input.organizationId,
+        brandId: offer.issuerBrandId,
+        contactId: input.contactId,
+        voucherId: voucher.id,
+        code: voucher.code,
+        expiresAtIso: voucher.expiresAt,
+      });
+    } catch (hookErr) {
+      console.error(
+        "scheduleVoucherExpiringReminderOnIssue (signup) failed:",
+        (hookErr as Error).message,
+      );
+    }
+
     return { ok: true, voucherId: voucher.id, code: voucher.code };
   } catch (err) {
     return { ok: false, error: (err as Error).message };

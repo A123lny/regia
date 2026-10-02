@@ -27,6 +27,7 @@ import {
   validateOfferAgainstCommercialRules,
   CommercialGuardError,
 } from "@/modules/m13-governance/public";
+import { scheduleVoucherExpiringReminderOnIssue } from "@/modules/m09-reminders/public";
 
 async function requireAuth(cap: Capability) {
   const session = await getSessionOrRedirect();
@@ -289,6 +290,24 @@ export async function issueVoucherAction(
     if (input.notes !== undefined) issueInput.notes = input.notes;
 
     const voucher = await insertVoucher(issueInput);
+
+    // Event-driven: schedula il reminder voucher_expiring per 10gg prima della scadenza.
+    // Fallimento non bloccante — il voucher e' emesso con successo, al limite il
+    // reminder viene creato dalla scan periodica refreshVoucherExpiringReminders.
+    try {
+      await scheduleVoucherExpiringReminderOnIssue({
+        organizationId: session.organizationId,
+        brandId: offer.issuerBrandId,
+        contactId: input.contactId,
+        voucherId: voucher.id,
+        code: voucher.code,
+        expiresAtIso: voucher.expiresAt,
+      });
+    } catch (hookErr) {
+      // Log soft (non audit event — gia' loggato il successo voucher). In produzione
+      // andrebbe in observability (Sentry/Datadog). Per F1 basta console.
+      console.error("scheduleVoucherExpiringReminderOnIssue failed:", (hookErr as Error).message);
+    }
 
     await logAuditEvent({
       organizationId: session.organizationId,

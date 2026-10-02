@@ -282,6 +282,38 @@ export async function scheduleWelcomeReminder(input: {
 }
 
 /**
+ * Event-driven: chiamato da M06 quando emette un voucher.
+ * Schedula un reminder voucher_expiring a 10gg prima della scadenza
+ * (o adesso se la scadenza è a meno di 10gg).
+ * Idempotente: UNIQUE partial su (org, contact, kind, referenceId) impedisce
+ * duplicati se la stessa funzione viene chiamata due volte per stesso voucher.
+ */
+export async function scheduleVoucherExpiringReminderOnIssue(input: {
+  organizationId: string;
+  brandId: string;
+  contactId: string;
+  voucherId: string;
+  code: string;
+  expiresAtIso: string;
+}): Promise<boolean> {
+  const expiresAt = new Date(input.expiresAtIso);
+  const scheduledAt = new Date(expiresAt.getTime() - 10 * DAYS_MS);
+  const now = new Date();
+  const effectiveScheduledIso =
+    scheduledAt.getTime() < now.getTime() ? now.toISOString() : scheduledAt.toISOString();
+  return scheduleReminder({
+    organizationId: input.organizationId,
+    brandId: input.brandId,
+    contactId: input.contactId,
+    kind: "voucher_expiring",
+    referenceType: "voucher",
+    referenceId: input.voucherId,
+    scheduledAtIso: effectiveScheduledIso,
+    messageHint: `Voucher ${input.code} scade il ${expiresAt.toLocaleDateString("it-IT")}`,
+  });
+}
+
+/**
  * Orchestratore che chiama tutte le refresh functions.
  * Ritorna sommario per la UI.
  */

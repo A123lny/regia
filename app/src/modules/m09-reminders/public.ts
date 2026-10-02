@@ -22,6 +22,7 @@ export type { ReminderRow, ListRemindersInput } from "./internal/reminders-repo"
 export {
   scheduleWelcomeReminder,
   refreshVoucherExpiringReminders,
+  scheduleVoucherExpiringReminderOnIssue,
 } from "./internal/compute-engine";
 
 // Server actions
