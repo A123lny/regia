@@ -5,14 +5,18 @@
 
 ## Adesso
 
-- **M05 Publishing Task 7 completato.** Implementati 6 gate obbligatori (consent + enabled
-  + quiet hours + pressure limit + governance + budget) nell'orchestrator `sendMessage`.
-  File: gates.ts, send-message.ts, 2 test invariante (consent + quiet hours), exports in
-  public.ts. Commit e55f629 su `feature/design-refresh`. Prossimo: Task 8 (worker +
-  retries).
+- **M05 Publishing v1 completato.** Implementati Task 13 (test SKIP LOCKED concorrenti)
+  e Task 14 (help contestuale + diario chiusura). CI locale verde con 7 nuovi test
+  invariante. Prossimo: M09 reminders integrazione M05 per invio automatico WA.
 
 ## Fatto
 
+- **29-30 set 2026 — M05 Publishing v1 completato (14 task).** Adapter Twilio (WA) +
+  Resend (email), coda Postgres `m05_publish_jobs` con SKIP LOCKED, worker triggerato
+  da pg_cron 1min, 6 gate obbligatori pre-enqueue (consent, channel enabled, quiet hours,
+  pressione, governance, budget), credenziali via Supabase Vault, log immutabile RF-5.7,
+  UI Impostazioni sezione "Canali di invio" con form + test send. 7 test invariante
+  nuovi. Prossimo: integrazione M09 reminders → invio automatico WA per voucher/richiami.
 - **29 set 2026 — M05 Task 7: gate implementation + sendMessage orchestrator.**
   gates.ts (124 righe, 6 funzioni gate), send-message.ts (44 righe, orchestrator),
   public.ts aggiornato, 2 test invariante (consent + quiet hours) passanti, lint clean.

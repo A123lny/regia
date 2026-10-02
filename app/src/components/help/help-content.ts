@@ -90,6 +90,14 @@ export const HELP_TEXTS: Record<string, HelpEntry> = {
       "Profilo, ambiente, chiavi AI, Team, Account social, Kill switch AI, Tetti spesa AI, Salute connessioni, Aspetto piattaforma (white label), Ricorrenze annuali.\n\n" +
       "Ogni card è pensata per fare una cosa specifica — non c'è pericolo di rompere niente.",
   },
+  "impostazioni-canali": {
+    title: "Canali di invio",
+    body:
+      "Configura i canali per far uscire i messaggi da Regia.\n\n" +
+      "- **Email (Resend)**: crea un account su resend.com, genera una API key (dashboard → API Keys → Create), incollala qui, indica il from address (deve essere su un dominio verificato in Resend).\n" +
+      "- **WhatsApp (Twilio)**: crea un account su twilio.com, attiva WhatsApp Business, ottieni Account SID + Auth Token dalla console, inseriscili qui. In v1 usiamo template pre-approvati (creati da Twilio Console).\n\n" +
+      'Le API key sono cifrate in Supabase Vault: dopo il salvataggio non le vedi più. Test invia un ping al provider; se ok, il canale diventa 🟢 Verificato. Attiva lo switch "Abilitato" per aprire il canale al motore invii.',
+  },
   audit: {
     title: "Audit log",
     body:
