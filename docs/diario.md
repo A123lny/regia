@@ -1,26 +1,62 @@
 # Diario di bordo — Regìa
 
-> Aggiornato: 29 settembre 2026 · Una pagina al massimo. Le voci vecchie si potano:
+> Aggiornato: 2 ottobre 2026 · Una pagina al massimo. Le voci vecchie si potano:
 > la storia completa sta in git. Regole d'uso: vedi CLAUDE.md, sezione "Rito di sessione".
 
 ## Adesso
 
-- **M05 Publishing v1 completato.** Implementati Task 13 (test SKIP LOCKED concorrenti)
-  e Task 14 (help contestuale + diario chiusura). CI locale verde con 7 nuovi test
-  invariante. Prossimo: M09 reminders integrazione M05 per invio automatico WA.
+- **M05 Publishing v1 chiuso (17 commit, piano completo eseguito).** Infrastruttura
+  publishing production-ready: adapter Twilio+Resend, coda Postgres SKIP LOCKED,
+  worker pg_cron 1min, 6 gate obbligatori (consent + channel + quiet + pressione +
+  governance + budget), Vault per credenziali, log immutabile, UI in /impostazioni.
+  Security review mid-task ha identificato e fixato: consent laundering (HIGH),
+  allow_promotional non enforced (MEDIUM), bypass consent via null contactId (MEDIUM).
+  CI locale verde (220 test).
+- **Supabase Cloud staging attivato** (29 set): progetto `regia` su Frankfurt Free,
+  43 migrazioni allineate + Owner dev + script `npm run dev:staging` per puntare app
+  al Cloud. .env.staging gitignored.
+- **Prossimo:** integrazione M09 reminders → invio automatico WhatsApp (RF-5.5a:
+  utilita, non promo). Primo flusso end-to-end concreto che fa uscire messaggi veri.
 
 ## Fatto
 
-- **29-30 set 2026 — M05 Publishing v1 completato (14 task).** Adapter Twilio (WA) +
-  Resend (email), coda Postgres `m05_publish_jobs` con SKIP LOCKED, worker triggerato
-  da pg_cron 1min, 6 gate obbligatori pre-enqueue (consent, channel enabled, quiet hours,
-  pressione, governance, budget), credenziali via Supabase Vault, log immutabile RF-5.7,
-  UI Impostazioni sezione "Canali di invio" con form + test send. 7 test invariante
-  nuovi. Prossimo: integrazione M09 reminders → invio automatico WA per voucher/richiami.
-- **29 set 2026 — M05 Task 7: gate implementation + sendMessage orchestrator.**
-  gates.ts (124 righe, 6 funzioni gate), send-message.ts (44 righe, orchestrator),
-  public.ts aggiornato, 2 test invariante (consent + quiet hours) passanti, lint clean.
-  Commit e55f629.
+- **29 set - 2 ott 2026 — M05 Publishing v1 completato (14 task, 17 commit).**
+  Branch `feature/design-refresh`, baseline `eaeee61` → HEAD `7a98b8e`.
+  - **Schema DB:** 5 tabelle (m05_channel_credentials/config/publish_jobs/publish_log/
+    provider_webhooks) con RLS denial-by-default, trigger append-only RF-5.7,
+    seed config default (WA quiet 9-21 no-promo max 2/mese, Email no-quiet promo-ok max 4/mese).
+  - **Capabilities:** 4 publishing.* (credentials.manage Owner, send Editor+Owner,
+    send_bulk Owner, retry_dead Owner).
+  - **Adapter (RS-2):** PublishAdapter interface + factory + 2 impl concrete (ResendEmailAdapter,
+    TwilioWhatsAppAdapter). Metodi send/ping/estimateCost/getStatus.
+  - **Repos:** credentials-repo (Vault via vault.create_secret), channel-config-repo,
+    publish-jobs-repo (claimBatch con SKIP LOCKED via SQL function m05_claim_jobs,
+    retry backoff 1m→5m→15m→1h→6h→dead), publish-log-repo (append-only).
+  - **6 gate (RA-8.6):** consent (RF-1.4, fail-closed su null contactId per non-test),
+    recipient-matches-contact (anti consent laundering), channel enabled, quiet hours
+    (RF-5.6, posticipa send_after fuori 9-21 WA), pressure (RA-8.4 + RF-5.5a
+    allow_promotional check), governance, budget.
+  - **Worker:** tickBatch(20) reclaim orfani >5min + claim SKIP LOCKED + execute via
+    adapter + log + markSent/markFailed. Route POST /api/publisher/tick protetta con
+    M05_CRON_SECRET. pg_cron guarded ogni 1min (locale no, Cloud serve setup manual).
+  - **UI:** /impostazioni sezione "Canali di invio" con 2 card (Email + WhatsApp),
+    form credenziali con show/hide, bottone Test, toggle Abilitato.
+  - **Test invariante (7):** idempotenza, append-only log, tenant scoping, consent gate,
+    quiet hours, retry backoff, SKIP LOCKED concorrenza.
+  - **Fix architetturali en-route:** config.toml espone `vault` schema, Turbopack
+    bundling fix (public.ts barrel senza client-side server imports), TS strict
+    cleanup 8 errori latenti (TS4111 + TS18048).
+  - **Documentazione:** docs/m05-cron-setup.md per attivazione pg_cron su Cloud, help
+    contestuale per sezione impostazioni canali.
+- **29 set 2026 — Supabase Cloud staging attivato.** Progetto `regia`
+  (dmdihsfwjteifvtccssq) su Frankfurt Free, 43 migrazioni pushate + Owner creato,
+  .env.staging gitignored, npm run dev:staging / build:staging aggiunti. Decisioni:
+  Free plan ok per staging (pausa dopo 7gg auto-resumable), Postgres 17.6, Vault
+  attivo. Da esporre "vault" schemi in Dashboard→API prima di usare M05 UI.
+- **29 set 2026 — M05 brainstorming + spec + piano implementativo.** 5 sezioni design
+  approvate, spec in docs/superpowers/specs/2026-09-29-m05-publishing-design.md,
+  piano in docs/superpowers/plans/2026-09-29-m05-publishing.md (14 task, 2119 righe,
+  codice esatto embedded per transcription).
 - **29 set 2026 — Commit ordinato dei rush di sessione 23/24/25 set (11 commit).**
   In ordine di dipendenza: fondamenta permessi (RA-8.6 RU-1a, 50 capabilities + matrice
   centralizzata), M02 brand esteso, M04 media, M11 admin, M03 editorial esteso, M12
@@ -112,22 +148,27 @@
 
 ## Prossimo (in ordine)
 
-1. **Push su GitHub** (`feature/design-refresh` → `origin`) dei 11 commit F1 commerciale.
-   Da decidere insieme prima di eseguire (policy: push shared branch = azione visibile
-   agli altri, richiede conferma esplicita).
-2. **M05 Publishing** (bloccante per produzione, oggi 0% implementato): scelta priorità
-   canali (WhatsApp + email per utilità voucher/richiami/avvisi RF-5.5a, poi social),
-   architettura adapter (RS-2, uno per canale), coda BullMQ per idempotenza invii
-   (RS-4, RNF-4), integrazione con `assertBudgetOk` di M11.
-3. **RF-1.9 Richieste dati personali** (export/cancellazione), quick win legale.
-4. **RN-41/42/43 Capacità rider Lenny** prima di attivare motore promozioni.
-5. **M08b Email assistenza** (info@/help@) routing semi-autonomo, bassa priorità.
-6. **M13 advertising RF-13.x** (motore promo con tetti spesa reali), dopo M05.
-7. **Connettori M1 reali verso gestionali** Lenny/Stazione, decisione: SQL diretto vs
-   API driver. Bloccante per test end-to-end con dati veri.
-8. **F0-b hosting** ancora aperto (§15.A): DigitalOcean App Platform vs Droplet,
-   Supabase Pro, GitHub Actions, 2FA reale, backup cifrato remoto. Non blocca lo
-   sviluppo locale ma serve prima di andare in produzione.
+1. **M09 reminders → integrazione M05 Publishing.** Quando un reminder passa in
+   `sending`, chiamare `sendMessage` di M05 con canale WA (RF-5.5a utilità:
+   voucher_expiring, service_call, counter_close, dormant). Primo flusso end-to-end
+   reale fuori dalla UI. Richiede: hook in m09-reminders/internal/compute-engine
+   o nelle action, mapping reminder.kind → payload WA template, test invariante
+   che reminder.sent_at viene aggiornato solo dopo publish-log sent.
+2. **Push su GitHub** `feature/design-refresh` → `origin` (34 commit totali tra
+   F1 commerciale + M05 + security fix). Richiede tua conferma esplicita.
+3. **Smoke test M05 end-to-end su Cloud staging**: creare account Resend/Twilio di
+   prova, incollare API keys nella UI, test manuale invio a sé stesso. Richiede
+   abilitare `vault` schema nel Dashboard Supabase Cloud.
+4. **RN-62 bulk protection** (preview + digitare numero + invio prova + partenza
+   scaglionata) — serve quando si integra M07 campagne (email bulk).
+5. **RN-64..67 Disiscrizione flow** con motivo + "scrivetemi meno" + allarme
+   "troppi messaggi". Mini-sottosistema autonomo, spec dedicato.
+6. **RF-1.9 Richieste dati personali** (export/cancellazione), quick win legale.
+7. **RN-41/42/43 Capacità rider Lenny** prima di attivare motore promozioni.
+8. **M13 advertising RF-13.x** (motore promo con tetti spesa reali).
+9. **Connettori M1 reali verso gestionali** Lenny/Stazione (SQL diretto vs API).
+10. **F0-b hosting** ancora aperto (§15.A): DigitalOcean App Platform vs Droplet,
+    Supabase Pro, GitHub Actions, 2FA reale, backup cifrato remoto.
 
 ## Decisioni prese in corso d'opera
 
