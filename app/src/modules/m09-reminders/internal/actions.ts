@@ -10,6 +10,7 @@ import { getReminder, markReminderSent, dismissReminder } from "./reminders-repo
 import { refreshAllReminders } from "./compute-engine";
 import { detectAllAbandonmentSignals } from "./abandonment-detector";
 import { resolveAbandonmentSignal } from "./abandonment-repo";
+import { sendReminderNow } from "./send-reminder";
 
 async function requireAuth(cap: Capability) {
   const session = await getSessionOrRedirect();
@@ -55,6 +56,32 @@ export async function markReminderSentAction(
   });
   revalidatePath("/promemoria");
   return { ok: true };
+}
+
+/**
+ * M09 → M05: invia un reminder via publish adapter.
+ * Richiede entrambe le capability (operare sulla reminder + autorizzare l'invio).
+ * Lo stato finale (sent/failed) e' gestito dal trigger DB quando il worker M05
+ * scrive su m05_publish_log.
+ */
+export async function sendReminderNowAction(
+  reminderId: string,
+): Promise<{ ok: true; jobId: string; channel: string } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "reminders.crud");
+  requireCapability(session, "publishing.send");
+  const result = await sendReminderNow(reminderId, session.organizationId);
+  if (!result.ok) return result;
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "reminders.sent_via_publish",
+    target: `reminder:${reminderId}`,
+    details: { jobId: result.jobId, channel: result.channel },
+  });
+  revalidatePath("/promemoria");
+  return result;
 }
 
 export type RefreshAllRemindersResult = {

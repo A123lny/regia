@@ -14,6 +14,7 @@ import {
   Target,
   UserX,
   Star,
+  Send,
 } from "lucide-react";
 import { BrandChip } from "@/components/brand/brand-chip";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,7 @@ import {
   dismissReminderAction,
   markReminderSentAction,
   refreshAllRemindersAction,
+  sendReminderNowAction,
   REMINDER_KIND_LABELS,
   REMINDER_STATUS_LABELS,
   REMINDER_STATUS_STYLES,
@@ -184,12 +186,29 @@ export function RemindersClient({ reminders, canCrud, canRefresh }: Props) {
                             disabled={pending}
                             onClick={() => {
                               startTransition(async () => {
+                                const res = await sendReminderNowAction(r.id);
+                                if (!res.ok) {
+                                  alert(`Invio non riuscito: ${res.error}`);
+                                }
+                              });
+                            }}
+                            className="rounded-md p-1 text-text-muted hover:bg-primary/10 hover:text-primary"
+                            aria-label="Invia ora via M05 (WA o email a seconda del tipo)"
+                            title="Invia ora (M05)"
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => {
+                              startTransition(async () => {
                                 await markReminderSentAction(r.id);
                               });
                             }}
                             className="rounded-md p-1 text-text-muted hover:bg-success/10 hover:text-success"
-                            aria-label="Marca inviato"
-                            title="Marca inviato"
+                            aria-label="Marca inviato (manuale, senza M05)"
+                            title="Marca inviato manualmente"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
                           </button>

@@ -29,8 +29,12 @@ export {
   dismissReminderAction,
   markReminderSentAction,
   refreshAllRemindersAction,
+  sendReminderNowAction,
 } from "./internal/actions";
 export type { RefreshAllRemindersResult } from "./internal/actions";
+
+// M09 -> M05 bridge
+export { getChannelForReminderKind } from "./internal/send-reminder";
 
 // M9 anti-abbandono (RN-40)
 export type {
