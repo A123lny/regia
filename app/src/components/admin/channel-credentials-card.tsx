@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateChannelCredentialsAction, setChannelEnabledAction, testChannelAction } from "@/modules/m05-publishing/public-actions";
+import {
+  updateChannelCredentialsAction,
+  setChannelEnabledAction,
+  testChannelAction,
+} from "@/modules/m05-publishing";
 // Channel type inlined per evitare import da public.ts (trascina adapter twilio nel browser bundle).
 type Channel = "email" | "whatsapp" | "sms" | "facebook" | "instagram" | "google";
 
@@ -15,8 +19,12 @@ type Props = {
 };
 
 const CHANNEL_LABELS: Record<Channel, string> = {
-  email: "Email (Resend)", whatsapp: "WhatsApp (Twilio)",
-  sms: "SMS", facebook: "Facebook", instagram: "Instagram", google: "Google",
+  email: "Email (Resend)",
+  whatsapp: "WhatsApp (Twilio)",
+  sms: "SMS",
+  facebook: "Facebook",
+  instagram: "Instagram",
+  google: "Google",
 };
 
 export function ChannelCredentialsCard(props: Props) {
@@ -26,30 +34,34 @@ export function ChannelCredentialsCard(props: Props) {
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
 
-  const save = () => startTransition(async () => {
-    const res = await updateChannelCredentialsAction({
-      channel: props.channel, provider: props.provider, apiKey, config,
+  const save = () =>
+    startTransition(async () => {
+      const res = await updateChannelCredentialsAction({
+        channel: props.channel,
+        provider: props.provider,
+        apiKey,
+        config,
+      });
+      setMsg(res.ok ? "Credenziali salvate. Ora fai il test." : res.error);
     });
-    setMsg(res.ok ? "Credenziali salvate. Ora fai il test." : res.error);
-  });
 
-  const test = () => startTransition(async () => {
-    const res = await testChannelAction({ channel: props.channel, testAddress: "" });
-    setMsg(res.ok ? "Connessione ok" : `Test fallito: ${res.error}`);
-  });
+  const test = () =>
+    startTransition(async () => {
+      const res = await testChannelAction({ channel: props.channel, testAddress: "" });
+      setMsg(res.ok ? "Connessione ok" : `Test fallito: ${res.error}`);
+    });
 
-  const toggle = (enabled: boolean) => startTransition(async () => {
-    const res = await setChannelEnabledAction({ channel: props.channel, enabled });
-    setMsg(res.ok ? (enabled ? "Canale abilitato" : "Canale disabilitato") : res.error);
-  });
+  const toggle = (enabled: boolean) =>
+    startTransition(async () => {
+      const res = await setChannelEnabledAction({ channel: props.channel, enabled });
+      setMsg(res.ok ? (enabled ? "Canale abilitato" : "Canale disabilitato") : res.error);
+    });
 
   return (
     <div className="border rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">{CHANNEL_LABELS[props.channel]}</h3>
-        <span className="text-sm">
-          {props.verifiedAt ? "🟢 Verificato" : "⚠️ Non verificato"}
-        </span>
+        <span className="text-sm">{props.verifiedAt ? "🟢 Verificato" : "⚠️ Non verificato"}</span>
       </div>
       <div className="space-y-2">
         <label className="text-sm block">
@@ -62,7 +74,11 @@ export function ChannelCredentialsCard(props: Props) {
               placeholder={props.configured ? "•••••••• (inserisci per aggiornare)" : "sk_..."}
               className="flex-1 border rounded px-2 py-1"
             />
-            <button type="button" onClick={() => setShowKey(!showKey)} className="text-sm underline">
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className="text-sm underline"
+            >
               {showKey ? "Nascondi" : "Mostra"}
             </button>
           </div>
@@ -70,27 +86,49 @@ export function ChannelCredentialsCard(props: Props) {
         {props.channel === "whatsapp" && (
           <label className="text-sm block">
             Account SID (Twilio)
-            <input type="text" value={config["accountSid"] ?? ""}
-                   onChange={(e) => setConfig({ ...config, accountSid: e.target.value })}
-                   placeholder="AC..." className="w-full border rounded px-2 py-1 mt-1" />
+            <input
+              type="text"
+              value={config["accountSid"] ?? ""}
+              onChange={(e) => setConfig({ ...config, accountSid: e.target.value })}
+              placeholder="AC..."
+              className="w-full border rounded px-2 py-1 mt-1"
+            />
           </label>
         )}
         {props.channel === "email" && (
           <label className="text-sm block">
             From (indirizzo mittente)
-            <input type="text" value={config["from"] ?? ""}
-                   onChange={(e) => setConfig({ ...config, from: e.target.value })}
-                   placeholder="info@brand.it" className="w-full border rounded px-2 py-1 mt-1" />
+            <input
+              type="text"
+              value={config["from"] ?? ""}
+              onChange={(e) => setConfig({ ...config, from: e.target.value })}
+              placeholder="info@brand.it"
+              className="w-full border rounded px-2 py-1 mt-1"
+            />
           </label>
         )}
       </div>
       <div className="flex gap-2">
-        <button onClick={save} disabled={pending || !apiKey}
-                className="bg-black text-white px-3 py-1 rounded text-sm">Salva</button>
-        <button onClick={test} disabled={pending || !props.configured}
-                className="border px-3 py-1 rounded text-sm">Test</button>
+        <button
+          onClick={save}
+          disabled={pending || !apiKey}
+          className="bg-black text-white px-3 py-1 rounded text-sm"
+        >
+          Salva
+        </button>
+        <button
+          onClick={test}
+          disabled={pending || !props.configured}
+          className="border px-3 py-1 rounded text-sm"
+        >
+          Test
+        </button>
         <label className="flex items-center gap-2 text-sm ml-auto">
-          <input type="checkbox" checked={props.enabled} onChange={(e) => toggle(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={props.enabled}
+            onChange={(e) => toggle(e.target.checked)}
+          />
           Abilitato
         </label>
       </div>

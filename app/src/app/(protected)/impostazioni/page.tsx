@@ -25,7 +25,7 @@ import { ConnectionsHealthCard } from "@/components/admin/connections-health-car
 import { PlatformBrandingCard } from "@/components/admin/platform-branding-card";
 import { HelpButton } from "@/components/help/help-button";
 import { ChannelCredentialsCard } from "@/components/admin/channel-credentials-card";
-import { listChannelsAction } from "@/modules/m05-publishing/public-actions";
+import { listChannelsAction } from "@/modules/m05-publishing";
 
 const ROLE_VARIANTS: Record<Role, "default" | "secondary" | "outline"> = {
   owner: "default",
@@ -198,14 +198,18 @@ export default async function ImpostazioniPage() {
             sono cifrate in Supabase Vault, mai visibili in chiaro dopo il salvataggio.
           </p>
           <ChannelCredentialsCard
-            channel="email" provider="resend"
-            configured={!!emailCred} enabled={emailCred?.enabled ?? false}
+            channel="email"
+            provider="resend"
+            configured={!!emailCred}
+            enabled={emailCred?.enabled ?? false}
             verifiedAt={emailCred?.verifiedAt ?? null}
             lastTestError={emailCred?.lastTestError ?? null}
           />
           <ChannelCredentialsCard
-            channel="whatsapp" provider="twilio"
-            configured={!!waCred} enabled={waCred?.enabled ?? false}
+            channel="whatsapp"
+            provider="twilio"
+            configured={!!waCred}
+            enabled={waCred?.enabled ?? false}
             verifiedAt={waCred?.verifiedAt ?? null}
             lastTestError={waCred?.lastTestError ?? null}
           />

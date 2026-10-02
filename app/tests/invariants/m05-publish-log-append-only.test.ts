@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getAdminClient } from "@/lib/db/admin";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const admin = getAdminClient() as any;
 
 describe("m05_publish_log append-only (RF-5.7)", () => {
@@ -12,25 +13,50 @@ describe("m05_publish_log append-only (RF-5.7)", () => {
     // crea job + log con indirizzo univoco per dedupe_key
     const ts = Date.now();
     const recipient = `test-${ts}@x.it`;
-    const { data: j, error: jobErr } = await admin.from("m05_publish_jobs").insert({
-      organization_id: orgId, channel: "email", provider: "resend",
-      recipient_address: recipient, source_kind: "test", source_id: null,
-      payload: { channel: "email", to: recipient, subject: "test", html: "<p>test</p>", from: "sender@x.it" },
-    }).select("id").single();
+    const { data: j, error: jobErr } = await admin
+      .from("m05_publish_jobs")
+      .insert({
+        organization_id: orgId,
+        channel: "email",
+        provider: "resend",
+        recipient_address: recipient,
+        source_kind: "test",
+        source_id: null,
+        payload: {
+          channel: "email",
+          to: recipient,
+          subject: "test",
+          html: "<p>test</p>",
+          from: "sender@x.it",
+        },
+      })
+      .select("id")
+      .single();
     if (jobErr || !j) throw new Error(`Failed to create job: ${jobErr?.message}`);
     jobId = j.id;
 
-    const { data: l, error: logErr } = await admin.from("m05_publish_log").insert({
-      organization_id: orgId, job_id: jobId, channel: "email", provider: "resend",
-      recipient_address: recipient, content_snapshot: { subject: "test" }, status: "sent",
-    }).select("id").single();
+    const { data: l, error: logErr } = await admin
+      .from("m05_publish_log")
+      .insert({
+        organization_id: orgId,
+        job_id: jobId,
+        channel: "email",
+        provider: "resend",
+        recipient_address: recipient,
+        content_snapshot: { subject: "test" },
+        status: "sent",
+      })
+      .select("id")
+      .single();
     if (logErr || !l) throw new Error(`Failed to create log: ${logErr?.message}`);
     logId = l.id;
   });
 
   it("blocca UPDATE su un log entry", async () => {
-    const { error } = await admin.from("m05_publish_log")
-      .update({ external_id: "modified" }).eq("id", logId);
+    const { error } = await admin
+      .from("m05_publish_log")
+      .update({ external_id: "modified" })
+      .eq("id", logId);
     expect(error?.message).toMatch(/append-only/i);
   });
 

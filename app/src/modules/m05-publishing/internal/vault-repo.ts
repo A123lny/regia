@@ -9,7 +9,11 @@ import { getAdminClient } from "@/lib/db/admin";
  * Crea un secret in vault.secrets. Ritorna l'id UUID.
  * Il nome e' descrittivo (es. "m05_email_resend_<org>_<timestamp>") per audit.
  */
-export async function createVaultSecret(value: string, name: string, description?: string): Promise<string> {
+export async function createVaultSecret(
+  value: string,
+  name: string,
+  description?: string,
+): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const { data, error } = await admin.schema("vault").rpc("create_secret", {
@@ -26,8 +30,11 @@ export async function decryptVaultSecret(secretId: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const { data, error } = await admin
-    .schema("vault").from("decrypted_secrets")
-    .select("decrypted_secret").eq("id", secretId).maybeSingle();
+    .schema("vault")
+    .from("decrypted_secrets")
+    .select("decrypted_secret")
+    .eq("id", secretId)
+    .maybeSingle();
   if (error) throw new Error(`Vault decryptSecret: ${error.message}`);
   if (!data) throw new Error(`Vault decryptSecret: secret ${secretId} not found`);
   return data.decrypted_secret as string;
@@ -50,7 +57,6 @@ export async function updateVaultSecret(secretId: string, newValue: string): Pro
 export async function deleteVaultSecret(secretId: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  const { error } = await admin
-    .schema("vault").from("secrets").delete().eq("id", secretId);
+  const { error } = await admin.schema("vault").from("secrets").delete().eq("id", secretId);
   if (error) throw new Error(`Vault deleteSecret: ${error.message}`);
 }

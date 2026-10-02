@@ -2,7 +2,7 @@
 // Protetto con secret in header authorization (env M05_CRON_SECRET).
 
 import { NextResponse } from "next/server";
-import { tickBatch } from "@/modules/m05-publishing/public";  // RS-1: via public.ts
+import { tickBatch } from "@/modules/m05-publishing/public"; // RS-1: via public.ts
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
