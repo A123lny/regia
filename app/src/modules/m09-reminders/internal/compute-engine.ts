@@ -55,7 +55,7 @@ export async function refreshServiceCallReminders(
       skipped++;
       continue;
     }
-    const ok = await scheduleReminder({
+    const r = await scheduleReminder({
       organizationId,
       brandId: v.contacts.brand_id,
       contactId: v.contact_id,
@@ -65,7 +65,7 @@ export async function refreshServiceCallReminders(
       scheduledAtIso: scheduledIso,
       messageHint: `Richiamo tagliando per veicolo ${v.plate} — ultimo intervento ${v.last_service_at}`,
     });
-    if (ok) created++;
+    if (r.created) created++;
     else skipped++;
   }
   return { created, skipped };
@@ -101,7 +101,7 @@ export async function refreshVoucherExpiringReminders(
     voucher_offers: { issuer_brand_id: string };
   }>) {
     // Reminder scheduled per "adesso" (già entro 10gg dalla scadenza)
-    const ok = await scheduleReminder({
+    const r = await scheduleReminder({
       organizationId,
       brandId: v.voucher_offers.issuer_brand_id,
       contactId: v.contact_id,
@@ -111,7 +111,7 @@ export async function refreshVoucherExpiringReminders(
       scheduledAtIso: nowIso,
       messageHint: `Voucher ${v.code} scade il ${new Date(v.expires_at).toLocaleDateString("it-IT")}`,
     });
-    if (ok) created++;
+    if (r.created) created++;
     else skipped++;
   }
   return { created, skipped };
@@ -168,7 +168,7 @@ export async function refreshDormantReminders(
   let created = 0;
   let skipped = 0;
   for (const c of (contacts ?? []) as Array<{ id: string; brand_id: string }>) {
-    const ok = await scheduleReminder({
+    const r = await scheduleReminder({
       organizationId,
       brandId: c.brand_id,
       contactId: c.id,
@@ -176,7 +176,7 @@ export async function refreshDormantReminders(
       scheduledAtIso: nowIso,
       messageHint: `Cliente inattivo da oltre 60 giorni — valuta riattivazione`,
     });
-    if (ok) created++;
+    if (r.created) created++;
     else skipped++;
   }
   return { created, skipped };
@@ -244,7 +244,7 @@ export async function refreshCounterCloseReminders(
     const pct = threshold > 0 ? (progress / threshold) * 100 : 0;
     if (pct < 80 || pct >= 100) continue;
 
-    const ok = await scheduleReminder({
+    const r = await scheduleReminder({
       organizationId,
       brandId: counter.brand_id,
       contactId,
@@ -254,7 +254,7 @@ export async function refreshCounterCloseReminders(
       scheduledAtIso: nowIso,
       messageHint: `A ${Math.round(pct)}% della soglia "${counter.name}" (${progress}/${threshold})`,
     });
-    if (ok) created++;
+    if (r.created) created++;
     else skipped++;
   }
   return { created, skipped };
@@ -268,16 +268,20 @@ export async function scheduleWelcomeReminder(input: {
   organizationId: string;
   brandId: string;
   contactId: string;
-}): Promise<void> {
-  const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-  await scheduleReminder({
+  /** Default: now (RN-63: benvenuto immediato). Passare valore futuro per posticipare. */
+  scheduledAtIso?: string;
+  /** Hint testo per il template M05 (es. codice voucher benvenuto). */
+  messageHint?: string;
+}): Promise<{ created: boolean; reminderId: string | null }> {
+  const scheduledAt = input.scheduledAtIso ?? new Date().toISOString();
+  return scheduleReminder({
     organizationId: input.organizationId,
     brandId: input.brandId,
     contactId: input.contactId,
     kind: "welcome",
     referenceType: "signup",
     scheduledAtIso: scheduledAt,
-    messageHint: "Benvenuto dopo iscrizione landing",
+    messageHint: input.messageHint ?? "Benvenuto dopo iscrizione landing",
   });
 }
 
@@ -301,7 +305,7 @@ export async function scheduleVoucherExpiringReminderOnIssue(input: {
   const now = new Date();
   const effectiveScheduledIso =
     scheduledAt.getTime() < now.getTime() ? now.toISOString() : scheduledAt.toISOString();
-  return scheduleReminder({
+  const r = await scheduleReminder({
     organizationId: input.organizationId,
     brandId: input.brandId,
     contactId: input.contactId,
@@ -311,6 +315,7 @@ export async function scheduleVoucherExpiringReminderOnIssue(input: {
     scheduledAtIso: effectiveScheduledIso,
     messageHint: `Voucher ${input.code} scade il ${expiresAt.toLocaleDateString("it-IT")}`,
   });
+  return r.created;
 }
 
 /**

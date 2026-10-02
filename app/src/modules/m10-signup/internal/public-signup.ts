@@ -17,7 +17,7 @@
 import { createHash } from "node:crypto";
 import { getAdminClient } from "@/lib/db/admin";
 import { issueVoucherForSignup } from "@/modules/m06-loyalty/public";
-import { scheduleWelcomeReminder } from "@/modules/m09-reminders/public";
+import { scheduleWelcomeReminder, sendReminderNow } from "@/modules/m09-reminders/public";
 import { getPublicLandingBySlug } from "./landings-repo";
 import { countRecentEventsByIp, insertSignupEvent } from "./events-repo";
 import type { AudienceKind, ConsentChannel } from "./signup-types";
@@ -307,15 +307,35 @@ export async function submitPublicSignup(input: PublicSignupInput): Promise<Publ
     ipHash,
   });
 
-  // 9. RF-6.22: schedula reminder benvenuto (idempotente via UNIQUE parziale)
+  // 9. RN-63: welcome immediato (scheduledAt=now) + invio via M05 subito dopo.
+  // Il reminder resta come audit trail; il trigger DB m09_sync_reminder_from_publish_log
+  // marchera' sent_at quando il worker M05 esegue l'invio e scrive m05_publish_log.
+  // Fallimento non-bloccante: il signup resta ok anche se welcome non parte.
   try {
-    await scheduleWelcomeReminder({
+    const reminderMsgHint = welcomeCode
+      ? `Benvenuto! Il tuo codice: ${welcomeCode}`
+      : "Benvenuto dopo iscrizione landing";
+    const scheduledInput: Parameters<typeof scheduleWelcomeReminder>[0] = {
       organizationId: landing.organizationId,
       brandId: landing.brandId,
       contactId,
-    });
-  } catch {
-    // Se schedule fallisce (es. già presente), non è bloccante per il signup
+      scheduledAtIso: new Date().toISOString(),
+      messageHint: reminderMsgHint,
+    };
+    const scheduled = await scheduleWelcomeReminder(scheduledInput);
+    // Se il reminder e' stato appena creato O e' pending esistente, prova l'invio immediato.
+    // Se sendReminderNow fallisce (es. canale non configurato), il reminder resta in
+    // /promemoria e l'Owner puo' intervenire manualmente (Invia ora o Marca inviato).
+    if (scheduled.reminderId) {
+      const sendResult = await sendReminderNow(scheduled.reminderId, landing.organizationId);
+      if (!sendResult.ok) {
+        console.warn(
+          `Welcome M05 send fallito (reminder ${scheduled.reminderId} resta pending): ${sendResult.error}`,
+        );
+      }
+    }
+  } catch (err) {
+    console.error("scheduleWelcomeReminder/sendReminderNow signup:", (err as Error).message);
   }
 
   return {

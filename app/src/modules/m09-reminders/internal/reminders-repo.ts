@@ -115,11 +115,20 @@ export type ScheduleReminderInput = {
   notes?: string | null;
 };
 
+export type ScheduleReminderResult = {
+  created: boolean;
+  reminderId: string | null;
+};
+
 /**
  * Schedula un reminder rispettando UNIQUE parziale (contact, kind, reference) su pending.
- * Ritorna true se creato, false se già esistente pending (idempotente).
+ * - created=true + reminderId=<id> se creato ora
+ * - created=false + reminderId=<id del pending esistente> se duplicato idempotente (lookup)
+ * - created=false + reminderId=null solo in casi di errore gestito
  */
-export async function scheduleReminder(input: ScheduleReminderInput): Promise<boolean> {
+export async function scheduleReminder(
+  input: ScheduleReminderInput,
+): Promise<ScheduleReminderResult> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const row: Record<string, unknown> = {
@@ -135,13 +144,24 @@ export async function scheduleReminder(input: ScheduleReminderInput): Promise<bo
     message_hint: input.messageHint ?? null,
     notes: input.notes ?? null,
   };
-  const { error } = await admin.from("reminders").insert(row);
+  const { data, error } = await admin.from("reminders").insert(row).select("id").single();
   if (error) {
-    // Se conflict UNIQUE parziale (già pending), ignoriamo (idempotente).
-    if (error.code === "23505") return false;
+    if (error.code === "23505") {
+      // Idempotente: cerco il reminder pending esistente (stesso contact+kind+reference).
+      let q = admin
+        .from("reminders")
+        .select("id")
+        .eq("organization_id", input.organizationId)
+        .eq("contact_id", input.contactId)
+        .eq("kind", input.kind)
+        .eq("status", "pending");
+      if (input.referenceId) q = q.eq("reference_id", input.referenceId);
+      const { data: existing } = await q.limit(1).maybeSingle();
+      return { created: false, reminderId: (existing as { id: string } | null)?.id ?? null };
+    }
     throw new Error(`Errore schedule reminder: ${error.message}`);
   }
-  return true;
+  return { created: true, reminderId: (data as { id: string }).id };
 }
 
 export async function markReminderSent(
