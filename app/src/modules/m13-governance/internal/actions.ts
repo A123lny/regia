@@ -3,11 +3,36 @@
 // M13 — server actions per aggiornare regole autonomia e flag discount_forbidden.
 
 import { revalidatePath } from "next/cache";
+import { getAdminClient } from "@/lib/db/admin";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { requireCapability, type Capability } from "@/lib/auth/permissions";
 import { logAuditEvent } from "@/lib/audit/log";
 import { updateAutonomyLevel, setProductDiscountForbidden } from "./autonomy-repo";
 import type { AutonomyLevel } from "./governance-types";
+
+/**
+ * Security helper: verifica che un entity (brands, delivery_zones, campaigns...)
+ * appartenga alla organization del chiamante. Previene IDOR cross-tenant
+ * sui FK client-supplied in server actions.
+ * Lancia Error ("Risorsa non trovata") in caso di mismatch.
+ */
+async function assertEntityOwnedByOrg(
+  table: string,
+  id: string,
+  organizationId: string,
+  humanName: string = "Risorsa",
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin
+    .from(table)
+    .select("id")
+    .eq("id", id)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (error) throw new Error(`verifica ${humanName}: ${error.message}`);
+  if (!data) throw new Error(`${humanName} non trovata o appartenente ad altra organizzazione`);
+}
 
 async function requireAuth(cap: Capability) {
   const session = await getSessionOrRedirect();
@@ -104,6 +129,7 @@ export async function upsertAdvertisingBudgetAction(input: {
     return { ok: false, error: "Tetto non puo' essere negativo" };
   }
   try {
+    await assertEntityOwnedByOrg("brands", input.brandId, session.organizationId, "Marchio");
     await upsertAdvertisingBudget({
       organizationId: session.organizationId,
       brandId: input.brandId,
@@ -134,6 +160,7 @@ export async function toggleAdvertisingCategoryAction(input: {
   const session = await getSessionOrRedirect();
   requireCapability(session, "advertising.toggle");
   try {
+    await assertEntityOwnedByOrg("brands", input.brandId, session.organizationId, "Marchio");
     await toggleAdvertisingCategory(
       session.organizationId,
       input.brandId,
@@ -164,6 +191,12 @@ export async function classifyDraftForAdvertisingAction(input: {
   const session = await getSessionOrRedirect();
   requireCapability(session, "advertising.classify");
   try {
+    await assertEntityOwnedByOrg(
+      "content_drafts",
+      input.draftId,
+      session.organizationId,
+      "Bozza contenuto",
+    );
     await classifyDraftForAdvertising({
       organizationId: session.organizationId,
       draftId: input.draftId,
@@ -201,6 +234,23 @@ export async function requestAdvertisingOverrunAction(input: {
   const session = await getSessionOrRedirect();
   requireCapability(session, "advertising.overrun.request");
   try {
+    await assertEntityOwnedByOrg("brands", input.brandId, session.organizationId, "Marchio");
+    if (input.draftId) {
+      await assertEntityOwnedByOrg(
+        "content_drafts",
+        input.draftId,
+        session.organizationId,
+        "Bozza contenuto",
+      );
+    }
+    if (input.campaignId) {
+      await assertEntityOwnedByOrg(
+        "campaigns",
+        input.campaignId,
+        session.organizationId,
+        "Campagna",
+      );
+    }
     const req = await createOverrunRequest({
       organizationId: session.organizationId,
       brandId: input.brandId,
@@ -291,6 +341,7 @@ export async function upsertRiderCapacityWindowAction(input: {
   requireCapability(session, "rider_capacity.manage");
   if (input.slotsTotal < 0) return { ok: false, error: "slots_total non negativo" };
   try {
+    await assertEntityOwnedByOrg("brands", input.brandId, session.organizationId, "Marchio");
     const row: Parameters<typeof upsertRiderCapacityWindow>[0] = {
       organizationId: session.organizationId,
       brandId: input.brandId,
@@ -324,6 +375,12 @@ export async function updateRiderCapacityFilledAction(input: {
   const session = await getSessionOrRedirect();
   requireCapability(session, "rider_capacity.manage");
   try {
+    await assertEntityOwnedByOrg(
+      "rider_capacity_windows",
+      input.windowId,
+      session.organizationId,
+      "Finestra capacita rider",
+    );
     await updateFilledSlots(session.organizationId, input.windowId, input.slotsFilled);
     revalidatePath("/governance/capacita-rider");
     return { ok: true };
@@ -338,6 +395,12 @@ export async function deleteRiderCapacityWindowAction(
   const session = await getSessionOrRedirect();
   requireCapability(session, "rider_capacity.manage");
   try {
+    await assertEntityOwnedByOrg(
+      "rider_capacity_windows",
+      windowId,
+      session.organizationId,
+      "Finestra capacita rider",
+    );
     await deleteRiderCapacityWindow(session.organizationId, windowId);
     await logAuditEvent({
       organizationId: session.organizationId,
@@ -365,6 +428,7 @@ export async function createRiderShiftRequestAction(input: {
   requireCapability(session, "rider_shift.request");
   if (input.slotsNeeded <= 0) return { ok: false, error: "slots_needed deve essere > 0" };
   try {
+    await assertEntityOwnedByOrg("brands", input.brandId, session.organizationId, "Marchio");
     const payload: Parameters<typeof createRiderShiftRequest>[0] = {
       organizationId: session.organizationId,
       brandId: input.brandId,
@@ -468,6 +532,19 @@ export async function upsertDeliveryZoneAction(input: {
   requireCapability(session, "delivery_zones.manage");
   if (input.name.trim().length === 0) return { ok: false, error: "Nome obbligatorio" };
   try {
+    // Security: verifica che brandId appartenga a session.organizationId prima
+    // di scrivere (anti IDOR cross-tenant su FK). Il repo filtra l'UPDATE con
+    // organization_id, ma l'INSERT no e la FK brand_id punterebbe a brand di altra org.
+    await assertEntityOwnedByOrg("brands", input.brandId, session.organizationId, "Marchio");
+    // Se e' un update (zoneId presente), verifica anche che la zona esista nell'org.
+    if (input.zoneId) {
+      await assertEntityOwnedByOrg(
+        "delivery_zones",
+        input.zoneId,
+        session.organizationId,
+        "Zona di consegna",
+      );
+    }
     const payload: Parameters<typeof upsertDeliveryZone>[0] = {
       organizationId: session.organizationId,
       brandId: input.brandId,
@@ -498,6 +575,13 @@ export async function deleteDeliveryZoneAction(
   const session = await getSessionOrRedirect();
   requireCapability(session, "delivery_zones.manage");
   try {
+    // Security: verifica ownership prima della delete (defense in depth).
+    await assertEntityOwnedByOrg(
+      "delivery_zones",
+      zoneId,
+      session.organizationId,
+      "Zona di consegna",
+    );
     await deleteDeliveryZone(session.organizationId, zoneId);
     await logAuditEvent({
       organizationId: session.organizationId,
@@ -522,6 +606,15 @@ export async function openBlackoutAction(input: {
   const session = await getSessionOrRedirect();
   requireCapability(session, "delivery_zones.blackout.toggle");
   try {
+    // Security: verifica che zoneId appartenga alla org del chiamante prima
+    // di aprire blackout (anti IDOR: senza, Owner org A potrebbe aprire blackout
+    // su zone di org B passando il suo zoneId).
+    await assertEntityOwnedByOrg(
+      "delivery_zones",
+      input.zoneId,
+      session.organizationId,
+      "Zona di consegna",
+    );
     const payload: Parameters<typeof openBlackout>[0] = {
       organizationId: session.organizationId,
       zoneId: input.zoneId,
