@@ -64,6 +64,10 @@ describe("permissions matrix (RU-1a)", () => {
         "advertising.classify",
         "advertising.overrun.request",
         "advertising.overrun.decide",
+        "rider_capacity.read",
+        "rider_capacity.manage",
+        "rider_shift.request",
+        "rider_shift.fulfill",
       ];
       for (const cap of all) {
         expect(hasCapability("owner", cap), `owner deve poter ${cap}`).toBe(true);
@@ -117,6 +121,10 @@ describe("permissions matrix (RU-1a)", () => {
       expect(hasCapability("editor", "advertising.read")).toBe(true);
       expect(hasCapability("editor", "advertising.classify")).toBe(true);
       expect(hasCapability("editor", "advertising.overrun.request")).toBe(true);
+      // Capacita rider (RN-41..43): editor puo vedere e aprire/aggiornare richieste
+      expect(hasCapability("editor", "rider_capacity.read")).toBe(true);
+      expect(hasCapability("editor", "rider_shift.request")).toBe(true);
+      expect(hasCapability("editor", "rider_shift.fulfill")).toBe(true);
     });
 
     it("NON puo: approve, reject, delete, brand.crud, team.manage, audit.read, contacts.consent.manage, pricing.manage, loyalty.crud.*, voucher.cancel", () => {
@@ -157,6 +165,8 @@ describe("permissions matrix (RU-1a)", () => {
       expect(hasCapability("editor", "advertising.budgets.manage")).toBe(false);
       expect(hasCapability("editor", "advertising.toggle")).toBe(false);
       expect(hasCapability("editor", "advertising.overrun.decide")).toBe(false);
+      // Capacita rider: config strategica Owner-only
+      expect(hasCapability("editor", "rider_capacity.manage")).toBe(false);
     });
   });
 

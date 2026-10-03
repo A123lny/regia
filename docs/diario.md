@@ -5,21 +5,61 @@
 
 ## Adesso
 
-- **M05 Publishing v1 chiuso (17 commit, piano completo eseguito).** Infrastruttura
-  publishing production-ready: adapter Twilio+Resend, coda Postgres SKIP LOCKED,
-  worker pg_cron 1min, 6 gate obbligatori (consent + channel + quiet + pressione +
-  governance + budget), Vault per credenziali, log immutabile, UI in /impostazioni.
-  Security review mid-task ha identificato e fixato: consent laundering (HIGH),
-  allow_promotional non enforced (MEDIUM), bypass consent via null contactId (MEDIUM).
-  CI locale verde (220 test).
-- **Supabase Cloud staging attivato** (29 set): progetto `regia` su Frankfurt Free,
-  43 migrazioni allineate + Owner dev + script `npm run dev:staging` per puntare app
-  al Cloud. .env.staging gitignored.
-- **Prossimo:** integrazione M09 reminders → invio automatico WhatsApp (RF-5.5a:
-  utilita, non promo). Primo flusso end-to-end concreto che fa uscire messaggi veri.
+- **F1 commerciale + M05 Publishing + 6 integrazioni concrete chiusi e pushati su main.**
+  Branch `feature/design-refresh` fast-forward in `main` sul remoto (`a123lny/regia`),
+  160 commit totali applicati da 2162e6d (scaffold) a 915fdd3 (M13 ads + catchup).
+  Main su GitHub ora contiene l'intera piattaforma Next.js in `app/`. CI locale verde
+  (250 test). Supabase Cloud staging allineato con tutte le 46 migrazioni.
+- **Oggi (2 ott):** completato in sequenza M09→M05, M06→M09 (voucher auto-reminder),
+  M10→M05 (welcome RN-63 immediato), M07→M05 bulk protection RN-62 (preview + test +
+  staged), RN-64..67 unsubscribe (token one-time + landing + motivo + allarme pressione
+  dashboard), RF-13.1..13.4+13.6 advertising (budget per brand×categoria + toggle
+  default OFF + workflow sforamento mai automatico Owner-only).
+- **Prossimo:** RN-41/42/43 capacita rider Lenny — non generare domanda oltre la
+  capacita del servizio. Bloccante prima di attivare qualsiasi motore promo food.
 
 ## Fatto
 
+- **2 ott 2026 — Push su GitHub + fast-forward di main.**
+  160 commit da 2162e6d a 915fdd3 applicati a main. Niente PR formale (single dev,
+  branch divergenza zero: merge-base = main precedente HEAD). Un commit "chore:
+  catchup prettier" ha ripulito 18 file con formattazioni residue + rimosso
+  public-actions.ts barrel orfano (creato dal subagent Task 12 M05, sostituito
+  con index.ts da subagent Task 14 ma rimozione mai staged).
+- **2 ott 2026 — M13 Advertising RF-13.1..13.4+13.6 (motore promo con tetti spesa).**
+  advertising_budgets (brand × categoria con enabled default OFF sempre),
+  advertising_spend_ledger (actual + estimated), advertising_overrun_requests (RF-13.6
+  motivazione min 20 char + decisione mai automatica Owner-only; approvazione alza
+  automaticamente il tetto al requested). 6 nuove capabilities, UI
+  /governance/advertising con inline edit tetto + toggle + sezione overrun pending.
+  6 test invariante.
+- **2 ott 2026 — RN-64..67 unsubscribe flow completo.** m05_unsubscribe_tokens
+  one-time, landing pubblica /u/[token] con revoca immediata PRIMA del render
+  (vincolo tecnico RN-64), form opzionale per motivo (4 scelte + free text) +
+  reduce_frequency "scrivetemi meno" (RN-66) + propagazione ad altri canali (RN-64).
+  RN-67 dashboard banner "pressione commerciale alta" quando >= 50% motivi
+  "too_many_messages" e >= 3 revoche negli ultimi 30gg. Footer unsubscribe
+  auto-iniettato in email M05. sendMessage estesa con sendAfterOverrideIso
+  (bugfix: la partenza scaglionata RN-62 ora applica davvero i tempi staged).
+  5 test invariante.
+- **2 ott 2026 — RN-62 bulk send protection per M07 campagne email.**
+  campaign-launcher con 3 funzioni core (preview destinatari + sample 3 + payload
+  compilato; invio di prova all'Owner; launch scaglionato con confirmedCount guard
+  anti-click accidentale). Transizione draft→sending→cancelled, send_after
+  calcolato per batch (default 100 per batch, 10min pausa). UI drawer in /campagne
+  con 3 sezioni espandibili. Fix pre-esistente: send-reminder + campaign-launcher
+  usavano brand_email_identity come tabella fantasma — sono colonne di brands
+  (email_from_address, email_reply_to) dalla migrazione RF-2.2a. 6 test invariante.
+- **2 ott 2026 — M10→M05 welcome immediato (RN-63) + M06→M09 voucher-expiring
+  auto-schedule su issue + M09→M05 reminders → publish adapter.** Primo flusso
+  reale: signup pubblico → crea reminder welcome scheduledAt=now → sendReminderNow
+  → M05 enqueue → worker invia. Mapping reminder.kind → canale deterministico
+  (WA utility per welcome/thanks/service/voucher/counter; email promo per
+  dormant_reactivation per rispetto RF-5.5a; email neutro per review_request).
+  Hook event-driven in issueVoucherAction (sia UI che signup) chiama
+  scheduleVoucherExpiringReminderOnIssue a +10gg prima scadenza. Trigger DB
+  m09_sync_reminder_from_publish_log aggiorna reminders.sent_at automaticamente.
+  18 test invariante tra i 3 blocchi.
 - **29 set - 2 ott 2026 — M05 Publishing v1 completato (14 task, 17 commit).**
   Branch `feature/design-refresh`, baseline `eaeee61` → HEAD `7a98b8e`.
   - **Schema DB:** 5 tabelle (m05_channel_credentials/config/publish_jobs/publish_log/
@@ -148,27 +188,19 @@
 
 ## Prossimo (in ordine)
 
-1. **M09 reminders → integrazione M05 Publishing.** Quando un reminder passa in
-   `sending`, chiamare `sendMessage` di M05 con canale WA (RF-5.5a utilità:
-   voucher_expiring, service_call, counter_close, dormant). Primo flusso end-to-end
-   reale fuori dalla UI. Richiede: hook in m09-reminders/internal/compute-engine
-   o nelle action, mapping reminder.kind → payload WA template, test invariante
-   che reminder.sent_at viene aggiornato solo dopo publish-log sent.
-2. **Push su GitHub** `feature/design-refresh` → `origin` (34 commit totali tra
-   F1 commerciale + M05 + security fix). Richiede tua conferma esplicita.
-3. **Smoke test M05 end-to-end su Cloud staging**: creare account Resend/Twilio di
-   prova, incollare API keys nella UI, test manuale invio a sé stesso. Richiede
+1. **RN-41/42/43 Capacita rider Lenny** — non generare domanda oltre la capacita.
+   Bloccante prima di attivare motore promo food (post-M05 publishing non puo
+   accoda invii promozionali Lenny finche non c'e una guardia che verifica le
+   finestre di disponibilita rider).
+2. **Smoke test M05 end-to-end su Cloud staging**: creare account Resend/Twilio di
+   prova, incollare API keys nella UI, test manuale invio a se stesso. Richiede
    abilitare `vault` schema nel Dashboard Supabase Cloud.
-4. **RN-62 bulk protection** (preview + digitare numero + invio prova + partenza
-   scaglionata) — serve quando si integra M07 campagne (email bulk).
-5. **RN-64..67 Disiscrizione flow** con motivo + "scrivetemi meno" + allarme
-   "troppi messaggi". Mini-sottosistema autonomo, spec dedicato.
-6. **RF-1.9 Richieste dati personali** (export/cancellazione), quick win legale.
-7. **RN-41/42/43 Capacità rider Lenny** prima di attivare motore promozioni.
-8. **M13 advertising RF-13.x** (motore promo con tetti spesa reali).
-9. **Connettori M1 reali verso gestionali** Lenny/Stazione (SQL diretto vs API).
-10. **F0-b hosting** ancora aperto (§15.A): DigitalOcean App Platform vs Droplet,
-    Supabase Pro, GitHub Actions, 2FA reale, backup cifrato remoto.
+3. **RF-1.9 Richieste dati personali** (export/cancellazione), quick win legale.
+4. **Connettori M1 reali verso gestionali** Lenny/Stazione (SQL diretto vs API).
+   Prerequisito per test end-to-end con dati veri invece dei seed.
+5. **M08b Email assistenza** (info@/help@) routing semi-autonomo, bassa priorita.
+6. **F0-b hosting** ancora aperto (§15.A): DigitalOcean App Platform vs Droplet,
+   Supabase Pro, GitHub Actions, 2FA reale, backup cifrato remoto.
 
 ## Decisioni prese in corso d'opera
 

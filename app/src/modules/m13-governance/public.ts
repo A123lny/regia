@@ -51,3 +51,30 @@ export {
   requestAdvertisingOverrunAction,
   decideAdvertisingOverrunAction,
 } from "./internal/actions";
+
+// RF-6.18 + RN-41..43 Capacita rider
+export {
+  listRiderCapacityWindows,
+  listRiderShiftRequests,
+  checkRiderCapacityForSlot,
+  assertRiderCapacityOk,
+  RiderCapacityExceededError,
+  WEEKDAY_LABELS,
+} from "./internal/rider-capacity-repo";
+export type {
+  Weekday,
+  RiderCapacityWindow,
+  RiderCapacityWindowRow,
+  RiderShiftRequest,
+  RiderShiftRequestRow,
+  ShiftRequestStatus,
+  CapacityCheckResult,
+} from "./internal/rider-capacity-repo";
+export {
+  upsertRiderCapacityWindowAction,
+  updateRiderCapacityFilledAction,
+  deleteRiderCapacityWindowAction,
+  createRiderShiftRequestAction,
+  fulfillRiderShiftRequestAction,
+  cancelRiderShiftRequestAction,
+} from "./internal/actions";

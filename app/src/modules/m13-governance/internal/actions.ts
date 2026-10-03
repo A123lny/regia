@@ -263,3 +263,184 @@ export async function decideAdvertisingOverrunAction(input: {
     return { ok: false, error: (err as Error).message };
   }
 }
+
+// ============================================================================
+// RF-6.18 + RN-41..43 Capacita rider (Lenny food)
+// ============================================================================
+
+import {
+  upsertRiderCapacityWindow,
+  updateFilledSlots,
+  deleteRiderCapacityWindow,
+  createRiderShiftRequest,
+  updateShiftRequestFilled,
+  cancelShiftRequest,
+  type Weekday,
+} from "./rider-capacity-repo";
+
+export async function upsertRiderCapacityWindowAction(input: {
+  brandId: string;
+  weekday: Weekday;
+  timeStart: string;
+  timeEnd: string;
+  slotsTotal: number;
+  slotsFilled?: number;
+  note?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "rider_capacity.manage");
+  if (input.slotsTotal < 0) return { ok: false, error: "slots_total non negativo" };
+  try {
+    const row: Parameters<typeof upsertRiderCapacityWindow>[0] = {
+      organizationId: session.organizationId,
+      brandId: input.brandId,
+      weekday: input.weekday,
+      timeStart: input.timeStart,
+      timeEnd: input.timeEnd,
+      slotsTotal: input.slotsTotal,
+    };
+    if (input.slotsFilled !== undefined) row.slotsFilled = input.slotsFilled;
+    if (input.note !== undefined) row.note = input.note;
+    await upsertRiderCapacityWindow(row);
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "rider_capacity.window_updated",
+      target: `brand:${input.brandId}:${input.weekday}:${input.timeStart}`,
+      details: { slotsTotal: input.slotsTotal, slotsFilled: input.slotsFilled },
+    });
+    revalidatePath("/governance/capacita-rider");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function updateRiderCapacityFilledAction(input: {
+  windowId: string;
+  slotsFilled: number;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "rider_capacity.manage");
+  try {
+    await updateFilledSlots(session.organizationId, input.windowId, input.slotsFilled);
+    revalidatePath("/governance/capacita-rider");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function deleteRiderCapacityWindowAction(
+  windowId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "rider_capacity.manage");
+  try {
+    await deleteRiderCapacityWindow(session.organizationId, windowId);
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "rider_capacity.window_deleted",
+      target: `window:${windowId}`,
+    });
+    revalidatePath("/governance/capacita-rider");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function createRiderShiftRequestAction(input: {
+  brandId: string;
+  shiftDate: string;
+  timeStart: string;
+  timeEnd: string;
+  slotsNeeded: number;
+  note?: string;
+}): Promise<{ ok: true; requestId: string } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "rider_shift.request");
+  if (input.slotsNeeded <= 0) return { ok: false, error: "slots_needed deve essere > 0" };
+  try {
+    const payload: Parameters<typeof createRiderShiftRequest>[0] = {
+      organizationId: session.organizationId,
+      brandId: input.brandId,
+      shiftDate: input.shiftDate,
+      timeStart: input.timeStart,
+      timeEnd: input.timeEnd,
+      slotsNeeded: input.slotsNeeded,
+      createdBy: session.userId,
+    };
+    if (input.note !== undefined) payload.note = input.note;
+    const req = await createRiderShiftRequest(payload);
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "rider_shift.request_created",
+      target: `request:${req.id}`,
+      details: {
+        brandId: input.brandId,
+        shiftDate: input.shiftDate,
+        slotsNeeded: input.slotsNeeded,
+      },
+    });
+    revalidatePath("/governance/capacita-rider");
+    return { ok: true, requestId: req.id };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function fulfillRiderShiftRequestAction(input: {
+  requestId: string;
+  slotsFilled: number;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "rider_shift.fulfill");
+  try {
+    const updated = await updateShiftRequestFilled(
+      session.organizationId,
+      input.requestId,
+      input.slotsFilled,
+    );
+    if (!updated) return { ok: false, error: "Richiesta non trovata o annullata" };
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "rider_shift.filled_updated",
+      target: `request:${input.requestId}`,
+      details: { slotsFilled: input.slotsFilled, status: updated.status },
+    });
+    revalidatePath("/governance/capacita-rider");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function cancelRiderShiftRequestAction(
+  requestId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "rider_shift.fulfill");
+  try {
+    const cancelled = await cancelShiftRequest(session.organizationId, requestId);
+    if (!cancelled) return { ok: false, error: "Richiesta non trovata o gia annullata" };
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "rider_shift.cancelled",
+      target: `request:${requestId}`,
+    });
+    revalidatePath("/governance/capacita-rider");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}

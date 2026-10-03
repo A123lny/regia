@@ -97,7 +97,12 @@ export type Capability =
   | "advertising.toggle"
   | "advertising.classify"
   | "advertising.overrun.request"
-  | "advertising.overrun.decide";
+  | "advertising.overrun.decide"
+  // Capacita rider (RF-6.18 + RN-41..43) - guardia promo food Lenny
+  | "rider_capacity.read"
+  | "rider_capacity.manage"
+  | "rider_shift.request"
+  | "rider_shift.fulfill";
 
 const CAPABILITIES: Record<Capability, Role[]> = {
   // Editor puo generare bozze, l'Owner decide se pubblicare
@@ -172,6 +177,11 @@ const CAPABILITIES: Record<Capability, Role[]> = {
   "advertising.classify": ["owner", "editor"], // classificazione draft
   "advertising.overrun.request": ["owner", "editor"], // apre la richiesta
   "advertising.overrun.decide": ["owner"], // RF-13.6 decisione mai automatica, Owner-only
+  // Capacita rider RF-6.18 + RN-41..43
+  "rider_capacity.read": ["owner", "editor"],
+  "rider_capacity.manage": ["owner"], // config strategica, decisione del titolare
+  "rider_shift.request": ["owner", "editor"], // apre richieste quantificate
+  "rider_shift.fulfill": ["owner", "editor"], // aggiorna slots_filled quando qualcuno si offre
 };
 
 export function hasCapability(role: Role, cap: Capability): boolean {
@@ -268,4 +278,8 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   "advertising.classify": "Classificare un contenuto per advertising (organico/spinto)",
   "advertising.overrun.request": "Richiedere sforamento tetto",
   "advertising.overrun.decide": "Approvare/rifiutare sforamento tetto (RF-13.6)",
+  "rider_capacity.read": "Vedere finestre capacita rider",
+  "rider_capacity.manage": "Configurare finestre capacita rider",
+  "rider_shift.request": "Aprire richieste rider quantificate",
+  "rider_shift.fulfill": "Aggiornare slot filled su richiesta rider",
 };
