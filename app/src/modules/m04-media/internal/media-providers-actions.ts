@@ -43,6 +43,19 @@ export async function upsertMediaProviderAction(
     if (!input.name.trim()) return { ok: false, error: "Nome obbligatorio" };
     if (!input.slug.trim()) return { ok: false, error: "Slug obbligatorio" };
 
+    // Scheme guard sull'URL T&C: evita javascript:/data: come href (XSS).
+    if (input.tosUrl) {
+      let u: URL;
+      try {
+        u = new URL(input.tosUrl);
+      } catch {
+        return { ok: false, error: "URL T&C non valido" };
+      }
+      if (u.protocol !== "https:" && u.protocol !== "http:") {
+        return { ok: false, error: "URL T&C deve essere http:// o https://" };
+      }
+    }
+
     const provider = await upsertMediaProvider({
       organizationId: session.organizationId,
       ...(input.providerId ? { providerId: input.providerId } : {}),

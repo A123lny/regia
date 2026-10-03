@@ -29,6 +29,13 @@ const PROVIDER_KINDS: ProviderKind[] = ["image", "video", "both"];
 const RIGHTS_HOLDERS: RightsHolder[] = ["user", "provider", "shared", "public_domain"];
 const ALLOWED_USES: AllowedUse[] = ["commercial", "editorial", "personal"];
 
+// Difesa in profondita: evita href=javascript:/data: anche se qualcosa bypassa
+// la validazione server-side.
+function safeHref(url: string | null): string | undefined {
+  if (!url) return undefined;
+  return /^https?:\/\//i.test(url) ? url : undefined;
+}
+
 // Settori che i T&C dei provider vietano piu' spesso (RF-4.3 hint UI).
 const COMMON_RESTRICTED_SECTORS = [
   "tabacco",
@@ -125,11 +132,11 @@ export function ProvidersClient({ providers, canManage }: Props) {
                     <div className="font-medium text-text">{p.name}</div>
                     <div className="text-xs text-text-muted">
                       <code>{p.slug}</code>
-                      {p.tosUrl && (
+                      {safeHref(p.tosUrl) && (
                         <>
                           {" · "}
                           <a
-                            href={p.tosUrl}
+                            href={safeHref(p.tosUrl)}
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
