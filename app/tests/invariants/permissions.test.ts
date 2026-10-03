@@ -70,6 +70,7 @@ describe("permissions matrix (RU-1a)", () => {
         "rider_shift.fulfill",
         "contacts.data_request.read",
         "contacts.data_request.fulfill",
+        "agent_memory.read",
       ];
       for (const cap of all) {
         expect(hasCapability("owner", cap), `owner deve poter ${cap}`).toBe(true);
@@ -172,6 +173,8 @@ describe("permissions matrix (RU-1a)", () => {
       // Richieste dati personali: GDPR materia legale, Owner-only
       expect(hasCapability("editor", "contacts.data_request.read")).toBe(false);
       expect(hasCapability("editor", "contacts.data_request.fulfill")).toBe(false);
+      // Memoria agente: vista strategica, Owner-only
+      expect(hasCapability("editor", "agent_memory.read")).toBe(false);
     });
   });
 

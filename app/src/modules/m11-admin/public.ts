@@ -38,3 +38,19 @@ export type {
   BudgetCategory,
 } from "./internal/ai-spend";
 export { saveAiBudget } from "./internal/ai-spend-actions";
+
+// RA-8.11 Memoria agente (aggregatore read-only)
+export {
+  getApprovalStatsByTopic,
+  getRecentRejections,
+  extractRejectionThemes,
+  getPromoOutcomes,
+  getBrandStylePreferences,
+} from "./internal/agent-memory-repo";
+export type {
+  ApprovalStat,
+  RejectionReason,
+  RejectionTheme,
+  PromoOutcome,
+  BrandStylePreference,
+} from "./internal/agent-memory-repo";
