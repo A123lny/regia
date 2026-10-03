@@ -43,14 +43,31 @@ export {
 } from "./internal/actions";
 export type { UpsertSupplyPartnerActionInput } from "./internal/actions";
 
-// M6a Partner spesa — RF-6.19
+// M6a Partner spesa — RF-6.19 + RF-6a.1
 export {
   listSupplyPartners,
   getSupplyPartner,
   upsertSupplyPartner,
   findProductsWithoutPartnerConsent,
+  listPartnerApprovalRequests,
+  createPartnerApprovalRequest,
+  recordPartnerApprovalResponse,
+  INVOLVEMENT_LEVEL_LABELS,
+  INVOLVEMENT_LEVEL_HINTS,
+  APPROVAL_STATUS_LABELS,
 } from "./internal/supply-partners-repo";
-export type { SupplyPartner } from "./internal/supply-partners-repo";
+export type {
+  SupplyPartner,
+  PartnerInvolvementLevel,
+  PartnerApprovalRequest,
+  PartnerApprovalRequestRow,
+  PartnerApprovalStatus,
+  PartnerApprovalSourceKind,
+} from "./internal/supply-partners-repo";
+export {
+  createPartnerApprovalRequestAction,
+  recordPartnerApprovalResponseAction,
+} from "./internal/actions";
 
 // RF-1.7 dedup
 export { findDuplicateGroups } from "./internal/dedup-detector";

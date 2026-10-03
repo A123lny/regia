@@ -19,7 +19,13 @@ import {
 import { upsertConsent } from "./consents-repo";
 import { createVehicle, updateVehicle, deleteVehicle } from "./vehicles-repo";
 import { mergeContacts, type MergeResult } from "./merge-repo";
-import { upsertSupplyPartner } from "./supply-partners-repo";
+import {
+  upsertSupplyPartner,
+  createPartnerApprovalRequest,
+  recordPartnerApprovalResponse,
+  type PartnerInvolvementLevel,
+  type PartnerApprovalSourceKind,
+} from "./supply-partners-repo";
 import type {
   ContactSource,
   ConsentChannel,
@@ -386,6 +392,9 @@ export type UpsertSupplyPartnerActionInput = {
   category?: string;
   generalConsent: boolean;
   generalConsentNote?: string;
+  involvementLevel?: PartnerInvolvementLevel;
+  advanceNoticeDays?: number;
+  vetoNotes?: string;
   notes?: string;
 };
 
@@ -415,6 +424,9 @@ export async function upsertSupplyPartnerAction(
     if (input.category !== undefined) payload.category = input.category;
     if (input.generalConsentNote !== undefined)
       payload.generalConsentNote = input.generalConsentNote;
+    if (input.involvementLevel !== undefined) payload.involvementLevel = input.involvementLevel;
+    if (input.advanceNoticeDays !== undefined) payload.advanceNoticeDays = input.advanceNoticeDays;
+    if (input.vetoNotes !== undefined) payload.vetoNotes = input.vetoNotes;
     if (input.notes !== undefined) payload.notes = input.notes;
 
     const partner = await upsertSupplyPartner(payload);
@@ -544,6 +556,91 @@ export async function fulfillContactDataRequestAction(input: {
       },
     });
     revalidatePath("/contatti");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+// ============================================================================
+// RF-6a.1 Partner approval requests (traccia richieste e risposte)
+// ============================================================================
+
+export async function createPartnerApprovalRequestAction(input: {
+  partnerId: string;
+  sourceKind: PartnerApprovalSourceKind;
+  sourceId?: string;
+  subject: string;
+  message?: string;
+  advanceNoticeDaysOverride?: number;
+}): Promise<{ ok: true; requestId: string } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "supply.crud");
+  if (input.subject.trim().length === 0) return { ok: false, error: "Oggetto obbligatorio" };
+  try {
+    // Security: verifica partner appartiene a session.organizationId
+    const admin = getAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const { data: p } = await admin
+      .from("supply_partners")
+      .select("id, advance_notice_days")
+      .eq("id", input.partnerId)
+      .eq("organization_id", session.organizationId)
+      .maybeSingle();
+    if (!p) return { ok: false, error: "Partner non trovato" };
+
+    const advanceDays = input.advanceNoticeDaysOverride ?? Number(p.advance_notice_days ?? 3);
+    const payload: Parameters<typeof createPartnerApprovalRequest>[0] = {
+      organizationId: session.organizationId,
+      partnerId: input.partnerId,
+      sourceKind: input.sourceKind,
+      subject: input.subject,
+      advanceNoticeDays: advanceDays,
+      requestedBy: session.userId,
+    };
+    if (input.sourceId !== undefined) payload.sourceId = input.sourceId;
+    if (input.message !== undefined) payload.message = input.message;
+    const req = await createPartnerApprovalRequest(payload);
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "supply.approval_requested",
+      target: `partner:${input.partnerId}`,
+      details: { requestId: req.id, sourceKind: input.sourceKind, advanceDays },
+    });
+    revalidatePath("/fornitori");
+    return { ok: true, requestId: req.id };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function recordPartnerApprovalResponseAction(input: {
+  requestId: string;
+  decision: "approved" | "rejected";
+  responseNotes?: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "supply.crud");
+  try {
+    const payload: Parameters<typeof recordPartnerApprovalResponse>[0] = {
+      organizationId: session.organizationId,
+      requestId: input.requestId,
+      decision: input.decision,
+      recordedBy: session.userId,
+    };
+    if (input.responseNotes !== undefined) payload.responseNotes = input.responseNotes;
+    const result = await recordPartnerApprovalResponse(payload);
+    if (!result) return { ok: false, error: "Richiesta non trovata o gia' chiusa" };
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: `supply.approval_${input.decision}`,
+      target: `request:${input.requestId}`,
+      details: { partnerId: result.partnerId, sourceKind: result.sourceKind },
+    });
+    revalidatePath("/fornitori");
     return { ok: true };
   } catch (err) {
     return { ok: false, error: (err as Error).message };

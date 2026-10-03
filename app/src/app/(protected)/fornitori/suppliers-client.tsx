@@ -10,8 +10,19 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { upsertSupplyPartnerAction } from "@/modules/m01-data-hub/public";
-import type { SupplyPartner } from "@/modules/m01-data-hub/public";
+import {
+  upsertSupplyPartnerAction,
+  INVOLVEMENT_LEVEL_LABELS,
+  INVOLVEMENT_LEVEL_HINTS,
+} from "@/modules/m01-data-hub/public";
+import type { SupplyPartner, PartnerInvolvementLevel } from "@/modules/m01-data-hub/public";
+
+const INVOLVEMENT_LEVELS: PartnerInvolvementLevel[] = [
+  "informed",
+  "approves",
+  "co_finances",
+  "name_veto",
+];
 
 type Props = {
   partners: SupplyPartner[];
@@ -70,6 +81,7 @@ export function SuppliersClient({ partners, canCrud }: Props) {
                 <th className="p-3">Fornitore</th>
                 <th className="w-40 p-3">Referente</th>
                 <th className="w-32 p-3">Categoria</th>
+                <th className="w-40 p-3">Coinvolgimento</th>
                 <th className="p-3">Assenso RF-6.19</th>
               </tr>
             </thead>
@@ -107,6 +119,12 @@ export function SuppliersClient({ partners, canCrud }: Props) {
                   <td className="p-3 text-xs text-text-muted">
                     {p.category ?? <span className="italic">—</span>}
                   </td>
+                  <td className="p-3 text-xs">
+                    <div className="font-medium text-text">
+                      {INVOLVEMENT_LEVEL_LABELS[p.involvementLevel]}
+                    </div>
+                    <div className="text-text-muted">Preavviso: {p.advanceNoticeDays}gg</div>
+                  </td>
                   <td className="p-3">
                     {p.generalConsent ? (
                       <div>
@@ -141,6 +159,9 @@ function PartnerForm({ initial, onDone }: { initial: SupplyPartner | null; onDon
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [generalConsent, setGeneralConsent] = useState(initial?.generalConsent ?? false);
+  const [involvementLevel, setInvolvementLevel] = useState<PartnerInvolvementLevel>(
+    initial?.involvementLevel ?? "informed",
+  );
 
   return (
     <form
@@ -152,6 +173,7 @@ function PartnerForm({ initial, onDone }: { initial: SupplyPartner | null; onDon
           const payload: Parameters<typeof upsertSupplyPartnerAction>[0] = {
             name: String(fd.get("name") ?? ""),
             generalConsent,
+            involvementLevel,
           };
           if (initial) payload.partnerId = initial.id;
           const ref = String(fd.get("referentName") ?? "").trim();
@@ -164,6 +186,10 @@ function PartnerForm({ initial, onDone }: { initial: SupplyPartner | null; onDon
           if (cat) payload.category = cat;
           const notes = String(fd.get("notes") ?? "").trim();
           if (notes) payload.notes = notes;
+          const advDays = Number(fd.get("advanceNoticeDays") ?? 3);
+          if (Number.isFinite(advDays) && advDays >= 0) payload.advanceNoticeDays = advDays;
+          const veto = String(fd.get("vetoNotes") ?? "").trim();
+          if (veto) payload.vetoNotes = veto;
           if (generalConsent) {
             const note = String(fd.get("generalConsentNote") ?? "").trim();
             if (note) payload.generalConsentNote = note;
@@ -213,6 +239,64 @@ function PartnerForm({ initial, onDone }: { initial: SupplyPartner | null; onDon
           defaultValue={initial?.category ?? ""}
           placeholder="es. Bevande, Pasta, Carne"
         />
+      </div>
+
+      <div className="rounded-md border border-border bg-bg p-3">
+        <Label className="text-sm font-semibold">Livello di coinvolgimento (RF-6a.1)</Label>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {INVOLVEMENT_LEVELS.map((lv) => (
+            <label
+              key={lv}
+              className={`flex cursor-pointer items-start gap-2 rounded border p-2 text-sm ${
+                involvementLevel === lv
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-surface"
+              }`}
+            >
+              <input
+                type="radio"
+                name="involvementLevel"
+                value={lv}
+                checked={involvementLevel === lv}
+                onChange={() => setInvolvementLevel(lv)}
+                className="mt-0.5"
+              />
+              <div className="flex-1">
+                <div className="font-medium">{INVOLVEMENT_LEVEL_LABELS[lv]}</div>
+                <div className="text-xs text-text-muted">{INVOLVEMENT_LEVEL_HINTS[lv]}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+        <div className="mt-3">
+          <Label htmlFor="advanceNoticeDays" className="text-xs">
+            Preavviso minimo (giorni)
+          </Label>
+          <Input
+            id="advanceNoticeDays"
+            name="advanceNoticeDays"
+            type="number"
+            min={0}
+            max={60}
+            defaultValue={initial?.advanceNoticeDays ?? 3}
+            className="w-24"
+          />
+        </div>
+        {involvementLevel === "name_veto" && (
+          <div className="mt-3">
+            <Label htmlFor="vetoNotes" className="text-xs">
+              Note sul veto (come lo preferisce vedere nominato)
+            </Label>
+            <Textarea
+              id="vetoNotes"
+              name="vetoNotes"
+              rows={2}
+              maxLength={500}
+              defaultValue={initial?.vetoNotes ?? ""}
+              placeholder="es. Eni preferisce 'Carburante Eni' invece di 'benzina Eni'"
+            />
+          </div>
+        )}
       </div>
 
       <div className="rounded-md border border-border bg-bg p-3">
