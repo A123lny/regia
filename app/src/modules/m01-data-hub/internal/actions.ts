@@ -437,3 +437,99 @@ export async function upsertSupplyPartnerAction(
     return { ok: false, error: (err as Error).message };
   }
 }
+
+// ============================================================================
+// RF-1.9 Richieste dati personali (export/cancellazione)
+// ============================================================================
+
+import {
+  buildContactDossier,
+  listDataRequests,
+  createDataRequest,
+  fulfillDataRequest,
+  type DataRequestType,
+} from "./data-dossier-repo";
+
+export async function getContactDossierAction(contactId: string) {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "contacts.data_request.read");
+  return buildContactDossier(session.organizationId, contactId);
+}
+
+export async function listDataRequestsAction(options?: { onlyPending?: boolean }) {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "contacts.data_request.read");
+  return listDataRequests(session.organizationId, options);
+}
+
+export async function createContactDataRequestAction(input: {
+  contactId: string;
+  requestType: DataRequestType;
+  requestedVia?: string;
+}): Promise<{ ok: true; requestId: string } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "contacts.data_request.fulfill");
+  try {
+    const payload: Parameters<typeof createDataRequest>[0] = {
+      organizationId: session.organizationId,
+      contactId: input.contactId,
+      requestType: input.requestType,
+      requestedBy: session.userId,
+    };
+    if (input.requestedVia !== undefined) payload.requestedVia = input.requestedVia;
+    const req = await createDataRequest(payload);
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "contacts.data_request_created",
+      target: `contact:${input.contactId}`,
+      details: { requestType: input.requestType, requestedVia: input.requestedVia },
+    });
+    revalidatePath("/contatti");
+    return { ok: true, requestId: req.id };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function fulfillContactDataRequestAction(input: {
+  requestId: string;
+  contactId: string;
+  decision: "fulfilled" | "rejected";
+  notes?: string;
+  includeSnapshot?: boolean;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "contacts.data_request.fulfill");
+  try {
+    const payload: Parameters<typeof fulfillDataRequest>[0] = {
+      organizationId: session.organizationId,
+      requestId: input.requestId,
+      decision: input.decision,
+      fulfilledBy: session.userId,
+    };
+    if (input.notes !== undefined) payload.notes = input.notes;
+    if (input.includeSnapshot && input.decision === "fulfilled") {
+      const dossier = await buildContactDossier(session.organizationId, input.contactId);
+      if (dossier) payload.dossierSnapshot = dossier;
+    }
+    const result = await fulfillDataRequest(payload);
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: `contacts.data_request_${input.decision}`,
+      target: `request:${input.requestId}`,
+      details: {
+        contactId: input.contactId,
+        requestType: result.requestType,
+        notes: input.notes,
+      },
+    });
+    revalidatePath("/contatti");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}

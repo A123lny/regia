@@ -102,7 +102,10 @@ export type Capability =
   | "rider_capacity.read"
   | "rider_capacity.manage"
   | "rider_shift.request"
-  | "rider_shift.fulfill";
+  | "rider_shift.fulfill"
+  // Richieste dati personali RF-1.9 (gestione manuale, Owner-only)
+  | "contacts.data_request.read"
+  | "contacts.data_request.fulfill";
 
 const CAPABILITIES: Record<Capability, Role[]> = {
   // Editor puo generare bozze, l'Owner decide se pubblicare
@@ -182,6 +185,9 @@ const CAPABILITIES: Record<Capability, Role[]> = {
   "rider_capacity.manage": ["owner"], // config strategica, decisione del titolare
   "rider_shift.request": ["owner", "editor"], // apre richieste quantificate
   "rider_shift.fulfill": ["owner", "editor"], // aggiorna slots_filled quando qualcuno si offre
+  // RF-1.9 richieste dati personali: entrambe Owner-only (materia legale/GDPR)
+  "contacts.data_request.read": ["owner"],
+  "contacts.data_request.fulfill": ["owner"],
 };
 
 export function hasCapability(role: Role, cap: Capability): boolean {
@@ -282,4 +288,6 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   "rider_capacity.manage": "Configurare finestre capacita rider",
   "rider_shift.request": "Aprire richieste rider quantificate",
   "rider_shift.fulfill": "Aggiornare slot filled su richiesta rider",
+  "contacts.data_request.read": "Vedere dossier dati personali di un contatto (RF-1.9)",
+  "contacts.data_request.fulfill": "Rispondere a richieste export/cancellazione (RF-1.9)",
 };

@@ -68,6 +68,8 @@ describe("permissions matrix (RU-1a)", () => {
         "rider_capacity.manage",
         "rider_shift.request",
         "rider_shift.fulfill",
+        "contacts.data_request.read",
+        "contacts.data_request.fulfill",
       ];
       for (const cap of all) {
         expect(hasCapability("owner", cap), `owner deve poter ${cap}`).toBe(true);
@@ -167,6 +169,9 @@ describe("permissions matrix (RU-1a)", () => {
       expect(hasCapability("editor", "advertising.overrun.decide")).toBe(false);
       // Capacita rider: config strategica Owner-only
       expect(hasCapability("editor", "rider_capacity.manage")).toBe(false);
+      // Richieste dati personali: GDPR materia legale, Owner-only
+      expect(hasCapability("editor", "contacts.data_request.read")).toBe(false);
+      expect(hasCapability("editor", "contacts.data_request.fulfill")).toBe(false);
     });
   });
 

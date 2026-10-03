@@ -112,3 +112,19 @@ export type {
   RecordPriceChangeActionInput,
   UpdateMarginActionInput,
 } from "./internal/catalog-actions";
+
+// RF-1.9 Richieste dati personali
+export { buildContactDossier, listDataRequests } from "./internal/data-dossier-repo";
+export type {
+  ContactDossier,
+  ContactDataRequest,
+  ContactDataRequestRow,
+  DataRequestType,
+  DataRequestStatus,
+} from "./internal/data-dossier-repo";
+export {
+  getContactDossierAction,
+  listDataRequestsAction,
+  createContactDataRequestAction,
+  fulfillContactDataRequestAction,
+} from "./internal/actions";
