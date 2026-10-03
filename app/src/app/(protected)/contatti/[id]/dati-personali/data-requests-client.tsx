@@ -173,7 +173,6 @@ function PendingRequestCard({
     startTransition(async () => {
       const payload: Parameters<typeof fulfillContactDataRequestAction>[0] = {
         requestId: request.id,
-        contactId,
         decision,
         includeSnapshot: decision === "fulfilled",
       };

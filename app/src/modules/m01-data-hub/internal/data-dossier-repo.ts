@@ -276,10 +276,15 @@ export async function listDataRequests(
 ): Promise<ContactDataRequestRow[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
+  // Security: filtro join su contacts.organization_id per difesa in profondita'.
+  // RLS + eq principale sono gia' sufficienti ma la doppia guardia impedisce
+  // leak se un contact dovesse mai avere organization_id disallineato (schema
+  // bug ipotetico).
   let q = admin
     .from("contact_data_requests")
-    .select("*, contacts!inner(first_name, last_name, email)")
-    .eq("organization_id", organizationId);
+    .select("*, contacts!inner(first_name, last_name, email, organization_id)")
+    .eq("organization_id", organizationId)
+    .eq("contacts.organization_id", organizationId);
   if (options?.contactId) q = q.eq("contact_id", options.contactId);
   if (options?.onlyPending) q = q.eq("status", "pending");
   const { data, error } = await q.order("requested_at", { ascending: false });

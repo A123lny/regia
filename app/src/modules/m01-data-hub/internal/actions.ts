@@ -467,8 +467,10 @@ export async function createContactDataRequestAction(input: {
   requestType: DataRequestType;
   requestedVia?: string;
 }): Promise<{ ok: true; requestId: string } | { ok: false; error: string }> {
-  const session = await getSessionOrRedirect();
-  requireCapability(session, "contacts.data_request.fulfill");
+  // Security: requireOwnedContact verifica che input.contactId appartenga a
+  // session.organizationId (contro IDOR cross-tenant). Senza, un Owner org A
+  // potrebbe aprire una data request su un contatto di org B.
+  const { session } = await requireOwnedContact(input.contactId, "contacts.data_request.fulfill");
   try {
     const payload: Parameters<typeof createDataRequest>[0] = {
       organizationId: session.organizationId,
@@ -495,7 +497,6 @@ export async function createContactDataRequestAction(input: {
 
 export async function fulfillContactDataRequestAction(input: {
   requestId: string;
-  contactId: string;
   decision: "fulfilled" | "rejected";
   notes?: string;
   includeSnapshot?: boolean;
@@ -503,6 +504,20 @@ export async function fulfillContactDataRequestAction(input: {
   const session = await getSessionOrRedirect();
   requireCapability(session, "contacts.data_request.fulfill");
   try {
+    // Security: carica la richiesta DAL DB filtrando per organization, usa il
+    // contact_id STORED (non input lato client) per lo snapshot. Senza, un
+    // Owner org A potrebbe passare requestId di org A + contactId di org B
+    // nel body dell'action e far costruire snapshot cross-tenant.
+    const requests = await listDataRequests(session.organizationId);
+    const req = requests.find((r) => r.id === input.requestId);
+    if (!req)
+      return {
+        ok: false,
+        error: "Richiesta non trovata (o non appartiene alla tua organizzazione)",
+      };
+    if (req.status !== "pending") {
+      return { ok: false, error: `Richiesta gia' ${req.status}` };
+    }
     const payload: Parameters<typeof fulfillDataRequest>[0] = {
       organizationId: session.organizationId,
       requestId: input.requestId,
@@ -511,7 +526,8 @@ export async function fulfillContactDataRequestAction(input: {
     };
     if (input.notes !== undefined) payload.notes = input.notes;
     if (input.includeSnapshot && input.decision === "fulfilled") {
-      const dossier = await buildContactDossier(session.organizationId, input.contactId);
+      // Usa req.contactId (DB-stored, autentico) NON un contactId client-supplied.
+      const dossier = await buildContactDossier(session.organizationId, req.contactId);
       if (dossier) payload.dossierSnapshot = dossier;
     }
     const result = await fulfillDataRequest(payload);
@@ -522,7 +538,7 @@ export async function fulfillContactDataRequestAction(input: {
       action: `contacts.data_request_${input.decision}`,
       target: `request:${input.requestId}`,
       details: {
-        contactId: input.contactId,
+        contactId: req.contactId,
         requestType: result.requestType,
         notes: input.notes,
       },
