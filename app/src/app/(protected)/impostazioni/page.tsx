@@ -229,6 +229,28 @@ export default async function ImpostazioniPage() {
             <span className="text-text">Ricorrenze annuali (RF-12.4)</span>
             <span className="text-xs text-text-muted">Natale, gomme, ferie...</span>
           </Link>
+          {session.role === "owner" && (
+            <>
+              <Link
+                href="/impostazioni/memoria-agente"
+                className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 hover:border-primary/40"
+              >
+                <span className="text-text">Memoria agente (RA-8.11)</span>
+                <span className="text-xs text-text-muted">
+                  Cosa l&apos;AI ha imparato dall&apos;uso
+                </span>
+              </Link>
+              <Link
+                href="/impostazioni/provider-media"
+                className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 hover:border-primary/40"
+              >
+                <span className="text-text">Provider media (RF-4.3)</span>
+                <span className="text-xs text-text-muted">
+                  ToS/diritti fornitori AI immagini/video
+                </span>
+              </Link>
+            </>
+          )}
         </CardContent>
       </Card>
 

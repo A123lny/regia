@@ -111,7 +111,10 @@ export type Capability =
   // Zone di consegna variabili RN-52 (clima/eventi/chiusure stradali)
   | "delivery_zones.read"
   | "delivery_zones.manage"
-  | "delivery_zones.blackout.toggle";
+  | "delivery_zones.blackout.toggle"
+  // Provider media esterna RF-4.3 (registrazione ToS/diritti)
+  | "media_providers.read"
+  | "media_providers.manage";
 
 const CAPABILITIES: Record<Capability, Role[]> = {
   // Editor puo generare bozze, l'Owner decide se pubblicare
@@ -199,6 +202,9 @@ const CAPABILITIES: Record<Capability, Role[]> = {
   "delivery_zones.read": ["owner", "editor"],
   "delivery_zones.manage": ["owner"], // config CRUD strategica
   "delivery_zones.blackout.toggle": ["owner", "editor"], // operativa (emergenza clima)
+  // RF-4.3 provider media esterna: lettura e gestione entrambe Owner (compliance ToS/diritti)
+  "media_providers.read": ["owner"],
+  "media_providers.manage": ["owner"],
 };
 
 export function hasCapability(role: Role, cap: Capability): boolean {
@@ -305,4 +311,6 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   "delivery_zones.read": "Vedere zone di consegna",
   "delivery_zones.manage": "Configurare zone di consegna (CRUD)",
   "delivery_zones.blackout.toggle": "Attivare/chiudere blackout zone (emergenza)",
+  "media_providers.read": "Vedere provider di generazione media esterna (RF-4.3)",
+  "media_providers.manage": "Registrare/modificare provider media (ToS, diritti, usi)",
 };

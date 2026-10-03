@@ -33,3 +33,24 @@ export type {
   TemplateFieldDef,
   TemplateFormat,
 } from "./internal/templates/template-types";
+
+// RF-4.3 provider media esterna (ToS/diritti verificati)
+export {
+  listMediaProviders,
+  hasActiveProviderForUse,
+  PROVIDER_KIND_LABELS,
+  RIGHTS_HOLDER_LABELS,
+  RIGHTS_HOLDER_HINTS,
+  ALLOWED_USE_LABELS,
+} from "./internal/media-providers-repo";
+export type {
+  MediaProvider,
+  ProviderKind,
+  RightsHolder,
+  AllowedUse,
+} from "./internal/media-providers-repo";
+export {
+  upsertMediaProviderAction,
+  archiveMediaProviderAction,
+} from "./internal/media-providers-actions";
+export type { UpsertMediaProviderActionInput } from "./internal/media-providers-actions";

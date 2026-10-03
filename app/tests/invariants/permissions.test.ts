@@ -74,6 +74,8 @@ describe("permissions matrix (RU-1a)", () => {
         "delivery_zones.read",
         "delivery_zones.manage",
         "delivery_zones.blackout.toggle",
+        "media_providers.read",
+        "media_providers.manage",
       ];
       for (const cap of all) {
         expect(hasCapability("owner", cap), `owner deve poter ${cap}`).toBe(true);
@@ -182,6 +184,9 @@ describe("permissions matrix (RU-1a)", () => {
       expect(hasCapability("editor", "delivery_zones.read")).toBe(true);
       expect(hasCapability("editor", "delivery_zones.blackout.toggle")).toBe(true);
       expect(hasCapability("editor", "delivery_zones.manage")).toBe(false);
+      // RF-4.3 provider media: compliance ToS/diritti, Owner-only
+      expect(hasCapability("editor", "media_providers.read")).toBe(false);
+      expect(hasCapability("editor", "media_providers.manage")).toBe(false);
     });
   });
 
