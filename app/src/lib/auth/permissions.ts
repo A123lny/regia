@@ -107,7 +107,11 @@ export type Capability =
   | "contacts.data_request.read"
   | "contacts.data_request.fulfill"
   // Memoria agente RA-8.11 (correzioni, motivi rifiuto, esiti promo, preferenze stile)
-  | "agent_memory.read";
+  | "agent_memory.read"
+  // Zone di consegna variabili RN-52 (clima/eventi/chiusure stradali)
+  | "delivery_zones.read"
+  | "delivery_zones.manage"
+  | "delivery_zones.blackout.toggle";
 
 const CAPABILITIES: Record<Capability, Role[]> = {
   // Editor puo generare bozze, l'Owner decide se pubblicare
@@ -191,6 +195,10 @@ const CAPABILITIES: Record<Capability, Role[]> = {
   "contacts.data_request.read": ["owner"],
   "contacts.data_request.fulfill": ["owner"],
   "agent_memory.read": ["owner"], // vista strategica di cosa l'AI ha imparato
+  // Zone consegna RN-52
+  "delivery_zones.read": ["owner", "editor"],
+  "delivery_zones.manage": ["owner"], // config CRUD strategica
+  "delivery_zones.blackout.toggle": ["owner", "editor"], // operativa (emergenza clima)
 };
 
 export function hasCapability(role: Role, cap: Capability): boolean {
@@ -294,4 +302,7 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   "contacts.data_request.read": "Vedere dossier dati personali di un contatto (RF-1.9)",
   "contacts.data_request.fulfill": "Rispondere a richieste export/cancellazione (RF-1.9)",
   "agent_memory.read": "Vedere la memoria dell'agente AI (correzioni, rifiuti, preferenze)",
+  "delivery_zones.read": "Vedere zone di consegna",
+  "delivery_zones.manage": "Configurare zone di consegna (CRUD)",
+  "delivery_zones.blackout.toggle": "Attivare/chiudere blackout zone (emergenza)",
 };

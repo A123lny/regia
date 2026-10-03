@@ -71,6 +71,9 @@ describe("permissions matrix (RU-1a)", () => {
         "contacts.data_request.read",
         "contacts.data_request.fulfill",
         "agent_memory.read",
+        "delivery_zones.read",
+        "delivery_zones.manage",
+        "delivery_zones.blackout.toggle",
       ];
       for (const cap of all) {
         expect(hasCapability("owner", cap), `owner deve poter ${cap}`).toBe(true);
@@ -175,6 +178,10 @@ describe("permissions matrix (RU-1a)", () => {
       expect(hasCapability("editor", "contacts.data_request.fulfill")).toBe(false);
       // Memoria agente: vista strategica, Owner-only
       expect(hasCapability("editor", "agent_memory.read")).toBe(false);
+      // Zone consegna: config strategica Owner-only, blackout operativi anche editor
+      expect(hasCapability("editor", "delivery_zones.read")).toBe(true);
+      expect(hasCapability("editor", "delivery_zones.blackout.toggle")).toBe(true);
+      expect(hasCapability("editor", "delivery_zones.manage")).toBe(false);
     });
   });
 

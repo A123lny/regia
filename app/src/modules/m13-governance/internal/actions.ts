@@ -444,3 +444,126 @@ export async function cancelRiderShiftRequestAction(
     return { ok: false, error: (err as Error).message };
   }
 }
+
+// ============================================================================
+// RN-52 Zone consegna variabili
+// ============================================================================
+
+import {
+  upsertDeliveryZone,
+  deleteDeliveryZone,
+  openBlackout,
+  closeBlackout,
+  type DeliveryBlackoutKind,
+} from "./delivery-zones-repo";
+
+export async function upsertDeliveryZoneAction(input: {
+  brandId: string;
+  zoneId?: string;
+  name: string;
+  description?: string | null;
+  capPrefixes: string[];
+}): Promise<{ ok: true; zoneId: string } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "delivery_zones.manage");
+  if (input.name.trim().length === 0) return { ok: false, error: "Nome obbligatorio" };
+  try {
+    const payload: Parameters<typeof upsertDeliveryZone>[0] = {
+      organizationId: session.organizationId,
+      brandId: input.brandId,
+      name: input.name,
+      capPrefixes: input.capPrefixes,
+    };
+    if (input.zoneId !== undefined) payload.zoneId = input.zoneId;
+    if (input.description !== undefined) payload.description = input.description;
+    const z = await upsertDeliveryZone(payload);
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: input.zoneId ? "delivery_zone.updated" : "delivery_zone.created",
+      target: `zone:${z.id}`,
+      details: { name: z.name, capPrefixes: z.capPrefixes },
+    });
+    revalidatePath("/governance/zone-consegna");
+    return { ok: true, zoneId: z.id };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function deleteDeliveryZoneAction(
+  zoneId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "delivery_zones.manage");
+  try {
+    await deleteDeliveryZone(session.organizationId, zoneId);
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "delivery_zone.deleted",
+      target: `zone:${zoneId}`,
+    });
+    revalidatePath("/governance/zone-consegna");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function openBlackoutAction(input: {
+  zoneId: string;
+  kind: DeliveryBlackoutKind;
+  reason?: string;
+  endAtIso?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "delivery_zones.blackout.toggle");
+  try {
+    const payload: Parameters<typeof openBlackout>[0] = {
+      organizationId: session.organizationId,
+      zoneId: input.zoneId,
+      kind: input.kind,
+      triggeredBy: session.userId,
+    };
+    if (input.reason !== undefined) payload.reason = input.reason;
+    if (input.endAtIso !== undefined) payload.endAt = input.endAtIso;
+    await openBlackout(payload);
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "delivery_zone.blackout_opened",
+      target: `zone:${input.zoneId}`,
+      details: { kind: input.kind, reason: input.reason, endAtIso: input.endAtIso },
+    });
+    revalidatePath("/governance/zone-consegna");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function closeBlackoutAction(
+  blackoutId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "delivery_zones.blackout.toggle");
+  try {
+    const ok = await closeBlackout(session.organizationId, blackoutId, session.userId);
+    if (!ok) return { ok: false, error: "Blackout non trovato o gia chiuso" };
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "delivery_zone.blackout_closed",
+      target: `blackout:${blackoutId}`,
+    });
+    revalidatePath("/governance/zone-consegna");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}

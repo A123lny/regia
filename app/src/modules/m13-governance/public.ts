@@ -50,7 +50,27 @@ export {
   classifyDraftForAdvertisingAction,
   requestAdvertisingOverrunAction,
   decideAdvertisingOverrunAction,
+  upsertDeliveryZoneAction,
+  deleteDeliveryZoneAction,
+  openBlackoutAction,
+  closeBlackoutAction,
 } from "./internal/actions";
+
+// RN-52 Zone consegna
+export {
+  listDeliveryZones,
+  isContactInBlackoutZone,
+  assertDeliveryZonesOk,
+  DeliveryZoneBlackoutError,
+  BLACKOUT_KIND_LABELS,
+} from "./internal/delivery-zones-repo";
+export type {
+  DeliveryZone,
+  DeliveryZoneRow,
+  ActiveBlackout,
+  DeliveryBlackoutKind,
+  BlackoutCheck,
+} from "./internal/delivery-zones-repo";
 
 // RF-6.18 + RN-41..43 Capacita rider
 export {
