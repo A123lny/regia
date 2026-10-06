@@ -2,7 +2,7 @@
 // Identificatori in inglese, etichette UI in italiano.
 
 export type CounterKind = "passaggi" | "valore_speso" | "ordini";
-export type CounterResetMode = "dopo_premio" | "annuale" | "mai";
+export type CounterResetMode = "dopo_premio" | "mensile" | "annuale" | "mai";
 
 export type LoyaltyCounter = {
   id: string;
@@ -87,6 +87,7 @@ export const COUNTER_KIND_LABELS: Record<CounterKind, string> = {
 
 export const COUNTER_RESET_LABELS: Record<CounterResetMode, string> = {
   dopo_premio: "Azzera dopo il premio",
+  mensile: "Azzera ogni mese",
   annuale: "Azzera ogni anno",
   mai: "Non azzera",
 };
