@@ -261,6 +261,30 @@ export async function issueVoucherAction(
   if (!offer) return { ok: false, error: "Offerta non trovata" };
   if (!offer.isActive) return { ok: false, error: "Offerta non attiva" };
 
+  // RF-9.3 attribuzione: se il client passa sourceDraftId, verifichiamo che il
+  // draft esista NELL'ORG dell'utente (prevenzione IDOR cross-tenant).
+  if (input.sourceDraftId !== undefined) {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(input.sourceDraftId)) {
+      return { ok: false, error: "Riferimento draft non valido" };
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = getAdminClient() as any;
+    const { data: draftRow, error: draftErr } = await admin
+      .from("content_drafts")
+      .select("id")
+      .eq("id", input.sourceDraftId)
+      .eq("organization_id", session.organizationId)
+      .maybeSingle();
+    if (draftErr) return { ok: false, error: `verifica draft: ${draftErr.message}` };
+    if (!draftRow) {
+      return {
+        ok: false,
+        error: "Draft di origine non trovato o appartenente ad altra organizzazione",
+      };
+    }
+  }
+
   // Genera codice unico (retry fino a 5 volte in caso di collisione UNIQUE)
   let code = "";
   let attempts = 0;

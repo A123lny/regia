@@ -36,13 +36,17 @@ export async function getAttributionByDraft(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
 
-  // 1) tutti i voucher con source_draft_id (attribuiti)
+  // 1) tutti i voucher con source_draft_id (attribuiti).
+  // Defense-in-depth: filtro ridondante su content_drafts.organization_id oltre
+  // a vouchers.organization_id (RNF-1 security: previene cross-tenant leak in
+  // caso di future FK trasversali o bypass dell'ownership check in M06).
   const { data: attributed, error: errA } = await admin
     .from("vouchers")
     .select(
-      "source_draft_id, status, issued_at, redeemed_at, content_drafts!inner(id, theme_input, brand_id, topic_label, brands!inner(display_name))",
+      "source_draft_id, status, issued_at, redeemed_at, content_drafts!inner(id, theme_input, brand_id, topic_label, organization_id, brands!inner(display_name))",
     )
     .eq("organization_id", organizationId)
+    .eq("content_drafts.organization_id", organizationId)
     .not("source_draft_id", "is", null);
   if (errA) throw new Error(`attribuzione lookup: ${errA.message}`);
 
