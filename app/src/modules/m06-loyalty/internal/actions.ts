@@ -248,6 +248,7 @@ export type IssueVoucherActionInput = {
   offerId: string;
   contactId: string;
   notes?: string;
+  sourceDraftId?: string; // RF-9.3 attribuzione contenuto -> vendita
 };
 
 export async function issueVoucherAction(
@@ -288,6 +289,7 @@ export async function issueVoucherAction(
     if (offer.rewardPct !== null) issueInput.rewardPct = offer.rewardPct;
     if (offer.rewardLabel !== null) issueInput.rewardLabel = offer.rewardLabel;
     if (input.notes !== undefined) issueInput.notes = input.notes;
+    if (input.sourceDraftId !== undefined) issueInput.sourceDraftId = input.sourceDraftId;
 
     const voucher = await insertVoucher(issueInput);
 

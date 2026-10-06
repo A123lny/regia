@@ -22,6 +22,7 @@ import {
   getOutreachAnalytics,
   getPartnersAnalytics,
   getSignupAnalytics,
+  getAttributionByDraft,
   PERIOD_LABELS,
 } from "@/modules/m08-analytics/public";
 import type { AnalyticsPeriod } from "@/modules/m08-analytics/public";
@@ -84,13 +85,14 @@ export default async function AnalyticsPage({
   const params = await searchParams;
   const period: AnalyticsPeriod = isPeriod(params.period) ? params.period : "30d";
 
-  const [contacts, orders, loyalty, outreach, partners, signup] = await Promise.all([
+  const [contacts, orders, loyalty, outreach, partners, signup, attribution] = await Promise.all([
     getContactsAnalytics(session.organizationId, period),
     getOrdersAnalytics(session.organizationId, period),
     getLoyaltyAnalytics(session.organizationId),
     getOutreachAnalytics(session.organizationId),
     getPartnersAnalytics(session.organizationId),
     getSignupAnalytics(session.organizationId, period),
+    getAttributionByDraft(session.organizationId, { limit: 20 }),
   ]);
 
   // Massimo per bar chart CSS
@@ -661,6 +663,136 @@ export default async function AnalyticsPage({
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+      </section>
+
+      {/* ============ RF-9.3 ATTRIBUZIONE CONTENUTO -> VENDITA ============ */}
+      <section className="rounded-2xl border border-border bg-surface p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <QrCode className="h-5 w-5 text-primary" />
+          <h2
+            className="text-lg font-bold text-text"
+            style={{ fontFamily: "var(--font-bricolage)" }}
+          >
+            Attribuzione contenuto → vendita
+          </h2>
+        </div>
+        <p className="mb-4 text-sm text-text-muted">
+          RF-9.3: voucher emessi con riferimento a un post (campo{" "}
+          <code className="rounded bg-surface-muted px-1 py-0.5 text-[11px]">source_draft_id</code>
+          ). Chi emette dal banco o automaticamente dal signup non ha attribuzione:
+          <strong> {attribution.attributionCoveragePct}%</strong> dei voucher sono tracciati fino al
+          contenuto di origine.
+        </p>
+
+        <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="rounded-lg bg-bg p-3">
+            <div className="text-[10px] uppercase tracking-wider text-text-muted">
+              Emessi attribuiti
+            </div>
+            <div
+              className="mt-1 text-2xl font-bold text-text"
+              style={{ fontFamily: "var(--font-bricolage)" }}
+            >
+              {attribution.totalIssuedAttributed}
+            </div>
+          </div>
+          <div className="rounded-lg bg-bg p-3">
+            <div className="text-[10px] uppercase tracking-wider text-text-muted">
+              Riscattati attribuiti
+            </div>
+            <div
+              className="mt-1 text-2xl font-bold text-success"
+              style={{ fontFamily: "var(--font-bricolage)" }}
+            >
+              {attribution.totalRedeemedAttributed}
+            </div>
+          </div>
+          <div className="rounded-lg bg-bg p-3">
+            <div className="text-[10px] uppercase tracking-wider text-text-muted">
+              Non attribuiti
+            </div>
+            <div
+              className="mt-1 text-2xl font-bold text-text-muted"
+              style={{ fontFamily: "var(--font-bricolage)" }}
+            >
+              {attribution.totalIssuedUnattributed}
+            </div>
+          </div>
+          <div className="rounded-lg bg-bg p-3">
+            <div className="text-[10px] uppercase tracking-wider text-text-muted">
+              Copertura attribuzione
+            </div>
+            <div
+              className="mt-1 text-2xl font-bold text-text"
+              style={{ fontFamily: "var(--font-bricolage)" }}
+            >
+              {attribution.attributionCoveragePct}%
+            </div>
+          </div>
+        </div>
+
+        {attribution.byDraft.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border bg-bg p-6 text-center text-sm italic text-text-muted">
+            Nessun voucher ancora attribuito a un contenuto. Quando emetti un voucher da{" "}
+            <a href="/fedelta" className="underline">
+              /fedelta
+            </a>{" "}
+            puoi indicare da quale post arriva: comparira&apos; qui con tasso di riscatto.
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-border">
+            <table className="w-full text-xs">
+              <thead className="border-b border-border bg-bg text-left text-text-muted">
+                <tr>
+                  <th className="p-2">Post di origine</th>
+                  <th className="w-28 p-2">Marchio</th>
+                  <th className="w-20 p-2">Argomento</th>
+                  <th className="w-16 p-2 text-right">Emessi</th>
+                  <th className="w-20 p-2 text-right">Riscattati</th>
+                  <th className="w-16 p-2 text-right">Scaduti</th>
+                  <th className="w-20 p-2 text-right">Tasso</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attribution.byDraft.map((d) => (
+                  <tr key={d.draftId} className="border-b border-border/40 last:border-0">
+                    <td className="p-2 text-text">
+                      <strong>{d.draftTitle}</strong>
+                      {d.firstIssuedAt && (
+                        <div className="text-[10px] text-text-muted">
+                          dal{" "}
+                          {new Date(d.firstIssuedAt).toLocaleDateString("it-IT", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "2-digit",
+                          })}
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-2 text-text-muted">{d.brandDisplayName}</td>
+                    <td className="p-2 text-text-muted">
+                      {d.topicLabel ?? <span className="italic">—</span>}
+                    </td>
+                    <td className="p-2 text-right font-medium text-text">{d.totalIssued}</td>
+                    <td className="p-2 text-right text-success">{d.totalRedeemed}</td>
+                    <td className="p-2 text-right text-amber-700">{d.totalExpired}</td>
+                    <td
+                      className={`p-2 text-right font-semibold ${
+                        d.redemptionRatePct >= 50
+                          ? "text-success"
+                          : d.redemptionRatePct >= 20
+                            ? "text-amber-700"
+                            : "text-danger"
+                      }`}
+                    >
+                      {d.redemptionRatePct}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

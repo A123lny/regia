@@ -5,7 +5,7 @@ import type { RewardKind, Voucher, VoucherStatus } from "./loyalty-types";
 
 const SELECT_COLS =
   "id, organization_id, offer_id, contact_id, code, reward_kind, reward_value_cents, reward_pct, reward_label, " +
-  "status, issued_at, expires_at, redeemed_at, redeemed_by_order_id, cancelled_at, cancelled_reason, notes, created_at, updated_at";
+  "status, issued_at, expires_at, redeemed_at, redeemed_by_order_id, cancelled_at, cancelled_reason, notes, source_draft_id, created_at, updated_at";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowToVoucher(row: any): Voucher {
@@ -27,6 +27,7 @@ function rowToVoucher(row: any): Voucher {
     cancelledAt: row.cancelled_at ?? null,
     cancelledReason: row.cancelled_reason ?? null,
     notes: row.notes ?? null,
+    sourceDraftId: row.source_draft_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -132,6 +133,7 @@ export type IssueVoucherInput = {
   rewardLabel?: string | null;
   expiresAtIso: string;
   notes?: string | null;
+  sourceDraftId?: string | null; // RF-9.3 attribuzione
 };
 
 export async function insertVoucher(input: IssueVoucherInput): Promise<Voucher> {
@@ -149,6 +151,7 @@ export async function insertVoucher(input: IssueVoucherInput): Promise<Voucher> 
     status: "issued",
     expires_at: input.expiresAtIso,
     notes: input.notes ?? null,
+    source_draft_id: input.sourceDraftId ?? null,
   };
   const { data, error } = await admin.from("vouchers").insert(row).select(SELECT_COLS).single();
   if (error) throw new Error(`Errore emissione voucher: ${error.message}`);

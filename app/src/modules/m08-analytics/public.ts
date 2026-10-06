@@ -18,3 +18,7 @@ export { getLoyaltyAnalytics } from "./internal/loyalty-analytics";
 export { getOutreachAnalytics } from "./internal/outreach-analytics";
 export { getPartnersAnalytics } from "./internal/partners-analytics";
 export { getSignupAnalytics } from "./internal/signup-analytics";
+
+// RF-9.3 attribuzione contenuto -> vendita
+export { getAttributionByDraft } from "./internal/attribution-repo";
+export type { DraftAttribution, AttributionSummary } from "./internal/attribution-repo";

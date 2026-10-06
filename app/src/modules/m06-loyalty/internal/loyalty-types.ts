@@ -73,6 +73,7 @@ export type Voucher = {
   cancelledAt: string | null;
   cancelledReason: string | null;
   notes: string | null;
+  sourceDraftId: string | null; // RF-9.3 attribuzione contenuto -> vendita
   createdAt: string;
   updatedAt: string;
 };

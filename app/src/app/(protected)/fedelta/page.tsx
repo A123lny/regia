@@ -6,6 +6,7 @@ import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";
 import { listCounters, listOffers, getVoucherStats } from "@/modules/m06-loyalty/public";
 import { listBrands } from "@/modules/m02-brand/public";
+import { listContentDraftsByStatus } from "@/modules/m03-editorial/public";
 import { HelpButton } from "@/components/help/help-button";
 import { LoyaltyClient } from "./loyalty-client";
 
@@ -13,12 +14,23 @@ export default async function FedeltaPage() {
   const session = await getSessionOrRedirect();
   if (!hasCapability(session.role, "loyalty.read")) notFound();
 
-  const [counters, offers, brands, stats] = await Promise.all([
+  const [counters, offers, brands, stats, publishedDrafts, scheduledDrafts] = await Promise.all([
     listCounters(session.organizationId, true),
     listOffers(session.organizationId, true),
     listBrands(session.organizationId, "active"),
     getVoucherStats(session.organizationId),
+    // RF-9.3: drafts recenti selezionabili per attribuzione (pubblicati + programmati)
+    listContentDraftsByStatus(session.organizationId, "published", 60),
+    listContentDraftsByStatus(session.organizationId, "scheduled", 30),
   ]);
+  const recentDrafts = [...publishedDrafts, ...scheduledDrafts].map((d) => ({
+    id: d.id,
+    title: d.themeInput,
+    brandDisplayName: d.brandDisplayName,
+    status: d.status,
+    publishedAt: d.publishedAt,
+    scheduledFor: d.scheduledAt,
+  }));
 
   const canCrudCounters = hasCapability(session.role, "loyalty.crud.counters");
   const canCrudOffers = hasCapability(session.role, "loyalty.crud.offers");
@@ -104,6 +116,7 @@ export default async function FedeltaPage() {
           displayName: b.displayName,
           color: b.color,
         }))}
+        recentDrafts={recentDrafts}
         canCrudCounters={canCrudCounters}
         canCrudOffers={canCrudOffers}
         canIssue={canIssue}

@@ -42,10 +42,21 @@ type CounterRow = LoyaltyCounter & {
 
 type BrandOpt = { id: string; slug: string; displayName: string; color: string };
 
+// RF-9.3 attribuzione: dropdown "da quale post?" nell'issue form
+export type RecentDraftOpt = {
+  id: string;
+  title: string;
+  brandDisplayName: string;
+  status: string;
+  publishedAt: string | null;
+  scheduledFor: string | null;
+};
+
 type Props = {
   counters: CounterRow[];
   offers: OfferRow[];
   brands: BrandOpt[];
+  recentDrafts: RecentDraftOpt[];
   canCrudCounters: boolean;
   canCrudOffers: boolean;
   canIssue: boolean;
@@ -91,7 +102,12 @@ export function LoyaltyClient(props: Props) {
       </div>
 
       {tab === "voucher" && (
-        <VouchersTab offers={props.offers} canIssue={props.canIssue} canCancel={props.canCancel} />
+        <VouchersTab
+          offers={props.offers}
+          recentDrafts={props.recentDrafts}
+          canIssue={props.canIssue}
+          canCancel={props.canCancel}
+        />
       )}
       {tab === "riscatta" && <RedeemTab canRedeem={props.canRedeem} />}
       {tab === "offerte" && (
@@ -789,10 +805,12 @@ const VOUCHER_STATUS_STYLE: Record<VoucherStatus, string> = {
 
 function VouchersTab({
   offers,
+  recentDrafts,
   canIssue,
   canCancel,
 }: {
   offers: OfferRow[];
+  recentDrafts: RecentDraftOpt[];
   canIssue: boolean;
   canCancel: boolean;
 }) {
@@ -868,6 +886,7 @@ function VouchersTab({
               <div className="mt-4 px-4 pb-8">
                 <IssueVoucherForm
                   offers={offers.filter((o) => o.isActive)}
+                  recentDrafts={recentDrafts}
                   onDone={() => {
                     setIssueOpen(false);
                     setReload((r) => r + 1);
@@ -968,7 +987,15 @@ function VouchersTab({
   );
 }
 
-function IssueVoucherForm({ offers, onDone }: { offers: OfferRow[]; onDone: () => void }) {
+function IssueVoucherForm({
+  offers,
+  recentDrafts,
+  onDone,
+}: {
+  offers: OfferRow[];
+  recentDrafts: RecentDraftOpt[];
+  onDone: () => void;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ code: string } | null>(null);
@@ -1055,6 +1082,8 @@ function IssueVoucherForm({ offers, onDone }: { offers: OfferRow[]; onDone: () =
           };
           const notes = String(fd.get("notes") ?? "").trim();
           if (notes) payload.notes = notes;
+          const sourceDraft = String(fd.get("sourceDraftId") ?? "").trim();
+          if (sourceDraft) payload.sourceDraftId = sourceDraft;
           const result = await issueVoucherAction(payload);
           if (result.ok) {
             setSuccess({ code: result.code });
@@ -1121,6 +1150,33 @@ function IssueVoucherForm({ offers, onDone }: { offers: OfferRow[]; onDone: () =
             )}
           </div>
         )}
+      </div>
+      <div>
+        <Label htmlFor="sourceDraftId">Attribuisci a un post (opzionale, RF-9.3)</Label>
+        <select
+          id="sourceDraftId"
+          name="sourceDraftId"
+          className="mt-1 w-full rounded-md border border-border bg-bg px-3 py-2 text-sm"
+        >
+          <option value="">— Nessuna attribuzione (emesso al banco)</option>
+          {recentDrafts.length === 0 && (
+            <option disabled>Nessun post programmato o pubblicato di recente</option>
+          )}
+          {recentDrafts.map((d) => {
+            const date = d.publishedAt ?? d.scheduledFor;
+            const dateStr = date
+              ? new Date(date).toLocaleDateString("it-IT", {
+                  day: "2-digit",
+                  month: "short",
+                })
+              : "";
+            return (
+              <option key={d.id} value={d.id}>
+                [{d.brandDisplayName}] {d.title} {dateStr && `· ${dateStr}`}
+              </option>
+            );
+          })}
+        </select>
       </div>
       <div>
         <Label htmlFor="notes">Note (opzionale)</Label>
