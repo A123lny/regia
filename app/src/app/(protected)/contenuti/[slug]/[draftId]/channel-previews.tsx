@@ -5,10 +5,10 @@
 // Aspect ratio corretti + auto-crop centrato se immagine ha ratio diverso dal canale.
 
 import { useState } from "react";
-import { ImageIcon, Newspaper, Mail, Smartphone } from "lucide-react";
+import { ImageIcon, Newspaper, Mail, Smartphone, Printer } from "lucide-react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 
-type Channel = "ig-post" | "ig-story" | "fb-post" | "email";
+type Channel = "ig-post" | "ig-story" | "fb-post" | "email" | "print-a4";
 
 type Props = {
   brandDisplayName: string;
@@ -52,6 +52,13 @@ const CHANNELS: {
     ratio: "-",
     icon: Mail,
     hint: "Anteprima come apparirebbe in mail client",
+  },
+  {
+    id: "print-a4",
+    label: "Stampa A4",
+    ratio: "1:√2",
+    icon: Printer,
+    hint: "RF-4.7 locandina stampabile 300dpi — da attaccare in vetrina/bacheca",
   },
 ];
 
@@ -126,6 +133,14 @@ export function ChannelPreviews({
         )}
         {active === "fb-post" && (
           <FbPostMockup
+            brandDisplayName={brandDisplayName}
+            brandLogoUrl={brandLogoUrl}
+            text={text}
+            imageUrl={imageUrl}
+          />
+        )}
+        {active === "print-a4" && (
+          <PrintA4Mockup
             brandDisplayName={brandDisplayName}
             brandLogoUrl={brandLogoUrl}
             text={text}
@@ -280,6 +295,50 @@ function EmailMockup(props: Props) {
       )}
       <div className="whitespace-pre-wrap p-4 text-[13px] leading-relaxed text-neutral-800">
         {props.text}
+      </div>
+    </div>
+  );
+}
+
+// RF-4.6/4.7 Anteprima locandina stampabile A4 (aspect ratio 1:√2).
+// Mockup "foglio di carta" con bordo + ombra, testo scalato per leggibilita.
+function PrintA4Mockup(props: Props) {
+  return (
+    <div
+      className="relative w-full max-w-[260px] overflow-hidden rounded-sm bg-white shadow-[0_8px_30px_rgba(0,0,0,0.15)] ring-1 ring-neutral-300"
+      style={{ aspectRatio: "1 / 1.414" }}
+    >
+      {/* Banda header colorata, come i template registry */}
+      <div className="h-[8%] bg-primary" />
+      <div className="flex h-[92%] flex-col px-5 py-6">
+        {props.imageUrl ? (
+          <div className="mb-3 flex-1 overflow-hidden rounded-sm bg-neutral-100">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={props.imageUrl} alt="preview" className="h-full w-full object-cover" />
+          </div>
+        ) : (
+          <div className="mb-3 flex flex-1 items-center justify-center rounded-sm bg-neutral-100 text-[10px] italic text-neutral-400">
+            [area immagine/claim]
+          </div>
+        )}
+        <div className="whitespace-pre-wrap text-[9px] leading-tight text-neutral-800">
+          {props.text.slice(0, 240)}
+          {props.text.length > 240 && "…"}
+        </div>
+        <div className="mt-auto flex items-center gap-1.5 border-t border-neutral-200 pt-2">
+          <BrandLogo
+            logoUrl={props.brandLogoUrl}
+            name={props.brandDisplayName}
+            size="xs"
+            rounded="md"
+          />
+          <span
+            className="text-[9px] font-bold uppercase tracking-widest text-neutral-900"
+            style={{ fontFamily: "var(--font-bricolage)" }}
+          >
+            {props.brandDisplayName}
+          </span>
+        </div>
       </div>
     </div>
   );

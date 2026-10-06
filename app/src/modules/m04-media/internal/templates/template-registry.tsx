@@ -423,6 +423,119 @@ const stazioneStaffPortrait: TemplateRenderer = (input) =>
     </>,
   );
 
+// ── RF-4.7 Locandina Lenny promo A4 (300dpi, font scalati) ──────────────────
+const lennyLocandinaA4: TemplateRenderer = (input) =>
+  bgWithHeader(
+    input.brandColor,
+    <>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 72,
+          color: input.brandColor,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: 10,
+          marginBottom: 80,
+        }}
+      >
+        {input.fields["kicker"] || "Promo del mese"}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 480,
+          fontWeight: 800,
+          fontFamily: "Bricolage",
+          color: input.brandColor,
+          lineHeight: 0.9,
+          marginBottom: 60,
+        }}
+      >
+        {input.fields["headline"] || "-20%"}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 140,
+          fontWeight: 700,
+          color: "#2c1810",
+          lineHeight: 1.1,
+          marginBottom: 80,
+        }}
+      >
+        {input.fields["title"] || "Su tutti gli ordini del mercoledì"}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 72,
+          color: "#7a6857",
+          lineHeight: 1.3,
+        }}
+      >
+        {input.fields["details"] || "Solo con codice: MERCO · fino al 30/11"}
+      </div>
+      {brandFooter(input)}
+    </>,
+  );
+
+// ── RF-4.7 Locandina Stazione servizio A4 (300dpi, font scalati) ────────────
+const stazioneLocandinaA4: TemplateRenderer = (input) =>
+  bgWithHeader(
+    input.brandColor,
+    <>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 72,
+          color: input.brandColor,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: 10,
+          marginBottom: 80,
+        }}
+      >
+        {input.fields["kicker"] || "Avviso officina"}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 220,
+          fontWeight: 800,
+          fontFamily: "Bricolage",
+          color: "#2c1810",
+          lineHeight: 1,
+          marginBottom: 60,
+        }}
+      >
+        {input.fields["title"] || "Cambio gomme invernali"}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 110,
+          fontWeight: 700,
+          color: input.brandColor,
+          marginBottom: 60,
+        }}
+      >
+        {input.fields["cta"] || "Prenota adesso"}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 72,
+          color: "#7a6857",
+          lineHeight: 1.35,
+        }}
+      >
+        {input.fields["details"] || "Hai tempo fino al 15 novembre per lo scambio."}
+      </div>
+      {brandFooter(input)}
+    </>,
+  );
+
 export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
   {
     id: "lenny-restaurant-of-week",
@@ -533,6 +646,38 @@ export const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
       { key: "quote", label: "Frase o quote personale", required: false, maxLength: 120 },
     ],
   },
+  // RF-4.7 Locandine A4 stampabili
+  {
+    id: "lenny-locandina-a4",
+    name: "Locandina promo A4 (Lenny)",
+    description: "Locandina stampabile 300dpi — da attaccare in vetrina/all'ingresso",
+    brandSlugs: ["lenny"],
+    format: "a4-portrait",
+    fields: [
+      { key: "kicker", label: "Occhiello (es. Promo del mese)", required: false, maxLength: 40 },
+      { key: "headline", label: "Numero/claim gigante (es. -20%)", required: true, maxLength: 10 },
+      { key: "title", label: "Titolo", required: true, maxLength: 60 },
+      {
+        key: "details",
+        label: "Dettagli (condizioni, codice, scadenza)",
+        required: false,
+        maxLength: 150,
+      },
+    ],
+  },
+  {
+    id: "stazione-locandina-a4",
+    name: "Locandina servizio A4 (Stazione)",
+    description: "Locandina stampabile 300dpi per avvisi officina/stazione",
+    brandSlugs: ["stazione", "officina"],
+    format: "a4-portrait",
+    fields: [
+      { key: "kicker", label: "Occhiello (es. Avviso officina)", required: false, maxLength: 40 },
+      { key: "title", label: "Cosa comunicare", required: true, maxLength: 60 },
+      { key: "cta", label: "Call to action (es. Prenota adesso)", required: false, maxLength: 40 },
+      { key: "details", label: "Dettagli / scadenza", required: false, maxLength: 150 },
+    ],
+  },
 ];
 
 const RENDERERS: Record<string, TemplateRenderer> = {
@@ -544,6 +689,8 @@ const RENDERERS: Record<string, TemplateRenderer> = {
   "stazione-service-notice": serviceNotice,
   "stazione-seasonal-tip": stazioneSeasonalTip,
   "stazione-staff-portrait": stazioneStaffPortrait,
+  "lenny-locandina-a4": lennyLocandinaA4,
+  "stazione-locandina-a4": stazioneLocandinaA4,
 };
 
 export function getTemplateDefinition(id: string): TemplateDefinition | undefined {
