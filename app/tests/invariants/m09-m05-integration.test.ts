@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeAll } from "vitest";
+﻿import { describe, it, expect, beforeAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { getAdminClient } from "@/lib/db/admin";
-import { getChannelForReminderKind } from "@/modules/m09-reminders/public";
+import { getChannelForReminderKind } from "@/modules/m09-reminders/server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const admin = getAdminClient() as any;
 
-describe("M09 → M05 integration", () => {
+describe("M09 â†’ M05 integration", () => {
   describe("getChannelForReminderKind (mapping statico)", () => {
     it("WA + utility=non-promo per kind utilita (RF-5.5a)", () => {
       expect(getChannelForReminderKind("welcome")).toEqual({
@@ -55,7 +55,7 @@ describe("M09 → M05 integration", () => {
       // Setup org + brand + contact + reminder + publish_job
       const org = await admin
         .from("organizations")
-        .insert({ name: "Test M09→M05" })
+        .insert({ name: "Test M09â†’M05" })
         .select("id")
         .single();
       if (org.error || !org.data) throw new Error(`setup org: ${org.error?.message}`);

@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeAll } from "vitest";
+﻿import { describe, it, expect, beforeAll } from "vitest";
 import { getAdminClient } from "@/lib/db/admin";
-import { scheduleVoucherExpiringReminderOnIssue } from "@/modules/m09-reminders/public";
+import { scheduleVoucherExpiringReminderOnIssue } from "@/modules/m09-reminders/server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const admin = getAdminClient() as any;
 
-describe("M06 → M09 voucher-expiring reminder hook", () => {
+describe("M06 â†’ M09 voucher-expiring reminder hook", () => {
   let orgId: string;
   let brandId: string;
   let contactId: string;
@@ -13,7 +13,7 @@ describe("M06 → M09 voucher-expiring reminder hook", () => {
   beforeAll(async () => {
     const org = await admin
       .from("organizations")
-      .insert({ name: "Test M06→M09 hook" })
+      .insert({ name: "Test M06â†’M09 hook" })
       .select("id")
       .single();
     if (org.error || !org.data) throw new Error(`setup org: ${org.error?.message}`);

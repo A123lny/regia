@@ -1,16 +1,16 @@
-// M09 · UNIQUE parziale su (contact, kind, reference) per pending.
-// scheduleReminder è idempotente: chiamata 2 volte con stessi param non crea duplicati.
+﻿// M09 Â· UNIQUE parziale su (contact, kind, reference) per pending.
+// scheduleReminder Ã¨ idempotente: chiamata 2 volte con stessi param non crea duplicati.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { listReminders } from "@/modules/m09-reminders/public";
-import { scheduleWelcomeReminder } from "@/modules/m09-reminders/public";
+import { scheduleWelcomeReminder } from "@/modules/m09-reminders/server";
 
 const SUPABASE_URL = process.env["NEXT_PUBLIC_SUPABASE_URL"] ?? "http://127.0.0.1:54520";
 const SERVICE_ROLE = process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? "";
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
 
-describe("M09 · reminders idempotency + UNIQUE constraint", () => {
+describe("M09 Â· reminders idempotency + UNIQUE constraint", () => {
   let orgId: string;
   let brandId: string;
   let contactId: string;
@@ -18,7 +18,7 @@ describe("M09 · reminders idempotency + UNIQUE constraint", () => {
   beforeAll(async () => {
     const org = await admin
       .from("organizations")
-      .insert({ name: "Test Org — reminders idem" })
+      .insert({ name: "Test Org â€” reminders idem" })
       .select("id")
       .single();
     if (org.error || !org.data) throw new Error(`Setup: ${org.error?.message}`);
@@ -55,7 +55,7 @@ describe("M09 · reminders idempotency + UNIQUE constraint", () => {
     await admin.from("organizations").delete().eq("id", orgId);
   });
 
-  it("scheduleWelcomeReminder x1 → 1 record pending", async () => {
+  it("scheduleWelcomeReminder x1 â†’ 1 record pending", async () => {
     await scheduleWelcomeReminder({ organizationId: orgId, brandId, contactId });
     const list = await listReminders({
       organizationId: orgId,
@@ -65,7 +65,7 @@ describe("M09 · reminders idempotency + UNIQUE constraint", () => {
     expect(list.filter((r) => r.contactId === contactId).length).toBe(1);
   });
 
-  it("scheduleWelcomeReminder x3 → SEMPRE 1 record pending (idempotente)", async () => {
+  it("scheduleWelcomeReminder x3 â†’ SEMPRE 1 record pending (idempotente)", async () => {
     await scheduleWelcomeReminder({ organizationId: orgId, brandId, contactId });
     await scheduleWelcomeReminder({ organizationId: orgId, brandId, contactId });
     await scheduleWelcomeReminder({ organizationId: orgId, brandId, contactId });
@@ -77,7 +77,7 @@ describe("M09 · reminders idempotency + UNIQUE constraint", () => {
     expect(list.filter((r) => r.contactId === contactId).length).toBe(1);
   });
 
-  it("status invalido → violazione check", async () => {
+  it("status invalido â†’ violazione check", async () => {
     const r = await admin.from("reminders").insert({
       organization_id: orgId,
       brand_id: brandId,
@@ -88,7 +88,7 @@ describe("M09 · reminders idempotency + UNIQUE constraint", () => {
     expect(r.error).not.toBeNull();
   });
 
-  it("kind invalido → violazione check", async () => {
+  it("kind invalido â†’ violazione check", async () => {
     const r = await admin.from("reminders").insert({
       organization_id: orgId,
       brand_id: brandId,
@@ -99,7 +99,7 @@ describe("M09 · reminders idempotency + UNIQUE constraint", () => {
     expect(r.error).not.toBeNull();
   });
 
-  it("status=sent senza sent_at → violazione check", async () => {
+  it("status=sent senza sent_at â†’ violazione check", async () => {
     const r = await admin.from("reminders").insert({
       organization_id: orgId,
       brand_id: brandId,
@@ -111,7 +111,7 @@ describe("M09 · reminders idempotency + UNIQUE constraint", () => {
     expect(r.error).not.toBeNull();
   });
 
-  it("status=dismissed senza dismissed_at → violazione check", async () => {
+  it("status=dismissed senza dismissed_at â†’ violazione check", async () => {
     const r = await admin.from("reminders").insert({
       organization_id: orgId,
       brand_id: brandId,

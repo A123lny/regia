@@ -7,7 +7,7 @@ import { insertVoucher } from "./vouchers-repo";
 import { getOffer } from "./offers-repo";
 import { generateVoucherCode } from "./loyalty-types";
 import { getAdminClient } from "@/lib/db/admin";
-import { scheduleVoucherExpiringReminderOnIssue } from "@/modules/m09-reminders/public";
+import { scheduleVoucherExpiringReminderOnIssue } from "@/modules/m09-reminders/server";
 
 export type IssueSystemVoucherInput = {
   organizationId: string;

@@ -56,5 +56,4 @@ export type {
 } from "./internal/actions";
 
 // System-level emissione voucher (usato da m10-signup per landing pubbliche)
-export { issueVoucherForSignup } from "./internal/system-issue";
-export type { IssueSystemVoucherInput, IssueSystemVoucherResult } from "./internal/system-issue";
+// e' in ./server.ts (barrel server-only, import da server component/action).

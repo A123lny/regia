@@ -11,8 +11,13 @@ module.exports = {
         "Tutto il resto (app/, lib/, altri moduli) deve passare da public.ts.",
       from: {
         // Escluso: chi è già dentro un internal/ (gestito dalla regola cross-module)
-        // Escluso: il public.ts di qualsiasi modulo (porta di re-export legittima)
-        pathNot: ["^src/modules/[^/]+/internal/", "^src/modules/[^/]+/public\\.ts$"],
+        // Escluso: public.ts (barrel client-safe) e server.ts (barrel server-only,
+        // RS-1 split: client components non devono trascinare Twilio/Resend via tree-shake).
+        pathNot: [
+          "^src/modules/[^/]+/internal/",
+          "^src/modules/[^/]+/public\\.ts$",
+          "^src/modules/[^/]+/server\\.ts$",
+        ],
       },
       to: {
         path: "^src/modules/[^/]+/internal/",

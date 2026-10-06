@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeAll } from "vitest";
+﻿import { describe, it, expect, beforeAll } from "vitest";
 import { getAdminClient } from "@/lib/db/admin";
-import { scheduleWelcomeReminder } from "@/modules/m09-reminders/public";
+import { scheduleWelcomeReminder } from "@/modules/m09-reminders/server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const admin = getAdminClient() as any;
 
-describe("M10 → M05 welcome immediato (RN-63)", () => {
+describe("M10 â†’ M05 welcome immediato (RN-63)", () => {
   let orgId: string;
   let brandId: string;
   let contactA: string;
@@ -108,7 +108,7 @@ describe("M10 → M05 welcome immediato (RN-63)", () => {
       brandId,
       contactId: contactA,
     });
-    // Il primo era creato nel test 1 → r1.created=false ora
+    // Il primo era creato nel test 1 â†’ r1.created=false ora
     expect(r2.created).toBe(false);
     expect(r2.reminderId).toBeTruthy(); // ma ritorna l'id del pending esistente
     expect(r1.reminderId).toBe(r2.reminderId);

@@ -16,8 +16,8 @@
 
 import { createHash } from "node:crypto";
 import { getAdminClient } from "@/lib/db/admin";
-import { issueVoucherForSignup } from "@/modules/m06-loyalty/public";
-import { scheduleWelcomeReminder, sendReminderNow } from "@/modules/m09-reminders/public";
+import { issueVoucherForSignup } from "@/modules/m06-loyalty/server";
+import { scheduleWelcomeReminder, sendReminderNow } from "@/modules/m09-reminders/server";
 import { getPublicLandingBySlug } from "./landings-repo";
 import { countRecentEventsByIp, insertSignupEvent } from "./events-repo";
 import type { AudienceKind, ConsentChannel } from "./signup-types";

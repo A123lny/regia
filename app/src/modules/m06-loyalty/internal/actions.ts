@@ -27,7 +27,7 @@ import {
   validateOfferAgainstCommercialRules,
   CommercialGuardError,
 } from "@/modules/m13-governance/public";
-import { scheduleVoucherExpiringReminderOnIssue } from "@/modules/m09-reminders/public";
+import { scheduleVoucherExpiringReminderOnIssue } from "@/modules/m09-reminders/server";
 
 async function requireAuth(cap: Capability) {
   const session = await getSessionOrRedirect();

@@ -18,14 +18,7 @@ export {
 export { listReminders, getReminder, getRemindersStats } from "./internal/reminders-repo";
 export type { ReminderRow, ListRemindersInput } from "./internal/reminders-repo";
 
-// Event-driven trigger (usato da m10-signup + m06-loyalty)
-export {
-  scheduleWelcomeReminder,
-  refreshVoucherExpiringReminders,
-  scheduleVoucherExpiringReminderOnIssue,
-} from "./internal/compute-engine";
-
-// Server actions
+// Server actions (bundlate client-side come RPC stubs, non trascinano i file importati)
 export {
   dismissReminderAction,
   markReminderSentAction,
@@ -34,9 +27,8 @@ export {
 } from "./internal/actions";
 export type { RefreshAllRemindersResult } from "./internal/actions";
 
-// M09 -> M05 bridge
-export { getChannelForReminderKind, sendReminderNow } from "./internal/send-reminder";
-export type { SendReminderResult } from "./internal/send-reminder";
+// Nota: helper event-driven e M09->M05 bridge sono in ./server.ts
+// (barrel server-only, import da server component o server action).
 
 // M9 anti-abbandono (RN-40)
 export type {
