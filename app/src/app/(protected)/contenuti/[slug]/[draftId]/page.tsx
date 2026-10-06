@@ -25,6 +25,7 @@ import { ScheduleDraftForm } from "./schedule-form";
 import { MaterialRequestForm } from "./material-request-form";
 import { DraftMediaPicker } from "./media-picker";
 import { ChannelPreviews } from "./channel-previews";
+import { SeoHintsCard } from "./seo-hints-card";
 import { UtmPreviewCard } from "@/components/editorial/utm-preview-card";
 import { TopicLabelEditor } from "@/components/editorial/topic-label-editor";
 
@@ -125,6 +126,9 @@ export default async function DraftDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      {/* RF-13.7 Suggerimenti SEO organica (analizer euristico, zero AI) */}
+      <SeoHintsCard text={draft.generatedText} />
 
       {/* RN-85 Anteprima link tracciati (compare solo se il testo contiene URL) */}
       <UtmPreviewCard text={draft.generatedText} brandSlug={slug} draftId={draft.id} />

@@ -50,6 +50,10 @@ export type { TopicLabel } from "./internal/topic-classifier";
 export { applyUtmToLinks, extractUrls, tagUrl, composeUtmForDraft } from "./internal/utm-tagger";
 export type { UtmParams } from "./internal/utm-tagger";
 
+// RF-13.7 Suggerimenti SEO organica (analyzer euristico, zero costo)
+export { analyzeSeoHints, countBySeverity } from "./internal/seo-hints";
+export type { SeoHint, SeoHintSeverity } from "./internal/seo-hints";
+
 export {
   listOpenMaterialRequests,
   createMaterialRequest,
