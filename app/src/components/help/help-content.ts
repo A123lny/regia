@@ -253,6 +253,53 @@ export const HELP_TEXTS: Record<string, HelpEntry> = {
       "Filtri: marchio · fonte · canale+stato consenso · ricerca testo.\n" +
       "Click su una riga → drawer laterale con dettagli, consensi, veicoli.",
   },
+  "provider-media": {
+    title: "Provider media esterna",
+    body:
+      "RF-4.3: registrazione fornitori AI per generazione immagini/video (fal.ai FLUX, Replicate, DALL-E, ecc.). I ToS si verificano UNA VOLTA alla registrazione, non ad ogni generazione.\n\n" +
+      "**Campi:**\n" +
+      "• **Tipo**: immagini / video / entrambi.\n" +
+      "• **Diritti sull'output** (chi detiene cosa): user (noi, chi paga), provider (dobbiamo chiedere permesso ad ogni uso commerciale), shared (co-ownership — il provider puo' usare l'output), public domain.\n" +
+      "• **Usi ammessi**: spunta SOLO cio' che il provider dichiara nei suoi T&C (commerciale, editoriale, personale). Se nessun uso e' spuntato il provider non puo' generare nulla.\n" +
+      "• **Settori vietati**: cosa il provider esclude esplicitamente (tabacco, alcool, armi, politica, religione, ecc.). Il codice M04 li usera' per bloccare richieste.\n\n" +
+      "**In F1 M04 usa solo template interni (satori)** — questa infrastruttura dorme finche non si collega un provider reale. Nessuna generazione AI esterna accade senza un provider attivo registrato.\n\n" +
+      "RA-8.6 rispettato: il modello non decide a run-time quali usi sono ammessi, legge solo 'c'e' un provider attivo per questo uso?' e si ferma se no.",
+  },
+  "zone-consegna": {
+    title: "Zone di consegna",
+    body:
+      "RN-52: le zone di consegna sono variabili per clima/eventi/chiusure stradali. Oggi un rider puo' andare, domani con la neve no.\n\n" +
+      "**Zone**: per marchio Lenny, con prefissi CAP coperti (es. 47900, 47891). Un contatto appartiene a una zona se il suo CAP ha uno di questi prefissi.\n\n" +
+      "**Blackout** (banner rosso in alto quando attivo):\n" +
+      "• Tipo: neve, pioggia, evento, chiusura stradale, altro.\n" +
+      "• Inizio obbligatorio + fine opzionale (lascia vuoto se non sai).\n" +
+      "• Guard applicativo: finche c'e' un blackout attivo su una zona, le promo food/consegna per i contatti di quella zona vengono bloccate dal motore M07/campagne.\n\n" +
+      "**Chiudi blackout** appena il problema rientra: libera di nuovo gli invii. Audit log tiene traccia di tutto.",
+  },
+  "contatti-dati-personali": {
+    title: "Richieste dati personali (GDPR)",
+    body:
+      "RF-1.9: dossier completo di cio' che Regia sa su un contatto. Serve per rispondere a richieste di accesso o cancellazione imposte dal GDPR.\n\n" +
+      "**Export** (azione legale, non distruttiva):\n" +
+      "• Scarica JSON con anagrafica, consensi per canale, veicoli, voucher emessi, ordini, iscrizioni, reminders, publish log, precedenti richieste.\n" +
+      "• Dossier congelato: snapshot persistito su contact_data_requests.dossier_snapshot per audit.\n\n" +
+      "**Cancellazione** (irreversibile, Owner-only):\n" +
+      "• Nullifica recapiti (email/telefono/WhatsApp), revoca consensi, archivia il contatto.\n" +
+      "• Voucher gia' emessi restano in DB (storicita' commerciale) ma non piu' agganciati ai recapiti.\n" +
+      "• Snapshot dossier conservato come prova dell'adempimento.\n\n" +
+      "Entrambe le operazioni sono Owner-only (materia legale). Audit log completo.",
+  },
+  "memoria-agente": {
+    title: "Memoria agente",
+    body:
+      "RA-8.11: cosa l'agente AI ha imparato dall'uso. Aggregato dai dati di lavoro (bozze, voucher, brand kit). Risiede nel DB di Regia (pgvector + Postgres), **non nel modello AI** — un cambio di modello non la perde.\n\n" +
+      "**4 sezioni:**\n" +
+      "• **Tasso di approvazione per categoria** (ultimi 90gg): quando una categoria arriva a 9/10 approvate senza modifica → candidata al passaggio di livello di autonomia (RA-8.3).\n" +
+      "• **Motivi di rifiuto frequenti**: parole chiave ricorrenti dai motivi di rifiuto. Se una parola compare spesso, il brand kit va corretto.\n" +
+      "• **Esiti promozioni (voucher)**: issued vs redeemed per offerta. Tasso basso suggerisce offerta poco attrattiva o scadenza stretta.\n" +
+      "• **Preferenze di stile per marchio**: pilastri narrativi con peso + conteggio parole vietate / argomenti sensibili.\n\n" +
+      "Read-only: nessun dato viene scritto qui. La tracciabilita' del singolo evento sta in /audit (RA-8.12).",
+  },
   ricorrenze: {
     title: "Ricorrenze annuali",
     body:

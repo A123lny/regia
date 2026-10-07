@@ -16,6 +16,7 @@ import {
   getBrandStylePreferences,
 } from "@/modules/m11-admin/public";
 import { Brain, TrendingUp, TrendingDown, AlertTriangle, Target, Palette } from "lucide-react";
+import { HelpButton } from "@/components/help/help-button";
 
 const TOPIC_LABELS: Record<string, string> = {
   officina: "Officina",
@@ -65,12 +66,15 @@ export default async function AgentMemoryPage() {
   return (
     <main className="space-y-6 p-6">
       <header>
-        <nav className="text-xs text-text-muted">
-          <Link href="/impostazioni" className="underline">
-            Impostazioni
-          </Link>{" "}
-          / Memoria agente
-        </nav>
+        <div className="flex items-start justify-between gap-3">
+          <nav className="text-xs text-text-muted">
+            <Link href="/impostazioni" className="underline">
+              Impostazioni
+            </Link>{" "}
+            / Memoria agente
+          </nav>
+          <HelpButton pageKey="memoria-agente" />
+        </div>
         <div className="mt-1 flex items-start gap-3">
           <Brain className="mt-1 h-7 w-7 text-primary" />
           <div>

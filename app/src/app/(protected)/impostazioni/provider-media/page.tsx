@@ -11,6 +11,7 @@ import { Shield } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";
 import { listMediaProviders } from "@/modules/m04-media/public";
+import { HelpButton } from "@/components/help/help-button";
 import { ProvidersClient } from "./providers-client";
 
 export default async function ProviderMediaPage() {
@@ -30,12 +31,15 @@ export default async function ProviderMediaPage() {
   return (
     <main className="space-y-6 p-6">
       <header>
-        <nav className="text-xs text-text-muted">
-          <Link href="/impostazioni" className="underline">
-            Impostazioni
-          </Link>{" "}
-          / Provider media
-        </nav>
+        <div className="flex items-start justify-between gap-3">
+          <nav className="text-xs text-text-muted">
+            <Link href="/impostazioni" className="underline">
+              Impostazioni
+            </Link>{" "}
+            / Provider media
+          </nav>
+          <HelpButton pageKey="provider-media" />
+        </div>
         <div className="mt-1 flex items-start gap-3">
           <Shield className="mt-1 h-7 w-7 text-primary" />
           <div>

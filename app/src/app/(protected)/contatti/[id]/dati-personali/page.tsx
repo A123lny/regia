@@ -7,6 +7,7 @@ import Link from "next/link";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";
 import { buildContactDossier, listDataRequests } from "@/modules/m01-data-hub/public";
+import { HelpButton } from "@/components/help/help-button";
 import { DataRequestsClient } from "./data-requests-client";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -51,7 +52,7 @@ export default async function DossierPage({ params }: PageProps) {
 
   return (
     <main className="space-y-6 p-6">
-      <header className="flex items-start justify-between">
+      <header className="flex items-start justify-between gap-3">
         <div>
           <nav className="text-xs text-text-muted">
             <Link href="/contatti" className="underline">
@@ -72,6 +73,7 @@ export default async function DossierPage({ params }: PageProps) {
             raccogli, mostra all&apos;interessato, registra qui l&apos;esito.
           </p>
         </div>
+        <HelpButton pageKey="contatti-dati-personali" />
       </header>
 
       <DataRequestsClient

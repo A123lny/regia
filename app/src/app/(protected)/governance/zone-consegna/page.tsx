@@ -7,6 +7,7 @@ import {
   type DeliveryBlackoutKind,
 } from "@/modules/m13-governance/public";
 import { listBrands } from "@/modules/m02-brand/public";
+import { HelpButton } from "@/components/help/help-button";
 import { DeliveryZonesClient } from "./delivery-zones-client";
 
 const BLACKOUT_KINDS: DeliveryBlackoutKind[] = ["snow", "rain", "event", "road_closure", "other"];
@@ -40,12 +41,15 @@ export default async function DeliveryZonesPage() {
   return (
     <main className="space-y-6 p-6">
       <header>
-        <nav className="text-xs text-text-muted">
-          <Link href="/governance" className="underline">
-            Governance
-          </Link>{" "}
-          / Zone di consegna
-        </nav>
+        <div className="flex items-start justify-between gap-3">
+          <nav className="text-xs text-text-muted">
+            <Link href="/governance" className="underline">
+              Governance
+            </Link>{" "}
+            / Zone di consegna
+          </nav>
+          <HelpButton pageKey="zone-consegna" />
+        </div>
         <h1 className="mt-1 font-serif text-2xl font-bold">Zone di consegna variabili</h1>
         <p className="mt-1 text-sm text-text-muted">
           RN-52 · Vincolo assoluto:{" "}
