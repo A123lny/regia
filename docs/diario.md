@@ -147,7 +147,7 @@
   riprendere test end-to-end sui percorsi AI (≥$5 basta per il tour).
 - **UTM tagging oggi è solo preview.** Applicazione effettiva nei publisher adapter
   di M14 (auto-publishing), quando arriverà. Utility già pronta.
-- **`npm run ci` step 4/6 (dep-cruiser CLI)** fallisce su node 20 (richiede 22+).
-  Il controllo RS-1 equivalente gira via `tests/boundaries/*.test.ts` ed è verde.
+- **Node 22+** vincolato in `app/package.json` engines (dep-cruiser CLI richiede 22+,
+  nessun blocker: Node locale e CI sono gia' 22).
 - **Docker Desktop locale non funzionante** → workflow Cloud-only, test vitest OK
   senza, migrazioni via `npx supabase db push --linked`.
