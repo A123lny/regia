@@ -1,17 +1,19 @@
-// RS-6: pattern canonico Supabase SSR per Next.js.
-// Rinfresca la sessione cookie ad ogni navigazione — senza questo, il JWT scade dopo 1h
-// e l'utente viene disconnesso silenziosamente. Il client Supabase è creato tramite
-// lib/db/middleware.ts (RS-2: un solo punto di accesso per contesto di esecuzione).
+// RS-6: pattern canonico Supabase SSR per Next.js 16.
+// Next.js 16 ha rinominato `middleware` -> `proxy` (stesso comportamento, nome
+// piu' chiaro). Rinfresca la sessione cookie ad ogni navigazione — senza questo,
+// il JWT scade dopo 1h e l'utente viene disconnesso silenziosamente. Il client
+// Supabase e' creato tramite lib/db/middleware.ts (RS-2: un solo punto di accesso).
 //
-// RF-12.1: best-effort auth refresh — il middleware NON deve mai bloccare una request.
-// Il login (server action React 19 come multipart/form-data) passa da qui: se getUser()
-// è lento o fallisce, il try/catch + timeout assicura che la response venga comunque
-// restituita. Se il token è davvero scaduto lo gestirà getSessionOrRedirect lato pagina.
+// RF-12.1: best-effort auth refresh — il proxy NON deve mai bloccare una request.
+// Il login (server action React 19 come multipart/form-data) passa da qui: se
+// getUser() e' lento o fallisce, il try/catch + timeout assicura che la response
+// venga comunque restituita. Se il token e' davvero scaduto lo gestira'
+// getSessionOrRedirect lato pagina.
 
 import type { NextRequest } from "next/server";
 import { getMiddlewareClient } from "@/lib/db/middleware";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { supabase, response } = getMiddlewareClient(request);
 
   if (supabase) {
@@ -25,11 +27,11 @@ export async function middleware(request: NextRequest) {
       await Promise.race([
         supabase.auth.getUser(),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("middleware auth timeout")), 2000),
+          setTimeout(() => reject(new Error("proxy auth timeout")), 2000),
         ),
       ]);
     } catch {
-      // Silenzioso di proposito: middleware best-effort.
+      // Silenzioso di proposito: proxy best-effort.
       // Se il token è davvero scaduto, sarà getSessionOrRedirect a gestirlo lato pagina protetta.
     }
   }
@@ -39,7 +41,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Applica il middleware a tutte le route eccetto:
+    // Applica il proxy a tutte le route eccetto:
     // - file statici Next.js (_next/static, _next/image)
     // - favicon e immagini comuni (svg, png, jpg, jpeg, gif, webp)
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
