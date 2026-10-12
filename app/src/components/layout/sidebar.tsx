@@ -1,9 +1,16 @@
 "use client";
 
 // Sidebar navigation con drawer mobile.
-// "Contenuti" e un gruppo espandibile con 4 sotto-voci filtrate per stato pipeline.
-// Il gruppo e auto-espanso se sei dentro /contenuti (esclusi calendari); l'utente
-// puo forzare aperto/chiuso col chevron.
+// Organizzazione in 6 gruppi semantici (capitolato §7.2):
+//   1. Operativo quotidiano  — cosa si apre ogni mattina
+//   2. Marketing             — produrre e distribuire messaggi
+//   3. Commerciale           — motore fedelta/offerte/ordini
+//   4. Clienti               — anagrafica relazione
+//   5. Insight               — misurare
+//   6. Configurazione        — una tantum
+// Dentro "Marketing" il gruppo "Contenuti" resta collassabile (default aperto
+// quando sei dentro /contenuti). Gli altri gruppi hanno solo heading, sempre
+// visibili. Le voci sono filtrate per capability dell'utente corrente.
 
 import { useState } from "react";
 import Link from "next/link";
@@ -51,65 +58,124 @@ type LeafItem = {
   requiresCapability?: Capability;
 };
 
-// NAV top-level. Le sotto-voci di "Contenuti" sono renderizzate a parte se il gruppo e aperto.
-const TOP_NAV: LeafItem[] = [
-  { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/marchi", label: "Marchi", icon: Tag, requiresCapability: "brand.kit.edit" },
-  // "Contenuti" gestito separatamente come gruppo
-  { href: "/contenuti/calendario", label: "Calendario", icon: CalendarCheck2 },
-  { href: "/contatti", label: "Contatti", icon: Contact, requiresCapability: "contacts.read" },
-  { href: "/catalogo", label: "Catalogo", icon: Package, requiresCapability: "catalog.read" },
-  { href: "/ordini", label: "Ordini", icon: ShoppingBag, requiresCapability: "orders.read" },
-  { href: "/fedelta", label: "Fedeltà", icon: Gift, requiresCapability: "loyalty.read" },
-  { href: "/segmenti", label: "Segmenti", icon: Filter, requiresCapability: "segment.read" },
-  { href: "/campagne", label: "Campagne", icon: Megaphone, requiresCapability: "campaign.read" },
+type NavGroup = {
+  key: string;
+  heading: string;
+  items: LeafItem[];
+};
+
+// 6 gruppi semantici. Le sotto-voci di "Contenuti" sono gestite a parte
+// (collassabile), quindi non figurano qui dentro Marketing.
+const NAV_GROUPS: NavGroup[] = [
   {
-    href: "/ristoranti",
-    label: "Ristoranti",
-    icon: UtensilsCrossed,
-    requiresCapability: "partner.read",
+    key: "operativo",
+    heading: "Operativo quotidiano",
+    items: [
+      { href: "/dashboard", label: "Home", icon: Home },
+      { href: "/contenuti/calendario", label: "Calendario", icon: CalendarCheck2 },
+      {
+        href: "/promemoria",
+        label: "Promemoria",
+        icon: BellRing,
+        requiresCapability: "reminders.read",
+      },
+      {
+        href: "/anti-abbandono",
+        label: "Anti-abbandono",
+        icon: UserX,
+        requiresCapability: "abandonment.read",
+      },
+    ],
   },
   {
-    href: "/fornitori",
-    label: "Fornitori",
-    icon: Truck,
-    requiresCapability: "supply.read",
+    key: "marketing",
+    heading: "Marketing",
+    // "Contenuti" renderizzato a parte (gruppo collassabile)
+    items: [
+      {
+        href: "/iscrizioni",
+        label: "Iscrizioni",
+        icon: QrCode,
+        requiresCapability: "signup.events.read",
+      },
+      {
+        href: "/segmenti",
+        label: "Segmenti",
+        icon: Filter,
+        requiresCapability: "segment.read",
+      },
+      {
+        href: "/campagne",
+        label: "Campagne",
+        icon: Megaphone,
+        requiresCapability: "campaign.read",
+      },
+    ],
   },
   {
-    href: "/iscrizioni",
-    label: "Iscrizioni",
-    icon: QrCode,
-    requiresCapability: "signup.events.read",
+    key: "commerciale",
+    heading: "Commerciale",
+    items: [
+      { href: "/fedelta", label: "Fedeltà", icon: Gift, requiresCapability: "loyalty.read" },
+      {
+        href: "/catalogo",
+        label: "Catalogo",
+        icon: Package,
+        requiresCapability: "catalog.read",
+      },
+      { href: "/ordini", label: "Ordini", icon: ShoppingBag, requiresCapability: "orders.read" },
+      {
+        href: "/ristoranti",
+        label: "Ristoranti",
+        icon: UtensilsCrossed,
+        requiresCapability: "partner.read",
+      },
+      {
+        href: "/fornitori",
+        label: "Fornitori",
+        icon: Truck,
+        requiresCapability: "supply.read",
+      },
+    ],
   },
   {
-    href: "/promemoria",
-    label: "Promemoria",
-    icon: BellRing,
-    requiresCapability: "reminders.read",
+    key: "clienti",
+    heading: "Clienti",
+    items: [
+      { href: "/contatti", label: "Contatti", icon: Contact, requiresCapability: "contacts.read" },
+    ],
   },
   {
-    href: "/anti-abbandono",
-    label: "Anti-abbandono",
-    icon: UserX,
-    requiresCapability: "abandonment.read",
+    key: "insight",
+    heading: "Insight",
+    items: [
+      {
+        href: "/analytics",
+        label: "Analytics",
+        icon: BarChart3,
+        requiresCapability: "analytics.read",
+      },
+    ],
   },
   {
-    href: "/analytics",
-    label: "Analytics",
-    icon: BarChart3,
-    requiresCapability: "analytics.read",
+    key: "config",
+    heading: "Configurazione",
+    items: [
+      { href: "/marchi", label: "Marchi", icon: Tag, requiresCapability: "brand.kit.edit" },
+      {
+        href: "/governance",
+        label: "Governance",
+        icon: ShieldCheck,
+        requiresCapability: "governance.read",
+      },
+      { href: "/team", label: "Team", icon: Users, requiresCapability: "team.read" },
+      { href: "/audit", label: "Audit log", icon: ScrollText, requiresCapability: "audit.read" },
+      { href: "/impostazioni", label: "Impostazioni", icon: Settings },
+    ],
   },
-  {
-    href: "/governance",
-    label: "Governance",
-    icon: ShieldCheck,
-    requiresCapability: "governance.read",
-  },
-  { href: "/team", label: "Team", icon: Users, requiresCapability: "team.read" },
-  { href: "/audit", label: "Audit log", icon: ScrollText, requiresCapability: "audit.read" },
-  { href: "/impostazioni", label: "Impostazioni", icon: Settings },
 ];
 
+// Sotto-voci del gruppo "Contenuti" (dentro Marketing)
 const CONTENT_CHILDREN: LeafItem[] = [
   { href: "/contenuti?status=draft", label: "Bozze", icon: FileEdit, indent: true },
   { href: "/contenuti?status=approved", label: "Approvate", icon: CalendarClock, indent: true },
@@ -122,9 +188,9 @@ function itemVisible(item: LeafItem, role: Role): boolean {
   return item.requiresCapability === undefined || hasCapability(role, item.requiresCapability);
 }
 
-// Tutti gli href della sidebar (per il calcolo di isActive con precedenza)
+// Tutti gli href registrati (per il calcolo di isActive con precedenza).
 const ALL_HREFS: string[] = [
-  ...TOP_NAV.map((i) => i.href),
+  ...NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href)),
   "/contenuti",
   ...CONTENT_CHILDREN.map((i) => i.href),
 ];
@@ -195,6 +261,17 @@ function NavLink({
   );
 }
 
+function GroupHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="mt-4 mb-1 px-3 text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted first:mt-0"
+      style={{ fontFamily: "var(--font-bricolage)" }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function NavList({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -210,70 +287,75 @@ function NavList({ role, onNavigate }: { role: Role; onNavigate?: () => void }) 
 
   const contentParsed = parseHref("/contenuti");
   const contentActive = isActive(pathname, currentStatus, contentParsed);
-  const visibleTop = TOP_NAV.filter((i) => itemVisible(i, role));
-  // Home + Marchi = prime due voci originali; se una non e visibile, si adegua
-  const beforeContenuti = visibleTop.filter((i) => i.href === "/dashboard" || i.href === "/marchi");
-  const afterContenuti = visibleTop.filter((i) => i.href !== "/dashboard" && i.href !== "/marchi");
+
+  // Filtra i gruppi: nasconde quelli senza voci visibili per il ruolo corrente.
+  const visibleGroups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => itemVisible(i, role)),
+  })).filter((g) => g.items.length > 0 || g.key === "marketing");
+  // Marketing resta visibile anche se vuoto: contiene sempre il gruppo "Contenuti".
 
   return (
-    <nav className="flex flex-col gap-1 px-3 py-4">
-      {/* Home + Marchi (top-level prima del gruppo Contenuti) */}
-      {beforeContenuti.map((item) => (
-        <NavLink
-          key={item.href}
-          item={item}
-          active={isActive(pathname, currentStatus, parseHref(item.href))}
-          {...(onNavigate !== undefined ? { onNavigate } : {})}
-        />
-      ))}
+    <nav className="flex min-h-full flex-col gap-0.5 px-3 py-4">
+      {visibleGroups.map((group) => (
+        <div key={group.key}>
+          <GroupHeading>{group.heading}</GroupHeading>
 
-      {/* Gruppo Contenuti collassabile — l'intera riga (link + chevron) riceve lo stile active */}
-      <div
-        className={`flex items-center rounded-md transition-colors ${
-          contentActive
-            ? "border-l-[3px] border-primary bg-surface-muted text-primary"
-            : "text-text hover:bg-surface-muted"
-        }`}
-      >
-        <Link
-          href="/contenuti"
-          {...(onNavigate !== undefined ? { onClick: onNavigate } : {})}
-          style={{ fontFamily: "var(--font-bricolage)" }}
-          className="flex flex-1 items-center gap-3 px-3 py-2 text-sm font-bold"
-        >
-          <Sparkles className="h-4 w-4" aria-hidden="true" />
-          Contenuti
-        </Link>
-        <button
-          type="button"
-          onClick={() => setManual(!open)}
-          aria-label={open ? "Chiudi sotto-voci Contenuti" : "Apri sotto-voci Contenuti"}
-          aria-expanded={open}
-          className="mr-1 rounded-md p-1.5 hover:bg-black/5"
-        >
-          {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-        </button>
-      </div>
+          {/* Dentro Marketing, inseriamo per primo il gruppo "Contenuti" collassabile */}
+          {group.key === "marketing" && (
+            <>
+              <div
+                className={`flex items-center rounded-md transition-colors ${
+                  contentActive
+                    ? "border-l-[3px] border-primary bg-surface-muted text-primary"
+                    : "text-text hover:bg-surface-muted"
+                }`}
+              >
+                <Link
+                  href="/contenuti"
+                  {...(onNavigate !== undefined ? { onClick: onNavigate } : {})}
+                  style={{ fontFamily: "var(--font-bricolage)" }}
+                  className="flex flex-1 items-center gap-3 px-3 py-2 text-sm font-bold"
+                >
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  Contenuti
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setManual(!open)}
+                  aria-label={open ? "Chiudi sotto-voci Contenuti" : "Apri sotto-voci Contenuti"}
+                  aria-expanded={open}
+                  className="mr-1 rounded-md p-1.5 hover:bg-black/5"
+                >
+                  {open ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              {open &&
+                CONTENT_CHILDREN.map((item) => (
+                  <NavLink
+                    key={item.href}
+                    item={item}
+                    active={isActive(pathname, currentStatus, parseHref(item.href))}
+                    {...(onNavigate !== undefined ? { onNavigate } : {})}
+                  />
+                ))}
+            </>
+          )}
 
-      {/* Sotto-voci (a scomparsa) */}
-      {open &&
-        CONTENT_CHILDREN.map((item) => (
-          <NavLink
-            key={item.href}
-            item={item}
-            active={isActive(pathname, currentStatus, parseHref(item.href))}
-            {...(onNavigate !== undefined ? { onNavigate } : {})}
-          />
-        ))}
-
-      {/* Restanti voci top-level (Calendario, Team, Audit, Impostazioni) filtrate per capability */}
-      {afterContenuti.map((item) => (
-        <NavLink
-          key={item.href}
-          item={item}
-          active={isActive(pathname, currentStatus, parseHref(item.href))}
-          {...(onNavigate !== undefined ? { onNavigate } : {})}
-        />
+          {/* Voci del gruppo */}
+          {group.items.map((item) => (
+            <NavLink
+              key={item.href}
+              item={item}
+              active={isActive(pathname, currentStatus, parseHref(item.href))}
+              {...(onNavigate !== undefined ? { onNavigate } : {})}
+            />
+          ))}
+        </div>
       ))}
 
       <form action={logout} className="mt-auto pt-4">
