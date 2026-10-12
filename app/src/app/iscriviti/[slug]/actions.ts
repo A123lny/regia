@@ -3,8 +3,8 @@
 // Server action che riceve il form pubblico e chiama submitPublicSignup con l'IP client.
 
 import { headers } from "next/headers";
-import { submitPublicSignup } from "@/modules/m10-signup/public";
-import type { PublicSignupInput, PublicSignupResult } from "@/modules/m10-signup/public";
+import { submitPublicSignup } from "@/modules/m10-signup/server";
+import type { PublicSignupInput, PublicSignupResult } from "@/modules/m10-signup/server";
 
 async function extractClientIp(): Promise<string | undefined> {
   const h = await headers();

@@ -2,7 +2,7 @@
 
 import { describe, it, expect, beforeAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
-import { submitPublicSignup } from "@/modules/m10-signup/public";
+import { submitPublicSignup } from "@/modules/m10-signup/server";
 
 const SUPABASE_URL = process.env["NEXT_PUBLIC_SUPABASE_URL"] ?? "http://127.0.0.1:54520";
 const SERVICE_ROLE = process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? "";

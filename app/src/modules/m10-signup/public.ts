@@ -21,10 +21,9 @@ export type { LandingRow } from "./internal/landings-repo";
 export { listSignupEvents, getSignupStats } from "./internal/events-repo";
 export type { EventRow } from "./internal/events-repo";
 
-// Public signup (no auth)
-export { submitPublicSignup } from "./internal/public-signup";
-export type { PublicSignupInput, PublicSignupResult } from "./internal/public-signup";
-
 // Admin actions
 export { upsertLandingAction, archiveLandingAction } from "./internal/admin-actions";
 export type { UpsertLandingActionInput } from "./internal/admin-actions";
+
+// submitPublicSignup e' in ./server.ts (barrel server-only, trascina
+// m09-reminders/server + m05-publishing adapter twilio).
