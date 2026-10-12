@@ -15,6 +15,7 @@ import {
   FileBarChart,
   Copy,
   Check as CheckIcon,
+  Rocket,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,9 @@ import {
   logActivityAction,
   toggleCoolingAction,
   generateMonthlyReportAction,
+  getLaunchStatusAction,
+  updateLaunchNotesAction,
+  LAUNCH_WINDOW_DAYS,
   ACTIVITY_KIND_LABELS,
   ACTIVITY_OUTCOME_LABELS,
   ONBOARDING_STATUS_LABELS,
@@ -39,6 +43,7 @@ import type {
   PartnerActivity,
   PartnerRestaurant,
   MonthlyPartnerReport,
+  PartnerLaunchStatus,
 } from "@/modules/m07-partners/public";
 
 type Props = {
@@ -505,6 +510,9 @@ function PartnerDetailDrawer({
           )}
         </section>
 
+        {/* RN-48 Fase di lancio (compare solo se launched_at valorizzato) */}
+        <LaunchCard partnerId={partner.id} canCrud={canCrud} />
+
         {/* RN-47 Report mensile ristoratore */}
         {canCrud && <MonthlyReportCard partnerId={partner.id} />}
 
@@ -934,6 +942,172 @@ function MonthlyReportCard({ partnerId }: { partnerId: string }) {
             </div>
           </div>
         </>
+      )}
+    </section>
+  );
+}
+
+// ============================================================================
+// RN-48 Fase di lancio nuovo ristorante
+// ============================================================================
+
+function LaunchCard({ partnerId, canCrud }: { partnerId: string; canCrud: boolean }) {
+  const [status, setStatus] = useState<PartnerLaunchStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notes, setNotes] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    let aborted = false;
+    (async () => {
+      setLoading(true);
+      const r = await getLaunchStatusAction(partnerId);
+      if (!aborted) {
+        if (r.ok) {
+          setStatus(r.status);
+          setNotes(r.status.reviewNotes ?? "");
+        }
+        setLoading(false);
+      }
+    })();
+    return () => {
+      aborted = true;
+    };
+  }, [partnerId]);
+
+  if (loading) {
+    return (
+      <section className="rounded-lg border border-border bg-surface p-4 text-xs italic text-text-muted">
+        Caricamento stato lancio...
+      </section>
+    );
+  }
+  if (!status || !status.launchedAtIso) {
+    // Partner mai andato attivo: non mostriamo la card. Comparira' quando l'Owner
+    // porta il partner in stato "attivo" dal form.
+    return null;
+  }
+
+  const launchedAt = new Date(status.launchedAtIso);
+  const progressPct = Math.min(100, Math.round((status.dayNum / LAUNCH_WINDOW_DAYS) * 100));
+  const target =
+    status.targetOrders ??
+    (status.categoryMedianAtWindow !== null ? Math.round(status.categoryMedianAtWindow) : null);
+
+  const handleSaveNotes = async () => {
+    setSavingNotes(true);
+    const r = await updateLaunchNotesAction({ partnerId, notes });
+    setSavingNotes(false);
+    if (r.ok) setSavedAt(Date.now());
+  };
+
+  return (
+    <section className="space-y-3 rounded-lg border border-border bg-surface p-4 text-sm">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Rocket className="h-4 w-4 text-primary" />
+          <h3 className="font-serif font-semibold">
+            {status.inLaunch ? "Fase di lancio (RN-48)" : "Lancio concluso"}
+          </h3>
+        </div>
+        {status.underSurveillance && status.inLaunch && (
+          <Badge className="border border-warning/40 bg-warning/15 text-warning">
+            <AlertTriangle className="mr-1 h-3 w-3" />
+            Sotto media
+          </Badge>
+        )}
+      </div>
+
+      <div className="rounded-md border border-border bg-bg p-3 text-xs">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-text-muted">
+            Partito il{" "}
+            {launchedAt.toLocaleDateString("it-IT", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })}
+          </span>
+          <span className="font-semibold text-text">
+            Giorno {status.dayNum}/{LAUNCH_WINDOW_DAYS}
+            {status.inLaunch && (
+              <span className="ml-1 font-normal text-text-muted">
+                ({status.daysRemaining}gg rimasti)
+              </span>
+            )}
+          </span>
+        </div>
+        {/* Progress bar */}
+        <div className="h-2 overflow-hidden rounded-full bg-border">
+          <div
+            className={`h-full transition-all ${
+              status.underSurveillance ? "bg-warning" : "bg-primary"
+            }`}
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div>
+            <div className="text-text-muted">Ordini finora</div>
+            <div className="text-base font-semibold">{status.ordersSoFar}</div>
+            {target !== null && (
+              <div className="text-[10px] text-text-muted">
+                target {target} in {LAUNCH_WINDOW_DAYS}gg
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="text-text-muted">Mediana categoria</div>
+            <div className="text-base font-semibold">
+              {status.categoryMedianAtWindow !== null
+                ? status.categoryMedianAtWindow.toFixed(0)
+                : "N/D"}
+            </div>
+            <div className="text-[10px] text-text-muted">nei primi {LAUNCH_WINDOW_DAYS}gg</div>
+          </div>
+        </div>
+        {status.ordersSoFar === 0 && (
+          <div className="mt-2 border-t border-border/60 pt-2 text-[10px] italic text-text-muted">
+            Nessun ordine attribuito: senza connettori M1 reali attivi i dati vendita non arrivano.
+            La sorveglianza automatica non puo&apos; agire.
+          </div>
+        )}
+      </div>
+
+      {canCrud && (
+        <div>
+          <Label htmlFor="launch-notes" className="text-xs">
+            Note di lancio
+          </Label>
+          <Textarea
+            id="launch-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            maxLength={500}
+            placeholder="Es. 'Prima settimana ok ma meno ordini del previsto, chiamarlo lunedi' "
+            className="mt-1 text-xs"
+          />
+          <div className="mt-2 flex items-center justify-between gap-2">
+            {savedAt && Date.now() - savedAt < 2000 && (
+              <span className="text-[10px] text-success">
+                <CheckIcon className="mr-0.5 inline h-3 w-3" />
+                Salvate
+              </span>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleSaveNotes}
+              disabled={savingNotes}
+              className="ml-auto"
+            >
+              {savingNotes ? "Salvo..." : "Salva note"}
+            </Button>
+          </div>
+        </div>
       )}
     </section>
   );

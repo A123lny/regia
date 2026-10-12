@@ -15,6 +15,12 @@ import {
   formatMonthlyReportMessage,
   type MonthlyPartnerReport,
 } from "./monthly-report-builder";
+import {
+  getPartnerLaunchStatus,
+  markPartnerLaunched,
+  updatePartnerLaunchNotes,
+  type PartnerLaunchStatus,
+} from "./launch-tracker";
 
 async function requireAuth(cap: Capability) {
   const session = await getSessionOrRedirect();
@@ -102,6 +108,14 @@ export async function upsertPartnerAction(
 
     const partner = await upsertPartner(payload);
 
+    // RN-48: se il partner passa a 'attivo' per la prima volta, marca launched_at.
+    // markPartnerLaunched e' idempotente (setta solo se launched_at e' null),
+    // quindi e' sicuro chiamarlo anche su update successivi.
+    let launched = false;
+    if (partner.onboardingStatus === "attivo") {
+      launched = await markPartnerLaunched(session.organizationId, partner.id);
+    }
+
     await logAuditEvent({
       organizationId: session.organizationId,
       actorUserId: session.userId,
@@ -112,8 +126,20 @@ export async function upsertPartnerAction(
         name: partner.name,
         status: partner.onboardingStatus,
         cooling: partner.coolingFlag,
+        launched,
       },
     });
+
+    if (launched) {
+      await logAuditEvent({
+        organizationId: session.organizationId,
+        actorUserId: session.userId,
+        actorKind: "user",
+        action: "partners.partner_launched",
+        target: `partner:${partner.id}`,
+        details: { name: partner.name },
+      });
+    }
 
     revalidatePath("/ristoranti");
     return { ok: true, partnerId: partner.id };
@@ -254,6 +280,50 @@ export type GenerateMonthlyReportInput = {
 
 export type GenerateMonthlyReportResult =
   { ok: true; report: MonthlyPartnerReport; message: string } | { ok: false; error: string };
+
+// ============================================================================
+// RN-48 Workflow lancio nuovo ristorante
+// ============================================================================
+
+export type GetLaunchStatusResult =
+  { ok: true; status: PartnerLaunchStatus } | { ok: false; error: string };
+
+export async function getLaunchStatusAction(partnerId: string): Promise<GetLaunchStatusResult> {
+  try {
+    const { session } = await requireOwnedPartner(partnerId, "partner.read");
+    const status = await getPartnerLaunchStatus(session.organizationId, partnerId);
+    if (!status) return { ok: false, error: "Partner non trovato" };
+    return { ok: true, status };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export type UpdateLaunchNotesInput = {
+  partnerId: string;
+  notes: string;
+};
+
+export async function updateLaunchNotesAction(
+  input: UpdateLaunchNotesInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { session, partner } = await requireOwnedPartner(input.partnerId, "partner.crud");
+    await updatePartnerLaunchNotes(session.organizationId, partner.id, input.notes);
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "partners.launch_notes_updated",
+      target: `partner:${partner.id}`,
+      details: { length: input.notes.length },
+    });
+    revalidatePath("/ristoranti");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
 
 /**
  * Genera il report mensile per un ristorante partner. Owner-only (partner.crud).

@@ -26,6 +26,8 @@ export {
   logActivityAction,
   toggleCoolingAction,
   generateMonthlyReportAction,
+  getLaunchStatusAction,
+  updateLaunchNotesAction,
 } from "./internal/actions";
 export type {
   UpsertPartnerActionInput,
@@ -33,7 +35,13 @@ export type {
   ToggleCoolingActionInput,
   GenerateMonthlyReportInput,
   GenerateMonthlyReportResult,
+  GetLaunchStatusResult,
+  UpdateLaunchNotesInput,
 } from "./internal/actions";
 
 // RN-47 Report mensile ristoratori
 export type { MonthlyPartnerReport } from "./internal/monthly-report-builder";
+
+// RN-48 Workflow lancio nuovo ristorante
+export { LAUNCH_WINDOW_DAYS } from "./internal/launch-tracker";
+export type { PartnerLaunchStatus } from "./internal/launch-tracker";
