@@ -10,6 +10,11 @@ import { logAuditEvent } from "@/lib/audit/log";
 import { upsertPartner, archivePartner, getPartner } from "./partners-repo";
 import { createActivity } from "./activities-repo";
 import type { ActivityKind, ActivityOutcome, OnboardingStatus } from "./partners-types";
+import {
+  buildMonthlyPartnerReport,
+  formatMonthlyReportMessage,
+  type MonthlyPartnerReport,
+} from "./monthly-report-builder";
 
 async function requireAuth(cap: Capability) {
   const session = await getSessionOrRedirect();
@@ -233,6 +238,59 @@ export async function toggleCoolingAction(
 
     revalidatePath("/ristoranti");
     return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+// ============================================================================
+// RN-47 Report mensile ristoratori
+// ============================================================================
+
+export type GenerateMonthlyReportInput = {
+  partnerId: string;
+  monthIso?: string; // default = oggi (mese corrente)
+};
+
+export type GenerateMonthlyReportResult =
+  { ok: true; report: MonthlyPartnerReport; message: string } | { ok: false; error: string };
+
+/**
+ * Genera il report mensile per un ristorante partner. Owner-only (partner.crud).
+ * Non invia nulla: ritorna payload + testo pronto per preview nel drawer.
+ * L'invio effettivo via WhatsApp partira' da un secondo bottone che chiamera'
+ * M05 sendMessage (quando Twilio sara' configurato).
+ */
+export async function generateMonthlyReportAction(
+  input: GenerateMonthlyReportInput,
+): Promise<GenerateMonthlyReportResult> {
+  try {
+    const { session, partner } = await requireOwnedPartner(input.partnerId, "partner.crud");
+
+    const report = await buildMonthlyPartnerReport(
+      session.organizationId,
+      partner.id,
+      input.monthIso,
+    );
+    if (!report) return { ok: false, error: "Impossibile generare il report" };
+
+    const message = formatMonthlyReportMessage(report);
+
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "partner.monthly_report_generated",
+      target: `partner:${partner.id}`,
+      details: {
+        monthStart: report.monthStartIso,
+        ordersThisMonth: report.ordersThisMonth,
+        activitiesCount: report.activitiesCount,
+        hasOrdersData: report.ordersThisMonth > 0,
+      },
+    });
+
+    return { ok: true, report, message };
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }

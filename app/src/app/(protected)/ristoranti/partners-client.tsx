@@ -3,7 +3,19 @@
 // Client rete ristoranti: lista + drawer con timeline attività + form log + form partner.
 
 import { useState, useEffect, useTransition } from "react";
-import { Plus, Phone, Mail, MapPin, AlertTriangle, Clock, UserRound, ChefHat } from "lucide-react";
+import {
+  Plus,
+  Phone,
+  Mail,
+  MapPin,
+  AlertTriangle,
+  Clock,
+  UserRound,
+  ChefHat,
+  FileBarChart,
+  Copy,
+  Check as CheckIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -14,6 +26,7 @@ import {
   upsertPartnerAction,
   logActivityAction,
   toggleCoolingAction,
+  generateMonthlyReportAction,
   ACTIVITY_KIND_LABELS,
   ACTIVITY_OUTCOME_LABELS,
   ONBOARDING_STATUS_LABELS,
@@ -25,6 +38,7 @@ import type {
   OnboardingStatus,
   PartnerActivity,
   PartnerRestaurant,
+  MonthlyPartnerReport,
 } from "@/modules/m07-partners/public";
 
 type Props = {
@@ -491,6 +505,9 @@ function PartnerDetailDrawer({
           )}
         </section>
 
+        {/* RN-47 Report mensile ristoratore */}
+        {canCrud && <MonthlyReportCard partnerId={partner.id} />}
+
         {/* Cooling toggle */}
         {canCrud && (
           <CoolingCard
@@ -736,5 +753,188 @@ function LogActivityForm({ partnerId, onLogged }: { partnerId: string; onLogged:
         </Button>
       </div>
     </form>
+  );
+}
+
+// ============================================================================
+// RN-47 Report mensile ristoratori
+// ============================================================================
+
+function MonthlyReportCard({ partnerId }: { partnerId: string }) {
+  const [pending, startTransition] = useTransition();
+  const [report, setReport] = useState<MonthlyPartnerReport | null>(null);
+  const [message, setMessage] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleGenerate = () => {
+    setError(null);
+    setCopied(false);
+    startTransition(async () => {
+      const r = await generateMonthlyReportAction({ partnerId });
+      if (r.ok) {
+        setReport(r.report);
+        setMessage(r.message);
+      } else {
+        setError(r.error);
+      }
+    });
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <section className="space-y-3 rounded-lg border border-border bg-surface p-4 text-sm">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FileBarChart className="h-4 w-4 text-primary" />
+          <h3 className="font-serif font-semibold">Report mensile (RN-47)</h3>
+        </div>
+        {!report && (
+          <Button
+            size="sm"
+            onClick={handleGenerate}
+            disabled={pending}
+            className="bg-primary text-white hover:bg-primary-hover"
+          >
+            {pending ? "Preparo..." : "Genera report"}
+          </Button>
+        )}
+      </div>
+
+      {!report && !error && (
+        <p className="text-xs text-text-muted">
+          Prepara un messaggio da inviare al ristoratore: andamento ordini, posizione nella
+          categoria, attivita&apos; recenti. In F1 si copia e si manda via WhatsApp a mano (M05
+          Twilio non ancora configurato).
+        </p>
+      )}
+
+      {error && <p className="text-xs text-danger">{error}</p>}
+
+      {report && (
+        <>
+          <div className="rounded-md border border-border bg-bg p-3 text-xs">
+            <div className="mb-2 font-medium text-text">
+              {report.monthLabel.charAt(0).toUpperCase() + report.monthLabel.slice(1)}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className="text-text-muted">Ordini</div>
+                <div className="text-base font-semibold">
+                  {report.ordersThisMonth}
+                  {report.ordersDeltaPct !== null && (
+                    <span
+                      className={`ml-1 text-xs ${
+                        report.ordersDeltaPct >= 0 ? "text-success" : "text-danger"
+                      }`}
+                    >
+                      ({report.ordersDeltaPct >= 0 ? "+" : ""}
+                      {report.ordersDeltaPct}%)
+                    </span>
+                  )}
+                </div>
+                <div className="text-[10px] text-text-muted">
+                  vs {report.ordersPrevMonth} mese prec.
+                </div>
+              </div>
+              <div>
+                <div className="text-text-muted">Attivita&apos; M07</div>
+                <div className="text-base font-semibold">{report.activitiesCount}</div>
+                <div className="text-[10px] text-text-muted">
+                  vs {report.activitiesPrevCount} mese prec.
+                </div>
+              </div>
+              {report.categoryMedianOrders !== null && (
+                <div>
+                  <div className="text-text-muted">Media categoria</div>
+                  <div className="text-base font-semibold">
+                    {report.categoryMedianOrders.toFixed(0)}
+                  </div>
+                  <div
+                    className={`text-[10px] ${
+                      report.positionVsCategory === "above"
+                        ? "text-success"
+                        : report.positionVsCategory === "below"
+                          ? "text-danger"
+                          : "text-text-muted"
+                    }`}
+                  >
+                    {report.positionVsCategory === "above"
+                      ? "Sopra la media"
+                      : report.positionVsCategory === "below"
+                        ? "Sotto la media"
+                        : report.positionVsCategory === "in_line"
+                          ? "In linea"
+                          : "N/D"}
+                  </div>
+                </div>
+              )}
+              <div>
+                <div className="text-text-muted">Voucher attivi</div>
+                <div className="text-base font-semibold">{report.activeVouchersForBrand}</div>
+                <div className="text-[10px] text-text-muted">spendibili qui</div>
+              </div>
+            </div>
+            {report.ordersThisMonth === 0 && (
+              <div className="mt-2 border-t border-border/60 pt-2 text-[10px] italic text-text-muted">
+                Nessun ordine attribuito al ristorante: i connettori M1 reali non sono ancora
+                attivi, quindi il messaggio parla di relazione invece che di numeri.
+              </div>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="report-msg" className="text-xs">
+              Messaggio pronto per WhatsApp
+            </Label>
+            <Textarea
+              id="report-msg"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={4}
+              className="mt-1 text-xs"
+            />
+            <div className="mt-2 flex justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setReport(null);
+                  setMessage("");
+                }}
+              >
+                Rigenera
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleCopy}
+                className="bg-primary text-white hover:bg-primary-hover"
+              >
+                {copied ? (
+                  <>
+                    <CheckIcon className="mr-1 h-3 w-3" /> Copiato
+                  </>
+                ) : (
+                  <>
+                    <Copy className="mr-1 h-3 w-3" /> Copia testo
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
   );
 }

@@ -25,9 +25,15 @@ export {
   archivePartnerAction,
   logActivityAction,
   toggleCoolingAction,
+  generateMonthlyReportAction,
 } from "./internal/actions";
 export type {
   UpsertPartnerActionInput,
   LogActivityActionInput,
   ToggleCoolingActionInput,
+  GenerateMonthlyReportInput,
+  GenerateMonthlyReportResult,
 } from "./internal/actions";
+
+// RN-47 Report mensile ristoratori
+export type { MonthlyPartnerReport } from "./internal/monthly-report-builder";
