@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { sendMessage } from "@/modules/m05-publishing/public";
+import { sendMessage } from "@/modules/m05-publishing/server";
 import { ConsentMissingError } from "@/modules/m05-publishing/public";
 import { getAdminClient } from "@/lib/db/admin";
 import { upsertChannelCredentials } from "@/modules/m05-publishing/internal/credentials-repo";

@@ -2,7 +2,8 @@
 // Mapping deterministico kind -> canale + flag promotional + payload template.
 
 import { getAdminClient } from "@/lib/db/admin";
-import { sendMessage, type OutgoingMessage, type Channel } from "@/modules/m05-publishing/public";
+import { sendMessage } from "@/modules/m05-publishing/server";
+import type { OutgoingMessage, Channel } from "@/modules/m05-publishing/public";
 import type { ReminderKind, Reminder } from "./reminders-types";
 import { getReminder } from "./reminders-repo";
 

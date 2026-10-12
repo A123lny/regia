@@ -8,7 +8,8 @@
 // previene doppio invio se launch viene chiamato due volte.
 
 import { getAdminClient } from "@/lib/db/admin";
-import { sendMessage, DuplicateJobError } from "@/modules/m05-publishing/public";
+import { sendMessage } from "@/modules/m05-publishing/server";
+import { DuplicateJobError } from "@/modules/m05-publishing/public";
 import { getCampaign } from "./campaigns-repo";
 import { listMatchingContactIds, countMatchingContacts } from "./segment-evaluator";
 import type { SegmentCriteria, Campaign } from "./outreach-types";

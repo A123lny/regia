@@ -20,14 +20,7 @@ export {
   DuplicateJobError,
 } from "./internal/types";
 
-export { getAdapter } from "./internal/adapter-registry";
-
-export { sendMessage } from "./internal/send-message";
-export type { SendMessageInput } from "./internal/send-message";
 export type { Job, JobStatus } from "./internal/publish-jobs-repo";
-
-export { tickBatch } from "./internal/worker";
-export type { TickResult } from "./internal/worker";
 
 export {
   updateChannelCredentialsAction,
@@ -35,6 +28,9 @@ export {
   testChannelAction,
   listChannelsAction,
 } from "./internal/actions";
+
+// getAdapter, sendMessage, tickBatch sono in ./server.ts (barrel server-only,
+// trascinano adapter-twilio -> twilio Node-only che non va bundlato nel client).
 
 // RN-64..67 Unsubscribe flow
 export {
