@@ -74,7 +74,9 @@ export async function listRecentContactActivities(
   const since = new Date(Date.now() - hoursBack * 3600 * 1000).toISOString();
   let q = admin
     .from("partner_activities")
-    .select("id, partner_id, kind, outcome, summary, occurred_at, created_by, partners(name)")
+    .select(
+      "id, partner_id, kind, outcome, summary, occurred_at, created_by, partner_restaurants(name)",
+    )
     .eq("organization_id", organizationId)
     .gte("occurred_at", since)
     .order("occurred_at", { ascending: false })
@@ -86,7 +88,7 @@ export async function listRecentContactActivities(
   return ((data ?? []) as any[]).map((row) => ({
     activityId: row.id,
     partnerId: row.partner_id,
-    partnerName: row.partners?.name ?? "Partner",
+    partnerName: row.partner_restaurants?.name ?? "Partner",
     kind: row.kind as ActivityKind,
     outcome: (row.outcome as ActivityOutcome | null) ?? null,
     summary: row.summary,
