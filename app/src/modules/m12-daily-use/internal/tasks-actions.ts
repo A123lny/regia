@@ -165,8 +165,16 @@ export async function updateTaskAction(
     const session = await getSessionOrRedirect();
     requireCapability(session, "tasks.crud");
     if (!UUID_RE.test(input.taskId)) return { ok: false, error: "Task non valido" };
-    if (input.assignedTo && !UUID_RE.test(input.assignedTo)) {
-      return { ok: false, error: "Assegnatario non valido" };
+    // RNF-1 security: verifica assignedTo UUID + appartenenza all'org (coerente
+    // con createTaskAction, previene cross-tenant assignment IDOR).
+    if (input.assignedTo) {
+      if (!UUID_RE.test(input.assignedTo)) {
+        return { ok: false, error: "Assegnatario non valido" };
+      }
+      const users = await listOrgUsers(session.organizationId);
+      if (!users.some((u) => u.userId === input.assignedTo)) {
+        return { ok: false, error: "Assegnatario non appartiene all'organizzazione" };
+      }
     }
     const patch: Parameters<typeof updateTask>[0] = {
       taskId: input.taskId,
