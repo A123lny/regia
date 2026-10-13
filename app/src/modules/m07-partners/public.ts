@@ -18,7 +18,8 @@ export {
 export { listPartners, getPartner, getPartnerStats } from "./internal/partners-repo";
 export type { ListPartnersInput } from "./internal/partners-repo";
 
-export { listActivitiesByPartner } from "./internal/activities-repo";
+export { listActivitiesByPartner, listRecentContactActivities } from "./internal/activities-repo";
+export type { RecentContactActivity } from "./internal/activities-repo";
 
 export {
   upsertPartnerAction,

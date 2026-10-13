@@ -40,6 +40,7 @@ import {
   cancelTaskAction,
 } from "@/modules/m12-daily-use/public";
 import { logActivityAction } from "@/modules/m07-partners/public";
+import type { RecentContactActivity, ActivityOutcome } from "@/modules/m07-partners/public";
 
 type Priority = "urgent" | "important" | "opportunity";
 type OrgUser = { userId: string; email: string; role: string };
@@ -433,9 +434,60 @@ type Props = {
   customTasks: OperationalTask[];
   users: OrgUser[];
   currentUserId: string;
+  recentActivities: RecentContactActivity[];
 };
 
-export function TaskListCard({ signals, customTasks, users, currentUserId }: Props) {
+const OUTCOME_LABEL: Record<ActivityOutcome, string> = {
+  positivo: "positivo",
+  neutro: "neutro",
+  negativo: "negativo",
+  da_richiamare: "da richiamare",
+};
+const OUTCOME_STYLE: Record<ActivityOutcome, string> = {
+  positivo: "bg-success/10 text-success",
+  neutro: "bg-text-muted/10 text-text-muted",
+  negativo: "bg-danger/10 text-danger",
+  da_richiamare: "bg-warning/10 text-warning",
+};
+
+function RecentActivityRow({ activity }: { activity: RecentContactActivity }) {
+  const occurred = new Date(activity.occurredAt);
+  const timeStr = occurred.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+  const dateStr = occurred.toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
+  return (
+    <div className="flex items-start gap-2 rounded-md px-2 py-1.5 text-xs">
+      <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 rounded-full bg-success p-0.5 text-white" />
+      <div className="min-w-0 flex-1">
+        <div className="text-text">
+          Contattato <span className="font-semibold">{activity.partnerName}</span>
+          {activity.outcome && (
+            <span
+              className={`ml-2 rounded px-1 py-0.5 text-[10px] ${OUTCOME_STYLE[activity.outcome]}`}
+            >
+              {OUTCOME_LABEL[activity.outcome]}
+            </span>
+          )}
+        </div>
+        {activity.summary && (
+          <div className="mt-0.5 line-clamp-2 text-[11px] italic text-text-muted">
+            &ldquo;{activity.summary}&rdquo;
+          </div>
+        )}
+        <div className="mt-0.5 text-[10px] text-text-muted">
+          {dateStr} · {timeStr}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function TaskListCard({
+  signals,
+  customTasks,
+  users,
+  currentUserId,
+  recentActivities,
+}: Props) {
   const [filter, setFilter] = useState<Filter>("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -547,7 +599,8 @@ export function TaskListCard({ signals, customTasks, users, currentUserId }: Pro
       <div>
         <div className="mb-2 flex items-center gap-2">
           <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
-            Task manuali ({totalCustomOpen} aperti, {doneTasks.length} completati)
+            Task manuali ({totalCustomOpen} aperti, {doneTasks.length} completati
+            {recentActivities.length > 0 && `, ${recentActivities.length} contatti registrati`})
           </div>
           <div className="ml-auto flex gap-1 text-[10px]">
             {(
@@ -618,24 +671,41 @@ export function TaskListCard({ signals, customTasks, users, currentUserId }: Pro
             </div>
           )
         ) : (
-          <div className="rounded-lg border border-border bg-bg p-2">
-            {customDone.length === 0 ? (
-              <div className="p-4 text-center text-xs italic text-text-muted">
-                Nessun task completato.
-              </div>
-            ) : (
-              <div className="space-y-0.5">
-                {customDone.map((t) => (
-                  <CustomTaskRow
-                    key={t.id}
-                    task={t}
-                    users={users}
-                    currentUserId={currentUserId}
-                    onChange={handleRefresh}
-                  />
-                ))}
+          <div className="space-y-3">
+            {recentActivities.length > 0 && (
+              <div className="rounded-lg border border-success/30 bg-success/5 p-2">
+                <div className="mb-1 px-2 text-[10px] font-bold uppercase tracking-wider text-success">
+                  Contatti registrati (ultime 24h) · {recentActivities.length}
+                </div>
+                <div className="space-y-0.5">
+                  {recentActivities.map((a) => (
+                    <RecentActivityRow key={a.activityId} activity={a} />
+                  ))}
+                </div>
               </div>
             )}
+            <div className="rounded-lg border border-border bg-bg p-2">
+              <div className="mb-1 px-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                Task manuali completati · {customDone.length}
+              </div>
+              {customDone.length === 0 ? (
+                <div className="p-4 text-center text-xs italic text-text-muted">
+                  Nessun task manuale completato.
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  {customDone.map((t) => (
+                    <CustomTaskRow
+                      key={t.id}
+                      task={t}
+                      users={users}
+                      currentUserId={currentUserId}
+                      onChange={handleRefresh}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

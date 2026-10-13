@@ -217,6 +217,7 @@ export async function logActivityAction(
     });
 
     revalidatePath("/ristoranti");
+    revalidatePath("/dashboard");
     return { ok: true, activityId: activity.id };
   } catch (err) {
     return { ok: false, error: (err as Error).message };

@@ -19,6 +19,7 @@ import { WelcomeBackBanner } from "@/components/dashboard/welcome-back-banner";
 import { PressureAlertBanner } from "@/components/dashboard/pressure-alert-banner";
 import { TaskListCard } from "@/components/dashboard/task-list-card";
 import { getUnsubscribePressureAlerts } from "@/modules/m05-publishing/public";
+import { listRecentContactActivities } from "@/modules/m07-partners/public";
 import { HelpButton } from "@/components/help/help-button";
 import {
   FileEdit,
@@ -62,6 +63,7 @@ export default async function DashboardPage() {
     tasks,
     customTasks,
     orgUsers,
+    recentContactActivities,
   ] = await Promise.all([
     getDashboardStats(session.organizationId),
     listUpcomingRecurrences(session.organizationId),
@@ -71,6 +73,7 @@ export default async function DashboardPage() {
     buildDashboardTasks(session.organizationId),
     listTasks({ organizationId: session.organizationId, status: "all", limit: 100 }),
     listOrgUsers(session.organizationId),
+    listRecentContactActivities(session.organizationId, 24),
   ]);
   const heroColors = HERO_BLOB_POSITIONS.map(
     (_, i) => stats.going.brands[i]?.color ?? HERO_FALLBACK,
@@ -163,6 +166,7 @@ export default async function DashboardPage() {
         customTasks={customTasks}
         users={orgUsers}
         currentUserId={session.userId}
+        recentActivities={recentContactActivities}
       />
 
       {/* METRICS — 4 card cliccabili con icona colorata + numero grande in Bricolage + stagger fade-in */}
