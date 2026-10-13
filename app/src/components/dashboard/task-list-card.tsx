@@ -17,6 +17,9 @@ import {
   Calendar,
   Trash2,
   Undo2,
+  Phone,
+  Info,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +29,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import type {
   DashboardTaskList,
   TaskListItem,
+  TaskDetailItem,
   OperationalTask,
   OperationalTaskPriority,
 } from "@/modules/m12-daily-use/public";
@@ -35,6 +39,7 @@ import {
   reopenTaskAction,
   cancelTaskAction,
 } from "@/modules/m12-daily-use/public";
+import { logActivityAction } from "@/modules/m07-partners/public";
 
 type Priority = "urgent" | "important" | "opportunity";
 type OrgUser = { userId: string; email: string; role: string };
@@ -67,23 +72,247 @@ const PRIORITY_LABEL: Record<Priority, string> = {
 };
 
 function SignalRow({ task }: { task: TaskListItem }) {
+  const [open, setOpen] = useState(false);
   const IconComp =
     (LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[
       task.iconName
     ] ?? LucideIcons.Circle;
-  return (
-    <a
-      href={task.href}
-      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-surface-muted"
-    >
+
+  const hasDetail = task.items && task.items.length > 0;
+
+  const rowContent = (
+    <>
       <span
         className={`inline-flex h-1.5 w-1.5 shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`}
         aria-hidden
       />
       <IconComp className="h-3.5 w-3.5 shrink-0 text-text-muted" />
-      <span className="flex-1 text-text">{task.label}</span>
+      <span className="flex-1 text-left text-text">{task.label}</span>
       <span className="shrink-0 text-xs text-text-muted">→</span>
-    </a>
+    </>
+  );
+
+  if (!hasDetail) {
+    return (
+      <a
+        href={task.href}
+        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-surface-muted"
+      >
+        {rowContent}
+      </a>
+    );
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-surface-muted"
+        >
+          {rowContent}
+        </button>
+      </SheetTrigger>
+      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
+        <SheetHeader>
+          <SheetTitle className="font-serif">{task.label}</SheetTitle>
+        </SheetHeader>
+        <SignalDetailBody task={task} onDone={() => setOpen(false)} />
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function SignalDetailBody({ task, onDone }: { task: TaskListItem; onDone: () => void }) {
+  const [refresh, setRefresh] = useState(0);
+  const [handledIds, setHandledIds] = useState<Set<string>>(new Set());
+
+  const items = task.items ?? [];
+  const visibleItems = items.filter((it) => !handledIds.has(it.entityId));
+
+  const handleHandled = (entityId: string) => {
+    setHandledIds((prev) => new Set([...prev, entityId]));
+    setRefresh((r) => r + 1);
+  };
+
+  return (
+    <div className="mt-4 space-y-4 px-4 pb-8">
+      {task.instructions && (
+        <div className="flex items-start gap-2 rounded-md border border-border bg-surface-muted p-3 text-xs text-text-muted">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+          <p>{task.instructions}</p>
+        </div>
+      )}
+
+      {visibleItems.length === 0 ? (
+        <div className="rounded-lg border border-success/30 bg-success/5 p-6 text-center text-sm text-text-muted">
+          Tutti gli elementi gestiti. Il task sparira&apos; al prossimo refresh della home.
+          <div className="mt-3">
+            <Button variant="outline" size="sm" onClick={onDone}>
+              Chiudi
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+            {visibleItems.length} elemento{visibleItems.length === 1 ? "" : "i"} da gestire
+          </div>
+          {visibleItems.map((item) => (
+            <SignalDetailItemCard
+              key={item.entityId + ":" + refresh}
+              item={item}
+              actionKind={task.actionKind}
+              onHandled={() => handleHandled(item.entityId)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SignalDetailItemCard({
+  item,
+  actionKind,
+  onHandled,
+}: {
+  item: TaskDetailItem;
+  actionKind: TaskListItem["actionKind"];
+  onHandled: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [showForm, setShowForm] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [outcome, setOutcome] = useState<"positivo" | "neutro" | "da_richiamare">("positivo");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogContact = () => {
+    if (notes.trim().length < 3) {
+      setError("Scrivi almeno 3 caratteri di riassunto");
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const r = await logActivityAction({
+        partnerId: item.entityId,
+        kind: "chiamata",
+        outcome,
+        summary: notes.trim(),
+      });
+      if ("ok" in r && r.ok) {
+        onHandled();
+      } else {
+        setError("error" in r ? r.error : "Errore");
+      }
+    });
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-surface p-3 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold text-text">{item.title}</div>
+          {item.subtitle && <div className="text-xs text-text-muted">{item.subtitle}</div>}
+          {item.reason && (
+            <div className="mt-1 rounded border border-warning/30 bg-warning/5 px-2 py-1 text-[11px] text-text">
+              <strong>Motivo:</strong> {item.reason}
+            </div>
+          )}
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-text-muted">
+            {item.phone && (
+              <a
+                href={`tel:${item.phone}`}
+                className="inline-flex items-center gap-1 text-primary hover:underline"
+              >
+                <Phone className="h-3 w-3" />
+                {item.phone}
+              </a>
+            )}
+            {item.secondaryInfo && <span>{item.secondaryInfo}</span>}
+            {item.linkHref && (
+              <a
+                href={item.linkHref}
+                className="inline-flex items-center gap-1 text-text-muted hover:text-primary hover:underline"
+              >
+                <ExternalLink className="h-3 w-3" />
+                scheda completa
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {actionKind === "log_partner_contact" && !showForm && (
+        <div className="mt-3 flex justify-end">
+          <Button
+            size="sm"
+            onClick={() => setShowForm(true)}
+            className="bg-primary text-white hover:bg-primary-hover"
+          >
+            <Phone className="mr-1 h-3 w-3" />
+            Marca come contattato
+          </Button>
+        </div>
+      )}
+
+      {showForm && (
+        <div className="mt-3 space-y-2 rounded-md border border-primary/30 bg-primary/5 p-2">
+          <Label htmlFor={`notes-${item.entityId}`} className="text-xs">
+            Riassunto chiamata (obbligatorio)
+          </Label>
+          <Textarea
+            id={`notes-${item.entityId}`}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Es. 'Chiamato Marco, mi ha spiegato che il ritardo era dovuto a mancanza personale. Mi richiama venerdi'"
+            rows={2}
+            maxLength={500}
+          />
+          <div>
+            <Label htmlFor={`outcome-${item.entityId}`} className="text-xs">
+              Esito
+            </Label>
+            <select
+              id={`outcome-${item.entityId}`}
+              value={outcome}
+              onChange={(e) =>
+                setOutcome(e.target.value as "positivo" | "neutro" | "da_richiamare")
+              }
+              className="mt-1 w-full rounded-md border border-border bg-bg px-2 py-1 text-xs"
+            >
+              <option value="positivo">Positivo (chiarito, torna attivo)</option>
+              <option value="neutro">Neutro</option>
+              <option value="da_richiamare">Da richiamare</option>
+            </select>
+          </div>
+          {error && <p className="text-xs text-danger">{error}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowForm(false);
+                setNotes("");
+                setError(null);
+              }}
+            >
+              Annulla
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleLogContact}
+              disabled={pending}
+              className="bg-primary text-white hover:bg-primary-hover"
+            >
+              {pending ? "Salvo..." : "Salva contatto"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -99,6 +328,7 @@ function CustomTaskRow({
   onChange: () => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const [nowTs] = useState(() => Date.now());
 
   const assignee = task.assignedTo ? users.find((u) => u.userId === task.assignedTo) : null;
   const isDone = task.status === "done";
@@ -121,7 +351,7 @@ function CustomTaskRow({
   };
 
   const dueDate = task.dueAt ? new Date(task.dueAt) : null;
-  const isOverdue = dueDate !== null && !isDone && !isCancelled && dueDate.getTime() < Date.now();
+  const isOverdue = dueDate !== null && !isDone && !isCancelled && dueDate.getTime() < nowTs;
 
   return (
     <div

@@ -8,15 +8,43 @@ import { getAdminClient } from "@/lib/db/admin";
 
 export type TaskPriority = "urgent" | "important" | "opportunity";
 
+// Dettaglio singolo elemento che ha triggerato un segnale (es. un ristorante
+// in cooling specifico, un contatto con segnale abbandono alta gravita').
+// Mostrato nel SignalDetailSheet quando l'utente clicca sul task.
+export type TaskDetailItem = {
+  // id dell'entita' (partner_restaurant.id, abandonment_signal.id, etc.)
+  entityId: string;
+  // Nome principale mostrato: es. "La Dispensa"
+  title: string;
+  // Sottotitolo opzionale: es. "pizzeria · 47900"
+  subtitle?: string;
+  // Info descrittiva: motivo cooling / tipo segnale / etc.
+  reason?: string;
+  // Contatto rapido: telefono/email per rendere l'azione immediata
+  phone?: string;
+  // Metrica temporale: es. "15 giorni dall'ultimo contatto"
+  secondaryInfo?: string;
+  // Link al dettaglio nel modulo di riferimento (fallback se non c'e' azione)
+  linkHref?: string;
+};
+
 export type TaskListItem = {
   id: string;
   priority: TaskPriority;
   iconName: string; // nome icona lucide-react, risolto in Client Component
   label: string;
+  // Istruzione estesa mostrata nel SignalDetailSheet: cosa fare concretamente.
+  instructions?: string;
   count: number;
   href: string;
   // Modulo/area responsabile, usato come fallback secondario e per filtri futuri.
   module: string;
+  // Lista dettagliata degli elementi (es. ristoranti specifici in cooling).
+  // Se presente, il click apre un drawer invece di navigare al modulo.
+  items?: TaskDetailItem[];
+  // Tipo del task per routing dell'azione contestuale (es. "cooling_partner"
+  // -> bottone "Marca come contattato" che logga activity).
+  actionKind?: "log_partner_contact";
 };
 
 export type DashboardTaskList = {
@@ -135,16 +163,27 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
         .eq("is_active", true),
       { count: 0 },
     ),
-    // Ristoranti cooling non contattati da 7gg (urgent)
+    // Ristoranti cooling non contattati da 7gg (urgent) + dati completi per il
+    // detail sheet (il count si deriva da data.length).
     safe(
       admin
         .from("partner_restaurants")
-        .select("id", { count: "exact", head: true })
+        .select("id, name, phone, cuisine_category, cooling_reason, last_contact_at, address_cap")
         .eq("organization_id", organizationId)
         .is("archived_at", null)
         .eq("cooling_flag", true)
         .or(`last_contact_at.is.null,last_contact_at.lt.${sevenDaysAgo}`),
-      { count: 0 },
+      {
+        data: [] as Array<{
+          id: string;
+          name: string;
+          phone: string | null;
+          cuisine_category: string | null;
+          cooling_reason: string | null;
+          last_contact_at: string | null;
+          address_cap: string | null;
+        }>,
+      },
     ),
     // Partner con errori consegna in allarme (>=3 ultimi 30gg) — urgent.
     // Query SQL inline: group by partner, count >= 3.
@@ -247,16 +286,58 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
     });
   }
 
-  const coolingCount = (coolingPartners as { count?: number }).count ?? 0;
+  // Ristoranti cooling: usiamo la lista completa (data) e costruiamo items[]
+  // per rendere il task azionabile senza passare dalla pagina ristoranti.
+  type CoolingRow = {
+    id: string;
+    name: string;
+    phone: string | null;
+    cuisine_category: string | null;
+    cooling_reason: string | null;
+    last_contact_at: string | null;
+    address_cap: string | null;
+  };
+  const coolingRows = ((coolingPartners as { data?: CoolingRow[] }).data ?? []) as CoolingRow[];
+  const coolingCount = coolingRows.length;
   if (coolingCount > 0) {
+    const items: TaskDetailItem[] = coolingRows.map((r) => {
+      const daysAgo =
+        r.last_contact_at === null
+          ? null
+          : Math.floor(
+              (Date.now() - new Date(r.last_contact_at).getTime()) / (1000 * 60 * 60 * 24),
+            );
+      const detail: TaskDetailItem = {
+        entityId: r.id,
+        title: r.name,
+        linkHref: `/ristoranti?partner=${r.id}`,
+      };
+      const subtitleParts: string[] = [];
+      if (r.cuisine_category) subtitleParts.push(r.cuisine_category);
+      if (r.address_cap) subtitleParts.push(r.address_cap);
+      if (subtitleParts.length > 0) detail.subtitle = subtitleParts.join(" · ");
+      if (r.cooling_reason) detail.reason = r.cooling_reason;
+      if (r.phone) detail.phone = r.phone;
+      detail.secondaryInfo =
+        daysAgo === null
+          ? "mai contattato"
+          : `${daysAgo} giorn${daysAgo === 1 ? "o" : "i"} dall'ultimo contatto`;
+      return detail;
+    });
     urgent.push({
       id: "cooling-partners",
       priority: "urgent",
       iconName: "PhoneOutgoing",
       label: `${coolingCount} ristorant${coolingCount === 1 ? "e" : "i"} in cooling da contattare`,
+      instructions:
+        "Sono partner in raffreddamento non contattati da 7+ giorni. Chiamali uno a uno: " +
+        "quando parli con il referente usa 'Marca come contattato' per loggare la chiamata e " +
+        "aggiornare l'ultimo contatto. Perdere un ristorante costa piu' di una promozione (RF-7.4).",
       count: coolingCount,
       href: "/ristoranti",
       module: "m07",
+      items,
+      actionKind: "log_partner_contact",
     });
   }
 

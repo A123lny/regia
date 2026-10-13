@@ -10,7 +10,12 @@
 export type { DashboardStats, Environment } from "./internal/dashboard-stats";
 
 // RF-12.1 Task list dashboard types
-export type { DashboardTaskList, TaskListItem, TaskPriority } from "./internal/task-aggregator";
+export type {
+  DashboardTaskList,
+  TaskListItem,
+  TaskPriority,
+  TaskDetailItem,
+} from "./internal/task-aggregator";
 
 // RF-12.1 Operational tasks types + server actions (client-safe: le action sono
 // "use server" quindi bundlate come RPC stubs, non trascinano import server).
