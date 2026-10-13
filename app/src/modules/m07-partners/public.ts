@@ -58,3 +58,7 @@ export type {
   DeliveryErrorSeverity,
   PartnerErrorsSummary,
 } from "./internal/delivery-errors-repo";
+
+// RN-37/38/39 Analisi mercato per categoria
+export { analyzeMarketByCategory } from "./internal/market-analysis";
+export type { MarketAnalysis, MarketCategoryRow } from "./internal/market-analysis";

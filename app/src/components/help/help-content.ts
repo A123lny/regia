@@ -289,6 +289,22 @@ export const HELP_TEXTS: Record<string, HelpEntry> = {
       "• Snapshot dossier conservato come prova dell'adempimento.\n\n" +
       "Entrambe le operazioni sono Owner-only (materia legale). Audit log completo.",
   },
+  "ristoranti-mercato": {
+    title: "Analisi mercato rete",
+    body:
+      "RN-37/38/39: strumento strategico per valutare la saturazione della rete per categoria di cucina.\n\n" +
+      "**Non e' marketing**, e' gestione di mercato. Il principio del capitolato: il problema non e' chi va male, e' quanti fanno la stessa cosa.\n\n" +
+      "**Metodo:**\n" +
+      "- Raggruppa i ristoranti attivi per cuisine_category.\n" +
+      "- Conta ordini ultimi 90gg per partner (via brand_orders.partner_restaurant_id).\n" +
+      "- Calcola ordini medi per ristorante in ogni categoria.\n" +
+      "- Confronta con la mediana rete (±15% = in linea).\n\n" +
+      "**Verdetti:**\n" +
+      "- **Sotto-offerta** (verde): media >= 1.15x mediana. Pochi ristoranti per la domanda. Opportunita' di inserire un partner nuovo.\n" +
+      "- **Equilibrata** (grigio): media entro ±15% mediana.\n" +
+      "- **Satura** (rosso): media <= 0.85x mediana. Un nuovo partner diluirebbe la torta.\n\n" +
+      "**Limite F1:** senza connettori M1 reali gli ordini attribuiti sono 0. Il conteggio ristoranti per categoria resta valido (saturazione cardinale), ma il confronto media diventa 'sconosciuto'.",
+  },
   "memoria-agente": {
     title: "Memoria agente",
     body:

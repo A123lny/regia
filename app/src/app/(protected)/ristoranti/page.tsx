@@ -1,12 +1,14 @@
 // M07 Partners — pagina Rete ristoranti Lenny (RF-7.1..7.6).
 
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import {
   UtensilsCrossed,
   CheckCircle2,
   AlertTriangle,
   PhoneOutgoing,
   Sparkles,
+  BarChart3,
 } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";
@@ -89,7 +91,18 @@ export default async function RistorantiPage({
               Ristoranti Lenny
             </h1>
           </div>
-          <HelpButton pageKey="ristoranti" />
+          <div className="flex items-center gap-2">
+            {canCrud && (
+              <Link
+                href="/ristoranti/mercato"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text transition-colors hover:border-primary/40 hover:text-primary"
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                Analisi mercato
+              </Link>
+            )}
+            <HelpButton pageKey="ristoranti" />
+          </div>
         </div>
         <p className="mt-1 text-sm text-text-muted">
           I ~50 ristoranti come rete di micro-partner (RF-7.1). Chi contattare, chi si sta
