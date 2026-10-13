@@ -16,6 +16,8 @@ import {
   Copy,
   Check as CheckIcon,
   Rocket,
+  PackageX,
+  Plus as PlusIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,10 +32,14 @@ import {
   generateMonthlyReportAction,
   getLaunchStatusAction,
   updateLaunchNotesAction,
+  recordDeliveryErrorAction,
+  getPartnerErrorsAction,
   LAUNCH_WINDOW_DAYS,
   ACTIVITY_KIND_LABELS,
   ACTIVITY_OUTCOME_LABELS,
   ONBOARDING_STATUS_LABELS,
+  SEVERITY_LABELS,
+  SEVERITY_STYLES,
   daysSinceLastContact,
 } from "@/modules/m07-partners/public";
 import type {
@@ -44,6 +50,9 @@ import type {
   PartnerRestaurant,
   MonthlyPartnerReport,
   PartnerLaunchStatus,
+  DeliveryError,
+  DeliveryErrorSeverity,
+  PartnerErrorsSummary,
 } from "@/modules/m07-partners/public";
 
 type Props = {
@@ -512,6 +521,9 @@ function PartnerDetailDrawer({
 
         {/* RN-48 Fase di lancio (compare solo se launched_at valorizzato) */}
         <LaunchCard partnerId={partner.id} canCrud={canCrud} />
+
+        {/* RN-28 Errori consegna ristorante */}
+        <DeliveryErrorsCard partnerId={partner.id} canCrud={canCrud} />
 
         {/* RN-47 Report mensile ristoratore */}
         {canCrud && <MonthlyReportCard partnerId={partner.id} />}
@@ -1107,6 +1119,264 @@ function LaunchCard({ partnerId, canCrud }: { partnerId: string; canCrud: boolea
               {savingNotes ? "Salvo..." : "Salva note"}
             </Button>
           </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ============================================================================
+// RN-28 Errori consegna ristorante
+// ============================================================================
+
+function DeliveryErrorsCard({ partnerId, canCrud }: { partnerId: string; canCrud: boolean }) {
+  const [summary, setSummary] = useState<PartnerErrorsSummary | null>(null);
+  const [recent, setRecent] = useState<DeliveryError[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [reload, setReload] = useState(0);
+
+  const [reason, setReason] = useState("");
+  const [severity, setSeverity] = useState<DeliveryErrorSeverity>("media");
+  const [compensationVoucherId, setCompensationVoucherId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let aborted = false;
+    (async () => {
+      setLoading(true);
+      const r = await getPartnerErrorsAction(partnerId);
+      if (!aborted) {
+        if (r.ok) {
+          setSummary(r.summary);
+          setRecent(r.recent);
+        }
+        setLoading(false);
+      }
+    })();
+    return () => {
+      aborted = true;
+    };
+  }, [partnerId, reload]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (reason.trim().length < 3) {
+      setFormError("Scrivi almeno 3 caratteri per il motivo");
+      return;
+    }
+    startTransition(async () => {
+      const payload: Parameters<typeof recordDeliveryErrorAction>[0] = {
+        partnerId,
+        reason,
+        severity,
+      };
+      if (compensationVoucherId.trim()) {
+        payload.compensationVoucherId = compensationVoucherId.trim();
+      }
+      if (notes.trim()) payload.notes = notes.trim();
+      const r = await recordDeliveryErrorAction(payload);
+      if (r.ok) {
+        setFormOpen(false);
+        setReason("");
+        setSeverity("media");
+        setCompensationVoucherId("");
+        setNotes("");
+        setReload((n) => n + 1);
+      } else {
+        setFormError(r.error);
+      }
+    });
+  };
+
+  if (loading) {
+    return (
+      <section className="rounded-lg border border-border bg-surface p-4 text-xs italic text-text-muted">
+        Caricamento errori...
+      </section>
+    );
+  }
+
+  const alertBg =
+    summary?.alertLevel === "alert"
+      ? "border-danger/40 bg-danger/5"
+      : summary?.alertLevel === "warn"
+        ? "border-warning/40 bg-warning/5"
+        : "border-border bg-surface";
+
+  return (
+    <section className={`space-y-3 rounded-lg border p-4 text-sm ${alertBg}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <PackageX
+            className={`h-4 w-4 ${
+              summary?.alertLevel === "alert"
+                ? "text-danger"
+                : summary?.alertLevel === "warn"
+                  ? "text-warning"
+                  : "text-primary"
+            }`}
+          />
+          <h3 className="font-serif font-semibold">Errori consegna (RN-28)</h3>
+          {summary?.alertLevel === "alert" && (
+            <Badge className="border border-danger/40 bg-danger/15 text-danger">Allarme</Badge>
+          )}
+          {summary?.alertLevel === "warn" && (
+            <Badge className="border border-warning/40 bg-warning/15 text-warning">
+              Attenzione
+            </Badge>
+          )}
+        </div>
+        {canCrud && !formOpen && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setFormOpen(true)}
+            className="border-danger/40 text-danger hover:bg-danger/10"
+          >
+            <PlusIcon className="mr-1 h-3 w-3" />
+            Registra errore
+          </Button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 rounded-md border border-border bg-bg p-3 text-xs">
+        <div>
+          <div className="text-text-muted">Ultimi 30 giorni</div>
+          <div className="text-xl font-semibold">{summary?.countLast30d ?? 0}</div>
+          <div className="text-[10px] text-text-muted">
+            {summary && summary.countLast30d >= 3
+              ? "Soglia allarme: >= 3"
+              : summary?.countLast30d === 2
+                ? "Attenzione: 2 (prossimi all'allarme)"
+                : "Fisiologico (0-1/mese)"}
+          </div>
+        </div>
+        <div>
+          <div className="text-text-muted">30 giorni precedenti</div>
+          <div className="text-xl font-semibold">{summary?.countPrevious30d ?? 0}</div>
+          <div className="text-[10px] text-text-muted">per confronto</div>
+        </div>
+      </div>
+
+      {formOpen && canCrud && (
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-2 rounded-md border border-danger/30 bg-danger/5 p-3"
+        >
+          <div>
+            <Label htmlFor="err-reason" className="text-xs">
+              Motivo errore
+            </Label>
+            <Input
+              id="err-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Es. ordine consegnato con 45 min di ritardo"
+              maxLength={500}
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="err-sev" className="text-xs">
+                Gravita
+              </Label>
+              <select
+                id="err-sev"
+                value={severity}
+                onChange={(e) => setSeverity(e.target.value as DeliveryErrorSeverity)}
+                className="mt-1 w-full rounded-md border border-border bg-bg px-2 py-1.5 text-xs"
+              >
+                {(Object.keys(SEVERITY_LABELS) as DeliveryErrorSeverity[]).map((s) => (
+                  <option key={s} value={s}>
+                    {SEVERITY_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="err-voucher" className="text-xs">
+                Voucher scuse (ID, opzionale)
+              </Label>
+              <Input
+                id="err-voucher"
+                value={compensationVoucherId}
+                onChange={(e) => setCompensationVoucherId(e.target.value)}
+                placeholder="UUID voucher"
+                maxLength={40}
+              />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="err-notes" className="text-xs">
+              Note (opzionale)
+            </Label>
+            <Textarea
+              id="err-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              maxLength={500}
+            />
+          </div>
+          {formError && <p className="text-xs text-danger">{formError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFormOpen(false);
+                setFormError(null);
+              }}
+            >
+              Annulla
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={pending}
+              className="bg-danger text-white hover:bg-danger/80"
+            >
+              {pending ? "Registro..." : "Registra errore"}
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {recent.length > 0 && (
+        <div className="rounded-md border border-border bg-bg p-2">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+            Ultimi {recent.length} errori
+          </div>
+          <ul className="space-y-1">
+            {recent.map((err) => (
+              <li key={err.id} className="rounded px-1 py-1 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-text-muted">
+                    {new Date(err.occurredAt).toLocaleDateString("it-IT", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "2-digit",
+                    })}
+                  </span>
+                  <Badge className={`border text-[10px] ${SEVERITY_STYLES[err.severity]}`}>
+                    {SEVERITY_LABELS[err.severity]}
+                  </Badge>
+                </div>
+                <div className="text-text">{err.reason}</div>
+                {err.compensationVoucherId && (
+                  <div className="text-[10px] text-text-muted">
+                    Voucher scuse: {err.compensationVoucherId.slice(0, 8)}…
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </section>

@@ -21,6 +21,14 @@ import {
   updatePartnerLaunchNotes,
   type PartnerLaunchStatus,
 } from "./launch-tracker";
+import {
+  recordDeliveryError,
+  getPartnerErrorsSummary,
+  listPartnerErrors,
+  type DeliveryErrorSeverity,
+  type DeliveryError,
+  type PartnerErrorsSummary,
+} from "./delivery-errors-repo";
 
 async function requireAuth(cap: Capability) {
   const session = await getSessionOrRedirect();
@@ -264,6 +272,76 @@ export async function toggleCoolingAction(
 
     revalidatePath("/ristoranti");
     return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+// ============================================================================
+// RN-28 Errori consegna ristorante
+// ============================================================================
+
+export type RecordDeliveryErrorActionInput = {
+  partnerId: string;
+  reason: string;
+  severity?: DeliveryErrorSeverity;
+  orderId?: string;
+  compensationVoucherId?: string;
+  notes?: string;
+};
+
+export type RecordDeliveryErrorActionResult =
+  { ok: true; error: DeliveryError } | { ok: false; error: string };
+
+export async function recordDeliveryErrorAction(
+  input: RecordDeliveryErrorActionInput,
+): Promise<RecordDeliveryErrorActionResult> {
+  try {
+    const { session, partner } = await requireOwnedPartner(input.partnerId, "partner.crud");
+    if (!input.reason || input.reason.trim().length < 3) {
+      return { ok: false, error: "Motivo errore obbligatorio (min 3 caratteri)" };
+    }
+    const errRow = await recordDeliveryError({
+      organizationId: session.organizationId,
+      partnerId: partner.id,
+      reason: input.reason,
+      severity: input.severity ?? "media",
+      orderId: input.orderId ?? null,
+      compensationVoucherId: input.compensationVoucherId ?? null,
+      reportedBy: session.userId,
+      notes: input.notes ?? null,
+    });
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "partners.delivery_error_recorded",
+      target: `partner:${partner.id}`,
+      details: {
+        errorId: errRow.id,
+        severity: errRow.severity,
+        hasCompensationVoucher: errRow.compensationVoucherId !== null,
+      },
+    });
+    revalidatePath("/ristoranti");
+    return { ok: true, error: errRow };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export type GetPartnerErrorsResult =
+  | { ok: true; summary: PartnerErrorsSummary; recent: DeliveryError[] }
+  | { ok: false; error: string };
+
+export async function getPartnerErrorsAction(partnerId: string): Promise<GetPartnerErrorsResult> {
+  try {
+    const { session } = await requireOwnedPartner(partnerId, "partner.read");
+    const [summary, recent] = await Promise.all([
+      getPartnerErrorsSummary(session.organizationId, partnerId),
+      listPartnerErrors(session.organizationId, partnerId, 5),
+    ]);
+    return { ok: true, summary, recent };
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }
