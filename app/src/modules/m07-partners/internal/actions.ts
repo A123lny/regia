@@ -293,6 +293,8 @@ export type RecordDeliveryErrorActionInput = {
 export type RecordDeliveryErrorActionResult =
   { ok: true; error: DeliveryError } | { ok: false; error: string };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function recordDeliveryErrorAction(
   input: RecordDeliveryErrorActionInput,
 ): Promise<RecordDeliveryErrorActionResult> {
@@ -301,6 +303,50 @@ export async function recordDeliveryErrorAction(
     if (!input.reason || input.reason.trim().length < 3) {
       return { ok: false, error: "Motivo errore obbligatorio (min 3 caratteri)" };
     }
+
+    // RNF-1 security: prevenzione IDOR cross-tenant. Il client puo' passare
+    // orderId e compensationVoucherId: verifichiamo UUID valido + stessa org.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = getAdminClient() as any;
+
+    if (input.orderId !== undefined && input.orderId !== null) {
+      if (!UUID_RE.test(input.orderId)) {
+        return { ok: false, error: "Riferimento ordine non valido" };
+      }
+      const { data, error: err } = await admin
+        .from("brand_orders")
+        .select("id")
+        .eq("id", input.orderId)
+        .eq("organization_id", session.organizationId)
+        .maybeSingle();
+      if (err) return { ok: false, error: "verifica ordine fallita" };
+      if (!data) {
+        return {
+          ok: false,
+          error: "Ordine non trovato o appartenente ad altra organizzazione",
+        };
+      }
+    }
+
+    if (input.compensationVoucherId !== undefined && input.compensationVoucherId !== null) {
+      if (!UUID_RE.test(input.compensationVoucherId)) {
+        return { ok: false, error: "Riferimento voucher non valido" };
+      }
+      const { data, error: err } = await admin
+        .from("vouchers")
+        .select("id")
+        .eq("id", input.compensationVoucherId)
+        .eq("organization_id", session.organizationId)
+        .maybeSingle();
+      if (err) return { ok: false, error: "verifica voucher fallita" };
+      if (!data) {
+        return {
+          ok: false,
+          error: "Voucher non trovato o appartenente ad altra organizzazione",
+        };
+      }
+    }
+
     const errRow = await recordDeliveryError({
       organizationId: session.organizationId,
       partnerId: partner.id,
