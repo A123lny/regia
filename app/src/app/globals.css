@@ -15,6 +15,7 @@
   --secondary: #87a96b;
   --warning: #d89b4a;
   --danger: #b04a3c;
+  --success: #4a7f3a;
 
   /* ── Alias shadcn (mappati sulla nostra palette) ───────── */
   --background: var(--bg);
@@ -89,6 +90,7 @@
   --color-background: var(--background);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
+  --color-success: var(--success);
   /* Palette custom Regìa esposta come utility Tailwind (bg-surface, text-text, etc.) */
   --color-bg: var(--bg);
   --color-surface: var(--surface);
