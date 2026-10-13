@@ -5,6 +5,7 @@ import {
   buildDashboardTasks,
   listTasks,
   listOrgUsers,
+  listRecentCompletions,
 } from "@/modules/m12-daily-use/server";
 import {
   listUpcomingRecurrences,
@@ -64,6 +65,7 @@ export default async function DashboardPage() {
     customTasks,
     orgUsers,
     recentContactActivities,
+    recentCompletions,
   ] = await Promise.all([
     getDashboardStats(session.organizationId),
     listUpcomingRecurrences(session.organizationId),
@@ -74,6 +76,7 @@ export default async function DashboardPage() {
     listTasks({ organizationId: session.organizationId, status: "all", limit: 100 }),
     listOrgUsers(session.organizationId),
     listRecentContactActivities(session.organizationId, 24),
+    listRecentCompletions(session.organizationId, session.userId, 24),
   ]);
   const heroColors = HERO_BLOB_POSITIONS.map(
     (_, i) => stats.going.brands[i]?.color ?? HERO_FALLBACK,
@@ -167,6 +170,7 @@ export default async function DashboardPage() {
         users={orgUsers}
         currentUserId={session.userId}
         recentActivities={recentContactActivities}
+        recentCompletions={recentCompletions}
       />
 
       {/* METRICS — 4 card cliccabili con icona colorata + numero grande in Bricolage + stagger fade-in */}

@@ -32,6 +32,7 @@ import type {
   TaskDetailItem,
   OperationalTask,
   OperationalTaskPriority,
+  RecentCompletion,
 } from "@/modules/m12-daily-use/public";
 import {
   createTaskAction,
@@ -435,6 +436,7 @@ type Props = {
   users: OrgUser[];
   currentUserId: string;
   recentActivities: RecentContactActivity[];
+  recentCompletions: RecentCompletion[];
 };
 
 const OUTCOME_LABEL: Record<ActivityOutcome, string> = {
@@ -449,6 +451,32 @@ const OUTCOME_STYLE: Record<ActivityOutcome, string> = {
   negativo: "bg-danger/10 text-danger",
   da_richiamare: "bg-warning/10 text-warning",
 };
+
+function RecentCompletionRow({ completion }: { completion: RecentCompletion }) {
+  const occurred = new Date(completion.occurredAt);
+  const timeStr = occurred.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+  const dateStr = occurred.toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
+  // target es: "draft:<uuid>", "signal:<uuid>", "partner:<uuid>" -> estraggo il tipo
+  const targetKind = completion.target?.split(":")[0] ?? null;
+  return (
+    <div className="flex items-start gap-2 rounded-md px-2 py-1.5 text-xs">
+      <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 rounded-full bg-success p-0.5 text-white" />
+      <div className="min-w-0 flex-1">
+        <div className="text-text">
+          <span className="font-semibold">{completion.label}</span>
+          {targetKind && (
+            <span className="ml-2 rounded bg-text-muted/10 px-1 py-0.5 text-[10px] text-text-muted">
+              {targetKind}
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5 text-[10px] text-text-muted">
+          {dateStr} · {timeStr}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function RecentActivityRow({ activity }: { activity: RecentContactActivity }) {
   const occurred = new Date(activity.occurredAt);
@@ -487,6 +515,7 @@ export function TaskListCard({
   users,
   currentUserId,
   recentActivities,
+  recentCompletions,
 }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -600,7 +629,8 @@ export function TaskListCard({
         <div className="mb-2 flex items-center gap-2">
           <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
             Task manuali ({totalCustomOpen} aperti, {doneTasks.length} completati
-            {recentActivities.length > 0 && `, ${recentActivities.length} contatti registrati`})
+            {recentActivities.length > 0 && `, ${recentActivities.length} contatti`}
+            {recentCompletions.length > 0 && `, ${recentCompletions.length} azioni`})
           </div>
           <div className="ml-auto flex gap-1 text-[10px]">
             {(
@@ -672,6 +702,18 @@ export function TaskListCard({
           )
         ) : (
           <div className="space-y-3">
+            {recentCompletions.length > 0 && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-2">
+                <div className="mb-1 px-2 text-[10px] font-bold uppercase tracking-wider text-primary">
+                  Azioni completate (ultime 24h) · {recentCompletions.length}
+                </div>
+                <div className="space-y-0.5">
+                  {recentCompletions.map((c) => (
+                    <RecentCompletionRow key={c.id} completion={c} />
+                  ))}
+                </div>
+              </div>
+            )}
             {recentActivities.length > 0 && (
               <div className="rounded-lg border border-success/30 bg-success/5 p-2">
                 <div className="mb-1 px-2 text-[10px] font-bold uppercase tracking-wider text-success">

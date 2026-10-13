@@ -6,3 +6,5 @@
 export { getDashboardStats } from "./internal/dashboard-stats";
 export { buildDashboardTasks } from "./internal/task-aggregator";
 export { listTasks, listOrgUsers } from "./internal/tasks-repo";
+export { listRecentCompletions } from "./internal/recent-completions-repo";
+export type { RecentCompletion } from "./internal/recent-completions-repo";

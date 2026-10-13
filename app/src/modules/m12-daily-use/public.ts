@@ -9,6 +9,9 @@
 // Types dashboard
 export type { DashboardStats, Environment } from "./internal/dashboard-stats";
 
+// RF-12.1 recenti completamenti (letti dalla dashboard tramite server.ts)
+export type { RecentCompletion } from "./internal/recent-completions-repo";
+
 // RF-12.1 Task list dashboard types
 export type {
   DashboardTaskList,
