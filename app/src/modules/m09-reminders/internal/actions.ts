@@ -35,6 +35,7 @@ export async function dismissReminderAction(
     details: { kind: reminder.kind },
   });
   revalidatePath("/promemoria");
+  revalidatePath("/dashboard");
   return { ok: true };
 }
 
@@ -55,6 +56,7 @@ export async function markReminderSentAction(
     details: { kind: reminder.kind, contactId: reminder.contactId },
   });
   revalidatePath("/promemoria");
+  revalidatePath("/dashboard");
   return { ok: true };
 }
 
@@ -70,6 +72,7 @@ export async function sendReminderNowAction(
   const session = await getSessionOrRedirect();
   requireCapability(session, "reminders.crud");
   requireCapability(session, "publishing.send");
+  const reminder = await getReminder(reminderId, session.organizationId);
   const result = await sendReminderNow(reminderId, session.organizationId);
   if (!result.ok) return result;
   await logAuditEvent({
@@ -78,9 +81,10 @@ export async function sendReminderNowAction(
     actorKind: "user",
     action: "reminders.sent_via_publish",
     target: `reminder:${reminderId}`,
-    details: { jobId: result.jobId, channel: result.channel },
+    details: { jobId: result.jobId, channel: result.channel, kind: reminder?.kind ?? null },
   });
   revalidatePath("/promemoria");
+  revalidatePath("/dashboard");
   return result;
 }
 

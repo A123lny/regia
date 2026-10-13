@@ -6,6 +6,8 @@
 // lista non appaiono (il log integrale sta in /impostazioni/audit).
 
 import { getAdminClient } from "@/lib/db/admin";
+import { REMINDER_KIND_LABELS } from "@/modules/m09-reminders/public";
+import type { ReminderKind } from "@/modules/m09-reminders/public";
 
 export type RecentCompletion = {
   id: string;
@@ -29,8 +31,11 @@ const ACTION_LABELS: Record<string, string> = {
   "editorial.draft_unscheduled": "Annullata programmazione",
   "editorial.draft_deleted": "Eliminata bozza",
   "editorial.recurrence_activated": "Attivata ricorrenza",
-  // M09 Reminders — chiusura segnali
+  // M09 Reminders — chiusura segnali + ciclo promemoria
   "abandonment.resolved": "Risolto segnale abbandono",
+  "reminders.sent_via_publish": "Inviato promemoria",
+  "reminders.marked_sent": "Segnato come inviato",
+  "reminders.dismissed": "Ignorato promemoria",
   // M06 Loyalty — voucher
   "loyalty.voucher_issued": "Voucher emesso",
   "loyalty.voucher_redeemed": "Voucher riscattato",
@@ -74,12 +79,36 @@ export async function listRecentCompletions(
     .limit(50);
   if (error) throw new Error(`Errore lettura completamenti recenti: ${error.message}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return ((data ?? []) as any[]).map((row) => ({
-    id: row.id,
-    action: row.action,
-    label: ACTION_LABELS[row.action] ?? row.action,
-    target: row.target,
-    occurredAt: row.created_at,
-    details: (row.details as Record<string, unknown>) ?? {},
-  }));
+  return ((data ?? []) as any[]).map((row) => {
+    const baseLabel = ACTION_LABELS[row.action] ?? row.action;
+    const details = (row.details as Record<string, unknown>) ?? {};
+    return {
+      id: row.id,
+      action: row.action,
+      label: enrichLabel(row.action, baseLabel, details),
+      target: row.target,
+      occurredAt: row.created_at,
+      details,
+    };
+  });
+}
+
+/**
+ * Aggiunge contesto alla label base leggendo i details dell'audit event.
+ * Es: "Inviato promemoria" + details.kind='welcome' -> "Inviato promemoria · Benvenuto".
+ * Fallback: se `kind` manca ma c'e' `channel` (es. sent_via_publish),
+ * usa quello come "via whatsapp".
+ */
+function enrichLabel(action: string, baseLabel: string, details: Record<string, unknown>): string {
+  if (action.startsWith("reminders.")) {
+    const kind = details["kind"] as ReminderKind | undefined;
+    if (kind && kind in REMINDER_KIND_LABELS) {
+      return `${baseLabel} · ${REMINDER_KIND_LABELS[kind]}`;
+    }
+    const channel = details["channel"] as string | undefined;
+    if (channel) {
+      return `${baseLabel} · via ${channel}`;
+    }
+  }
+  return baseLabel;
 }
