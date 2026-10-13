@@ -968,7 +968,7 @@ function LaunchCard({ partnerId, canCrud }: { partnerId: string; canCrud: boolea
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
 
   useEffect(() => {
     let aborted = false;
@@ -1011,7 +1011,10 @@ function LaunchCard({ partnerId, canCrud }: { partnerId: string; canCrud: boolea
     setSavingNotes(true);
     const r = await updateLaunchNotesAction({ partnerId, notes });
     setSavingNotes(false);
-    if (r.ok) setSavedAt(Date.now());
+    if (r.ok) {
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+    }
   };
 
   return (
@@ -1102,7 +1105,7 @@ function LaunchCard({ partnerId, canCrud }: { partnerId: string; canCrud: boolea
             className="mt-1 text-xs"
           />
           <div className="mt-2 flex items-center justify-between gap-2">
-            {savedAt && Date.now() - savedAt < 2000 && (
+            {justSaved && (
               <span className="text-[10px] text-success">
                 <CheckIcon className="mr-0.5 inline h-3 w-3" />
                 Salvate

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getSessionOrRedirect } from "@/lib/auth/session";
-import { getDashboardStats } from "@/modules/m12-daily-use/public";
+import { getDashboardStats, buildDashboardTasks } from "@/modules/m12-daily-use/public";
 import {
   listUpcomingRecurrences,
   listOpenMaterialRequests,
@@ -12,6 +12,7 @@ import { MaterialRequestsBanner } from "@/components/dashboard/material-requests
 import { EditorialBalanceCard } from "@/components/dashboard/editorial-balance-card";
 import { WelcomeBackBanner } from "@/components/dashboard/welcome-back-banner";
 import { PressureAlertBanner } from "@/components/dashboard/pressure-alert-banner";
+import { TaskListCard } from "@/components/dashboard/task-list-card";
 import { getUnsubscribePressureAlerts } from "@/modules/m05-publishing/public";
 import { HelpButton } from "@/components/help/help-button";
 import {
@@ -47,13 +48,14 @@ const HERO_FALLBACK = "#7a6857";
 
 export default async function DashboardPage() {
   const session = await getSessionOrRedirect();
-  const [stats, upcomingRecurrences, materialRequests, editorialBalance, pressureAlerts] =
+  const [stats, upcomingRecurrences, materialRequests, editorialBalance, pressureAlerts, tasks] =
     await Promise.all([
       getDashboardStats(session.organizationId),
       listUpcomingRecurrences(session.organizationId),
       listOpenMaterialRequests(session.organizationId),
       computeEditorialBalance(session.organizationId, 30),
       getUnsubscribePressureAlerts(session.organizationId),
+      buildDashboardTasks(session.organizationId),
     ]);
   const heroColors = HERO_BLOB_POSITIONS.map(
     (_, i) => stats.going.brands[i]?.color ?? HERO_FALLBACK,
@@ -139,6 +141,9 @@ export default async function DashboardPage() {
           </p>
         </div>
       </section>
+
+      {/* RF-12.1 Task list unificata (priorita' urgent/important/opportunity) */}
+      <TaskListCard tasks={tasks} />
 
       {/* METRICS — 4 card cliccabili con icona colorata + numero grande in Bricolage + stagger fade-in */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
