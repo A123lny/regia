@@ -5,7 +5,7 @@ import {
   buildDashboardTasks,
   listTasks,
   listOrgUsers,
-} from "@/modules/m12-daily-use/public";
+} from "@/modules/m12-daily-use/server";
 import {
   listUpcomingRecurrences,
   listOpenMaterialRequests,

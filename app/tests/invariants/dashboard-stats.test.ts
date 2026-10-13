@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getDashboardStats } from "@/modules/m12-daily-use/public";
+import { getDashboardStats } from "@/modules/m12-daily-use/server";
 
 const ORG_ID = "00000000-0000-0000-0000-000000000001";
 const FAKE_ORG_ID = "00000000-0000-0000-0000-000000000099";
