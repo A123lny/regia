@@ -1,25 +1,106 @@
 # Diario di bordo — Regìa
 
-> Aggiornato: 3 ottobre 2026 · Una pagina al massimo. Le voci vecchie si potano:
+> Aggiornato: 13 ottobre 2026 · Una pagina al massimo. Le voci vecchie si potano:
 > la storia completa sta in git. Regole d'uso: vedi CLAUDE.md, sezione "Rito di sessione".
 
 ## Adesso
 
-- **Audit v1.5 — 6 P1 chiusi oggi (3 ott):** RF-6.18+RN-41..43 capacita rider, RF-1.9
-  richieste dati personali GDPR, RA-8.11 UI memoria agente, RN-52 zone consegna
-  variabili, RF-6a.1 partner con livello coinvolgimento, RF-4.3 provider media esterna
-  (ToS/diritti). Branch `main` HEAD `4d61672`, 6 commit nuovi, tutti pushati.
-  Supabase Cloud allineato (4 migrazioni 20261003 + 20260914 catchup).
-  Docker Desktop locale non funzionante — workflow Cloud-only.
-- **Fix di sicurezza sistematico:** aggiunto helper `assertEntityOwnedByOrg` in
-  m13-governance per prevenire IDOR cross-tenant (11 action protette), stesso
-  pattern applicato a RF-1.9 (requireOwnedContact + req.contactId server-side invece
-  che client-supplied).
-- **Prossimo:** smoke test M05 end-to-end su Cloud (Resend+Twilio reali), oppure
-  continuare audit v1.5 con P2 restanti.
+- **Audit v1.5 praticamente chiuso.** 6 P1 + 4 P2 + 4 P3 implementati su main
+  (ultimo HEAD `77992b8`). Resta solo **RN-69** (WhatsApp foto dal campo) in attesa
+  di setup Twilio sandbox. Capitolato v1.5 e' sostanzialmente coperto.
+- **Dati di test popolati:** script `npm run seed:demo` (idempotente, UUID
+  deterministici) ha caricato su Cloud 30 contatti + 90 consensi + 10 veicoli +
+  15 prodotti + 30 ordini + 5 ristoranti Lenny (1 cooling + 1 in lancio) +
+  3 fornitori + 20 bozze + 20 voucher + 3 segmenti + 2 campagne + 2 landing.
+  Rilanciabile per reset parziale, upsert idempotente non duplica.
+- **UI riorganizzata (RF-12.1):** sidebar divisa in 6 gruppi semantici
+  (Operativo quotidiano · Marketing · Commerciale · Clienti · Insight · Config)
+  invece della lista piatta di 18 voci. Allineato alla distinzione marketing vs
+  commerciale esplicita nel capitolato.
+- **POC desktop OS parallelo:** branch `feature/desktop-shell` + worktree
+  `../regia-desktop/` su porta :3001 con wallpaper + icone + finestre draggabili
+  (react-rnd) + dock + taskbar + search palette Cmd+K + post-it + widget notifiche
+  live. Decisione sul destino (merge/scarta/accantona) ancora aperta.
+- **Prossimo:** smoke test M05 end-to-end su Cloud (Resend+Twilio reali) oppure
+  F0-b hosting (DigitalOcean + CI GitHub Actions). I bloccanti strategici
+  (connettori M1 reali, M14 social) dipendono tutti da credenziali esterne.
 
 ## Fatto
 
+- **13 ott 2026 — RN-37/38/39 M07: analisi mercato rete per categoria.**
+  Nuova pagina `/ristoranti/mercato` (Owner-only). Aggregator confronta ordini
+  medi per partner per ciascuna cuisine_category vs mediana rete: verdetti
+  "sotto_offerta" (opportunita'), "equilibrata", "satura". Il principio del
+  capitolato: il problema non e' chi va male, e' quanti fanno la stessa cosa.
+  4 KPI card + tabella con 7 colonne + hint testuale per verdetto.
+- **13 ott 2026 — RN-28 M07: errori consegna ristorante (soglia 3/mese allarme).**
+  Nuova migration `partner_delivery_errors` (FK partner + order opzionale +
+  voucher scuse opzionale, severity enum, reporter). Card nel drawer ristorante
+  con count 30gg vs 30gg precedente + badge "Allarme" >=3 / "Attenzione" =2.
+  Form espandibile per registrare errore con tutti i dettagli. Fix security:
+  validazione UUID + ownership check su order/voucher cross-tenant.
+- **12 ott 2026 — RN-48 M07: workflow lancio nuovo ristorante.**
+  `partner_restaurants.launched_at` + hook automatico quando onboarding→'attivo'.
+  Sorveglianza 30gg con progress bar, confronto ordini vs mediana categoria
+  (dai peer con finestra gia' completata), underSurveillance se sotto 70%
+  pro-rata target. Card con 2 KPI + textarea note di review persistite.
+- **12 ott 2026 — RN-47 M07: report mensile automatico ristoratori.**
+  `brand_orders.partner_restaurant_id` nullable (per connettori M1 futuri).
+  Aggregator `buildMonthlyPartnerReport` + `formatMonthlyReportMessage` con
+  3 varianti template (dati vendita / solo attivita' / rilancio relazione).
+  Card nel drawer "Report mensile" con 4 metriche + textarea editabile +
+  copy clipboard. Invio M05 lasciato manuale per F1 (Twilio non ancora up).
+- **13 ott 2026 — RS-1 split barrel m05-publishing + m10-signup.** Twilio
+  (-> fs/https Node-only) non va bundlato nel client. Separati `public.ts`
+  (client-safe) e `server.ts` (adapter concreti). Pattern coerente con il
+  precedente split m06+m09. Aggiornati 7 callers.
+- **12 ott 2026 — Seed demo dati Cloud.** Script `app/scripts/seed-demo.ts`
+  idempotente (UUID deterministici via md5 + upsert on conflict). Carica
+  ~235 righe demo coprendo 13 entita' (contatti, consensi, veicoli, catalogo,
+  ordini, ristoranti, fornitori, bozze, voucher, segmenti, campagne, landing).
+  Safety switch `ALLOW_SEED=1` obbligatorio. Lanciabile con `npm run seed:demo`.
+- **12 ott 2026 — RF-12.1 sidebar in 6 gruppi.** Da lista piatta di 18 voci a
+  blocchi semantici: Operativo quotidiano · Marketing · Commerciale · Clienti ·
+  Insight · Configurazione. Allineato al capitolato §7.2 che distingue
+  marketing (contenuti/distribuzione) da commerciale (motore RF-6.x).
+  Gruppi senza voci visibili per il ruolo vengono nascosti; "Contenuti"
+  resta collassabile dentro Marketing.
+- **12 ott 2026 — POC desktop OS parallelo.** Nuovo worktree
+  `C:\Users\Andrea\Desktop\regia-desktop\` sul branch `feature/desktop-shell`,
+  porta :3001 (Cloud condiviso). Shell completo: wallpaper + 19 icone cartella
+  (DesktopIcon) + windows draggabili/resizable (react-rnd + zustand store) +
+  dock + taskbar con windows list + search palette Cmd+K + widget notifiche
+  live (/api/desktop-notifications non bloccante) + post-it draggabili
+  persistiti in localStorage + orologio widget. Tema embed override: finestre
+  aperte via iframe con `sec-fetch-dest=iframe` nascondono AppShell e
+  applicano `embed-root` CSS (palette grigio-blu + font system invece che
+  Fraunces/terracotta Regia). RF-13.5 ads adapter spostato come
+  nice-to-have (non implementato: prematuro senza clienti su ads reali).
+- **7 ott 2026 — RF-13.7 M03: suggerimenti SEO organica (analyzer euristico).**
+  Analyzer deterministico (no AI, no costi) con 6 check: lunghezza / titolo
+  apertura / CTA / numeri concreti / densita' parole chiave / frasi lunghe.
+  Stop-words italiane + 26 verbi CTA + regex per prezzo/data/orario. Card
+  nel draft detail. 21 unit test aggiunti (44 totali sugli analyzer: 12
+  topic + 11 UTM + 21 SEO, 1.66s senza Docker).
+- **7 ott 2026 — RF-4.6/4.7 M04: formati stampa A4 (locandina) + anteprima.**
+  Formati `a4-portrait` (2480x3508 @300dpi) e `a4-landscape`. 2 nuovi template
+  demo con font scalati. Tab "Stampa A4" in channel-previews con mockup
+  foglio 1:√2.
+- **7 ott 2026 — RF-6.21 M06: azzeramento contatore mensile.**
+  Esteso enum reset_mode da {dopo_premio, annuale, mai} a includere "mensile".
+  Migration + types + labels. UI auto-propaga (itera Object.keys).
+- **7 ott 2026 — RF-9.3 M06+M08: attribuzione contenuto -> vendita (voucher).**
+  FK `vouchers.source_draft_id` nullable + ON DELETE SET NULL. Aggregator
+  `getAttributionByDraft` con 4 metriche (issued/redeemed attribuiti vs non +
+  copertura %). UI /analytics sezione dedicata. UI /fedelta issue form:
+  dropdown "Attribuisci a un post" con drafts pubblicati/programmati. Fix
+  security IDOR: validazione UUID + ownership check draft.
+- **7 ott 2026 — RF-12.7 HelpButton su 4 pagine nuove.** provider-media,
+  zone-consegna, dati-personali, memoria-agente. Help text contestuali
+  completi (compliance ToS, blackout clima, GDPR dossier, memoria agente).
+- **7 ott 2026 — chore: Node >=22 engines + middleware->proxy (Next.js 16).**
+  Fix deprecation Next.js 16: `middleware.ts` rinominato `proxy.ts`, export
+  rinominato. `engines` aggiunto a package.json.
 - **3 ott 2026 — RF-4.3 Provider media esterna (ToS/diritti verificati).**
   Pre-condizione per generazione AI esterna (fal.ai, Replicate, DALL-E): tabella
   `media_providers` con slug unico per org, enum rights_holder (user/provider/
@@ -98,17 +179,23 @@
 
 ## Prossimo (in ordine)
 
-1. **Smoke test M05 end-to-end su Cloud staging**: account Resend/Twilio di prova,
-   API keys nella UI, invio manuale a se stesso. Richiede abilitare `vault` schema
-   nel Dashboard Supabase Cloud.
-2. **Continuare audit v1.5**: scansione P2 restanti dopo i 6 P1 di oggi.
-3. **Connettori M1 reali verso gestionali** Lenny/Stazione (SQL diretto vs API).
-   Prerequisito per test end-to-end con dati veri invece dei seed.
-4. **M08b Email assistenza** (info@/help@) routing semi-autonomo, bassa priorita.
-5. **F0-b hosting** ancora aperto (§15.A): DigitalOcean App Platform vs Droplet,
-   Supabase Pro, GitHub Actions, 2FA reale, backup cifrato remoto.
-6. **Docker Desktop locale**: non funzionante dopo WSL2/Hyper-V toggles e PC restart.
-   Decidere se escluderlo definitivamente (workflow Cloud-only funziona) o reinstallare.
+1. **RN-69 WhatsApp foto dal campo** — ultimo P3 scoperto. Webhook Twilio
+   incoming numero dedicato -> genera draft M03 nel tono del marchio. Richiede
+   setup Twilio sandbox prima.
+2. **Smoke test M05 end-to-end su Cloud**: account Resend + Twilio reali
+   (anche sandbox), API keys nella UI /impostazioni, invio manuale a se stesso.
+   Richiede abilitare `vault` schema in Dashboard Supabase Cloud (5 min).
+3. **F0-b hosting**: DigitalOcean App Platform vs Droplet, Supabase Pro,
+   GitHub Actions CI (riusa `ci.sh`), 2FA reale, backup cifrato remoto.
+4. **POC desktop OS: decisione** merge/scarta/accantona. Il worktree
+   `../regia-desktop/` ha shell completo funzionante.
+5. **Connettori M1 reali verso gestionali** Lenny/Stazione (SQL diretto vs API).
+   Prerequisito per test end-to-end con dati veri + per far "accendersi"
+   RN-47/RN-48 (metriche ordini oggi a 0 senza dati reali).
+6. **M14 auto-publishing social** (IG/FB/LinkedIn) — adapter stub e poi
+   implementazione reale. Richiede dev account Meta approvato.
+7. **M08b Email assistenza** (info@/help@) routing semi-autonomo. Scope da
+   brainstormare prima di partire.
 
 ## Decisioni prese in corso d'opera
 
