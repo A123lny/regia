@@ -76,6 +76,8 @@ describe("permissions matrix (RU-1a)", () => {
         "delivery_zones.blackout.toggle",
         "media_providers.read",
         "media_providers.manage",
+        "tasks.read",
+        "tasks.crud",
       ];
       for (const cap of all) {
         expect(hasCapability("owner", cap), `owner deve poter ${cap}`).toBe(true);
@@ -187,6 +189,9 @@ describe("permissions matrix (RU-1a)", () => {
       // RF-4.3 provider media: compliance ToS/diritti, Owner-only
       expect(hasCapability("editor", "media_providers.read")).toBe(false);
       expect(hasCapability("editor", "media_providers.manage")).toBe(false);
+      // RF-12.1 tasks: entrambi i ruoli (operativo quotidiano)
+      expect(hasCapability("editor", "tasks.read")).toBe(true);
+      expect(hasCapability("editor", "tasks.crud")).toBe(true);
     });
   });
 

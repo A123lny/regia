@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { getSessionOrRedirect } from "@/lib/auth/session";
-import { getDashboardStats, buildDashboardTasks } from "@/modules/m12-daily-use/public";
+import {
+  getDashboardStats,
+  buildDashboardTasks,
+  listTasks,
+  listOrgUsers,
+} from "@/modules/m12-daily-use/public";
 import {
   listUpcomingRecurrences,
   listOpenMaterialRequests,
@@ -48,15 +53,25 @@ const HERO_FALLBACK = "#7a6857";
 
 export default async function DashboardPage() {
   const session = await getSessionOrRedirect();
-  const [stats, upcomingRecurrences, materialRequests, editorialBalance, pressureAlerts, tasks] =
-    await Promise.all([
-      getDashboardStats(session.organizationId),
-      listUpcomingRecurrences(session.organizationId),
-      listOpenMaterialRequests(session.organizationId),
-      computeEditorialBalance(session.organizationId, 30),
-      getUnsubscribePressureAlerts(session.organizationId),
-      buildDashboardTasks(session.organizationId),
-    ]);
+  const [
+    stats,
+    upcomingRecurrences,
+    materialRequests,
+    editorialBalance,
+    pressureAlerts,
+    tasks,
+    customTasks,
+    orgUsers,
+  ] = await Promise.all([
+    getDashboardStats(session.organizationId),
+    listUpcomingRecurrences(session.organizationId),
+    listOpenMaterialRequests(session.organizationId),
+    computeEditorialBalance(session.organizationId, 30),
+    getUnsubscribePressureAlerts(session.organizationId),
+    buildDashboardTasks(session.organizationId),
+    listTasks({ organizationId: session.organizationId, status: "all", limit: 100 }),
+    listOrgUsers(session.organizationId),
+  ]);
   const heroColors = HERO_BLOB_POSITIONS.map(
     (_, i) => stats.going.brands[i]?.color ?? HERO_FALLBACK,
   );
@@ -142,8 +157,13 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {/* RF-12.1 Task list unificata (priorita' urgent/important/opportunity) */}
-      <TaskListCard tasks={tasks} />
+      {/* RF-12.1 Task list unificata: segnali sistema + task manuali assegnabili */}
+      <TaskListCard
+        signals={tasks}
+        customTasks={customTasks}
+        users={orgUsers}
+        currentUserId={session.userId}
+      />
 
       {/* METRICS — 4 card cliccabili con icona colorata + numero grande in Bricolage + stagger fade-in */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

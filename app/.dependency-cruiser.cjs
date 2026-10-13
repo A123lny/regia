@@ -64,6 +64,7 @@ module.exports = {
           "^src/modules/m09-reminders/internal/",
           "^src/modules/m10-signup/internal/",
           "^src/modules/m11-admin/internal/",
+          "^src/modules/m12-daily-use/internal/",
           "^src/modules/m13-governance/internal/",
         ],
       },
