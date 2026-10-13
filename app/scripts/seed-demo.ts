@@ -851,6 +851,94 @@ async function seedSignupLandings(orgId: string, brandMap: Map<string, string>) 
 }
 
 // ============================================================================
+// Seed reminders (M09) — 12 misti pending/sent/dismissed, 7 kinds
+// ============================================================================
+
+async function seedReminders(orgId: string, lennyBrandId: string) {
+  console.log("[seed-demo] promemoria...");
+  const KINDS = [
+    "welcome",
+    "thanks_order",
+    "service_call",
+    "voucher_expiring",
+    "counter_close",
+    "dormant_reactivation",
+    "review_request",
+  ] as const;
+  const MESSAGE_HINTS: Record<(typeof KINDS)[number], string> = {
+    welcome: "Diamo il benvenuto e proponiamo primo ordine scontato",
+    thanks_order: "Ringrazia l'ordine di ieri e invita a tornare",
+    service_call: "Tagliando previsto a breve, promemoria chiamata",
+    voucher_expiring: "Voucher attivo che scade nei prossimi 7 giorni",
+    counter_close: "Vicino alla soglia loyalty, incentivare l'ultimo ordine",
+    dormant_reactivation: "Nessun ordine da 60+ giorni, riattivazione",
+    review_request: "Esperienza positiva, chiedi recensione Google",
+  };
+  const CHANNELS = ["email", "sms", "whatsapp", "misto"] as const;
+
+  const rows: any[] = [];
+
+  // 8 pending (scheduled_at tra 2gg fa e 5gg nel futuro)
+  for (let i = 0; i < 8; i++) {
+    const kind = KINDS[i % KINDS.length]!;
+    const daysOffset = (i % 7) - 2; // -2..+4
+    rows.push({
+      id: demoUuid(`reminder-pending-${i}`),
+      organization_id: orgId,
+      brand_id: lennyBrandId,
+      contact_id: demoUuid(`contact-${i}`),
+      kind,
+      channel_hint: pick([...CHANNELS], i),
+      status: "pending",
+      scheduled_at:
+        daysOffset <= 0 ? isoDaysAgo(-daysOffset) : isoDaysFromNow(daysOffset),
+      message_hint: MESSAGE_HINTS[kind],
+      sent_at: null,
+      dismissed_at: null,
+    });
+  }
+
+  // 2 sent (ieri, usano kind diversi dai pending per evitare UNIQUE parziale)
+  for (let i = 0; i < 2; i++) {
+    const kind = KINDS[(i + 2) % KINDS.length]!;
+    rows.push({
+      id: demoUuid(`reminder-sent-${i}`),
+      organization_id: orgId,
+      brand_id: lennyBrandId,
+      contact_id: demoUuid(`contact-${10 + i}`),
+      kind,
+      channel_hint: "email",
+      status: "sent",
+      scheduled_at: isoDaysAgo(2),
+      sent_at: isoDaysAgo(1),
+      dismissed_at: null,
+      message_hint: MESSAGE_HINTS[kind],
+    });
+  }
+
+  // 2 dismissed (2gg fa)
+  for (let i = 0; i < 2; i++) {
+    const kind = KINDS[(i + 4) % KINDS.length]!;
+    rows.push({
+      id: demoUuid(`reminder-dismissed-${i}`),
+      organization_id: orgId,
+      brand_id: lennyBrandId,
+      contact_id: demoUuid(`contact-${12 + i}`),
+      kind,
+      channel_hint: "sms",
+      status: "dismissed",
+      scheduled_at: isoDaysAgo(3),
+      sent_at: null,
+      dismissed_at: isoDaysAgo(2),
+      message_hint: MESSAGE_HINTS[kind],
+      notes: "Contatto gia' gestito manualmente",
+    });
+  }
+
+  await upsert("reminders", rows);
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 
@@ -884,6 +972,7 @@ async function main() {
   await seedSegments(orgId, brandMap);
   await seedCampaigns(orgId, brandMap);
   await seedSignupLandings(orgId, brandMap);
+  await seedReminders(orgId, lenny);
 
   console.log("\n[seed-demo] completato con successo ✓\n");
 }
