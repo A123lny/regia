@@ -130,7 +130,10 @@ function DraggablePill({
       ref={setNodeRef}
       style={style}
       type="button"
-      onClick={() => {
+      onClick={(e) => {
+        // Fermiamo il bubbling: altrimenti il click arriva alla cella giorno
+        // (che naviga al day-view) e perdiamo il PostPreviewDialog.
+        e.stopPropagation();
         if (!isDragging) onOpen(post);
       }}
       className={`block w-full rounded-md border border-border px-1.5 py-1 text-left text-[11px] transition-colors hover:border-primary/50 hover:bg-surface-muted ${
@@ -167,6 +170,7 @@ function DroppableDayCell({
   onOpenPost: (p: MonthPost) => void;
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: ymd, disabled: isPast });
+  const router = useRouter();
   const label = formatDayLabel(dayIso);
 
   const border = isDayToday
@@ -177,16 +181,27 @@ function DroppableDayCell({
         ? "border-border/60 bg-surface-muted/40"
         : "border-border bg-surface";
 
+  // L'intera cella e' cliccabile: naviga al day-view con slot orari.
+  // I click sulle pillole post fanno stopPropagation per aprire la preview.
+  const openDay = () => router.push(`/contenuti/calendario/${ymd}`);
+  const onKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openDay();
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-[120px] rounded-lg border p-2 transition-colors ${border}`}
+      role="button"
+      tabIndex={0}
+      onClick={openDay}
+      onKeyDown={onKey}
+      aria-label={`Apri il giorno ${label.day} ${label.month}, griglia oraria`}
+      className={`min-h-[120px] cursor-pointer rounded-lg border p-2 transition-colors hover:border-primary/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${border}`}
     >
-      <Link
-        href={`/contenuti/calendario/${ymd}`}
-        className="mb-2 flex items-baseline justify-between border-b border-border pb-1 transition-colors hover:text-primary"
-        aria-label={`Apri il giorno ${label.day} ${label.month}`}
-      >
+      <div className="mb-2 flex items-baseline justify-between border-b border-border pb-1 transition-colors group-hover:text-primary">
         <div>
           <span className="text-[10px] uppercase tracking-wider text-text-muted">
             {label.weekday}
@@ -202,10 +217,10 @@ function DroppableDayCell({
         {items.length > 0 && (
           <span className="text-[10px] font-medium text-text-muted">{items.length}</span>
         )}
-      </Link>
+      </div>
       {items.length === 0 ? (
         <div className="py-2 text-center text-[10px] text-text-muted/60">
-          {isOver ? "Rilascia qui" : isPast ? "" : "—"}
+          {isOver ? "Rilascia qui" : isPast ? "" : "clicca per aprire"}
         </div>
       ) : (
         <div className="space-y-1">
