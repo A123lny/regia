@@ -939,6 +939,161 @@ async function seedReminders(orgId: string, lennyBrandId: string) {
 }
 
 // ============================================================================
+// Seed abandonment_signals (M09 anti-abbandono) — 10 segnali misti
+// 2 high + 3 medium + 3 low + 1 risolto + 1 nel passato (ri-aperto non applicabile)
+// ============================================================================
+
+async function seedAbandonmentSignals(orgId: string, lennyBrandId: string) {
+  console.log("[seed-demo] segnali abbandono...");
+  // Mix: 4 kinds x livelli di gravita'. UNIQUE parziale e' per (contact, kind)
+  // dove resolved_at IS NULL, quindi varo contact_id per non collidere.
+  const SIGNALS: Array<{
+    seed: string;
+    contactIdx: number;
+    kind: "skipped_week" | "dropped_frequency" | "silence_gap" | "inactivity";
+    severity: "low" | "medium" | "high";
+    daysAgo: number;
+    windowDays: number;
+    prevCount: number;
+    currCount: number;
+    notes?: string;
+    resolved?: { daysAgo: number; reason: string };
+  }> = [
+    // 2 high — i piu' urgenti
+    {
+      seed: "aband-h-1",
+      contactIdx: 15,
+      kind: "inactivity",
+      severity: "high",
+      daysAgo: 1,
+      windowDays: 60,
+      prevCount: 8,
+      currCount: 0,
+      notes: "Cliente abituale, nessun ordine da 60+ giorni",
+    },
+    {
+      seed: "aband-h-2",
+      contactIdx: 16,
+      kind: "dropped_frequency",
+      severity: "high",
+      daysAgo: 2,
+      windowDays: 90,
+      prevCount: 12,
+      currCount: 3,
+      notes: "Frequenza passata da 4 a 1 ordine al mese",
+    },
+    // 3 medium
+    {
+      seed: "aband-m-1",
+      contactIdx: 17,
+      kind: "silence_gap",
+      severity: "medium",
+      daysAgo: 3,
+      windowDays: 30,
+      prevCount: 4,
+      currCount: 0,
+      notes: "30+ giorni senza ordini",
+    },
+    {
+      seed: "aband-m-2",
+      contactIdx: 18,
+      kind: "skipped_week",
+      severity: "medium",
+      daysAgo: 4,
+      windowDays: 14,
+      prevCount: 2,
+      currCount: 0,
+      notes: "Cliente settimanale che ha saltato una settimana",
+    },
+    {
+      seed: "aband-m-3",
+      contactIdx: 19,
+      kind: "dropped_frequency",
+      severity: "medium",
+      daysAgo: 5,
+      windowDays: 60,
+      prevCount: 6,
+      currCount: 2,
+    },
+    // 3 low
+    {
+      seed: "aband-l-1",
+      contactIdx: 20,
+      kind: "skipped_week",
+      severity: "low",
+      daysAgo: 2,
+      windowDays: 14,
+      prevCount: 1,
+      currCount: 0,
+    },
+    {
+      seed: "aband-l-2",
+      contactIdx: 21,
+      kind: "silence_gap",
+      severity: "low",
+      daysAgo: 6,
+      windowDays: 30,
+      prevCount: 2,
+      currCount: 0,
+    },
+    {
+      seed: "aband-l-3",
+      contactIdx: 22,
+      kind: "inactivity",
+      severity: "low",
+      daysAgo: 7,
+      windowDays: 60,
+      prevCount: 2,
+      currCount: 0,
+    },
+    // 1 risolto (settimana scorsa) — testa la storia
+    {
+      seed: "aband-resolved-1",
+      contactIdx: 23,
+      kind: "silence_gap",
+      severity: "medium",
+      daysAgo: 20,
+      windowDays: 30,
+      prevCount: 5,
+      currCount: 0,
+      notes: "Cliente contattato telefonicamente",
+      resolved: { daysAgo: 15, reason: "contattato_e_tornato" },
+    },
+  ];
+
+  const rows: any[] = SIGNALS.map((s) => {
+    const signalAt = isoDaysAgo(s.daysAgo);
+    const windowEnd = signalAt;
+    const windowStart = new Date(
+      new Date(signalAt).getTime() - s.windowDays * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const row: any = {
+      id: demoUuid(s.seed),
+      organization_id: orgId,
+      brand_id: lennyBrandId,
+      contact_id: demoUuid(`contact-${s.contactIdx}`),
+      kind: s.kind,
+      severity: s.severity,
+      signal_at: signalAt,
+      window_start: windowStart,
+      window_end: windowEnd,
+      previous_orders_count: s.prevCount,
+      current_orders_count: s.currCount,
+      notes: s.notes ?? null,
+      resolved_at: null,
+      resolved_reason: null,
+    };
+    if (s.resolved) {
+      row.resolved_at = isoDaysAgo(s.resolved.daysAgo);
+      row.resolved_reason = s.resolved.reason;
+    }
+    return row;
+  });
+
+  await upsert("abandonment_signals", rows);
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 
@@ -973,6 +1128,7 @@ async function main() {
   await seedCampaigns(orgId, brandMap);
   await seedSignupLandings(orgId, brandMap);
   await seedReminders(orgId, lenny);
+  await seedAbandonmentSignals(orgId, lenny);
 
   console.log("\n[seed-demo] completato con successo ✓\n");
 }
