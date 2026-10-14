@@ -76,6 +76,31 @@ export async function listTasks(input: ListTasksInput): Promise<OperationalTask[
   return ((data ?? []) as any[]).map(rowToTask);
 }
 
+/**
+ * Lista task con due_at nel range [startIso, endIso). Serve alla day-view
+ * del calendario editoriale per mostrare i task operativi insieme ai post.
+ * Esclude i cancellati; include done e open.
+ */
+export async function listTasksByDueRange(
+  organizationId: string,
+  startIso: string,
+  endIso: string,
+): Promise<OperationalTask[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin
+    .from("operational_tasks")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .neq("status", "cancelled")
+    .gte("due_at", startIso)
+    .lt("due_at", endIso)
+    .order("due_at", { ascending: true });
+  if (error) throw new Error(`listTasksByDueRange: ${error.message}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map(rowToTask);
+}
+
 export type CreateTaskInput = {
   organizationId: string;
   title: string;

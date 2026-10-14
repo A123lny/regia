@@ -8,6 +8,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
 import { listByOrgOnDay } from "@/modules/m03-editorial/public";
+import { listTasksByDueRange, listOrgUsers } from "@/modules/m12-daily-use/server";
 import { DayViewClient } from "./day-view-client";
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -62,11 +63,11 @@ export default async function DayViewPage({ params }: { params: Promise<{ date: 
   const prevDate = toYmd(addDays(dayStart, -1));
   const nextDate = toYmd(addDays(dayStart, 1));
 
-  const posts = await listByOrgOnDay(
-    session.organizationId,
-    dayStart.toISOString(),
-    dayEnd.toISOString(),
-  );
+  const [posts, tasks, users] = await Promise.all([
+    listByOrgOnDay(session.organizationId, dayStart.toISOString(), dayEnd.toISOString()),
+    listTasksByDueRange(session.organizationId, dayStart.toISOString(), dayEnd.toISOString()),
+    listOrgUsers(session.organizationId),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -86,10 +87,10 @@ export default async function DayViewPage({ params }: { params: Promise<{ date: 
               {formatFullDate(dayStart)}
             </h1>
             <p className="mt-1 text-sm text-text-muted">
-              {posts.length === 0
-                ? "Nessuna pubblicazione programmata."
-                : `${posts.length} pubblicazion${posts.length === 1 ? "e" : "i"}.`}
-              {" Trascina una card sullo slot di destinazione per cambiare orario."}
+              {posts.length === 0 && tasks.length === 0
+                ? "Nessuna pubblicazione o task programmato."
+                : `${posts.length} pubblicazion${posts.length === 1 ? "e" : "i"} · ${tasks.length} task.`}
+              {" Clicca su uno slot vuoto per aggiungere un task."}
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm">
@@ -114,7 +115,14 @@ export default async function DayViewPage({ params }: { params: Promise<{ date: 
         </div>
       </header>
 
-      <DayViewClient posts={posts} dayYmd={date} isPast={isPast} />
+      <DayViewClient
+        posts={posts}
+        tasks={tasks}
+        users={users}
+        currentUserId={session.userId}
+        dayYmd={date}
+        isPast={isPast}
+      />
     </div>
   );
 }
