@@ -28,7 +28,7 @@ ALLOW_SEED=1 npm run seed:demo   # 235 righe + 12 promemoria + 9 segnali abbando
 ### 1.3 Prerequisiti E2E
 - `.env.staging` presente con `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`
 - Owner esistente in Supabase Cloud (default `owner@regia.local`)
-- Il setup di Playwright **resetta la password** dell'Owner al valore di `E2E_OWNER_PASSWORD` env (default `E2E-Test-Password-2026!`). Dopo i test puoi mantenerla o cambiarla via `/impostazioni`.
+- Il setup di Playwright **resetta la password** dell'Owner ad una stringa random generata al momento (mai salvata in repo). Se vuoi una password fissa per debug manuale: `E2E_OWNER_PASSWORD=... npm run test:e2e`. Dopo i test puoi comunque cambiarla via `/impostazioni`.
 - Chromium scaricato (`npx playwright install chromium`, una volta sola)
 
 ### 1.4 Convenzioni spec
@@ -194,7 +194,7 @@ Prima di ogni deploy di una feature grossa:
 
 1. `npm run test:e2e` → 38 test devono passare
 2. `cd app && npm run ci` → verde (typecheck + lint + boundaries + vitest)
-3. Login manuale su `/login` con password reset dal setup E2E (vedi 1.3)
+3. Login manuale su `/login` con la password che hai in `/impostazioni` (il setup E2E usa una random non ri-usabile)
 4. Dashboard: la task list carica con ≥ 1 segnale di sistema
 5. Clicca ciascuna voce della sidebar → ciascuna pagina deve rispondere entro 2s
 

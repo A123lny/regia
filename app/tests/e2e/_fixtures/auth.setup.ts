@@ -2,14 +2,19 @@ import { test as setup, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as crypto from "node:crypto";
 
 // Login dell'Owner esistente: l'app usa email+password (non magic link),
-// quindi il setup resetta la password dell'Owner ad un valore noto da env
-// (E2E_OWNER_PASSWORD) via admin API, poi compila il form /login.
-// Il risultato (cookie di sessione) viene serializzato in storageState.
+// quindi il setup resetta la password dell'Owner ad una stringa random
+// generata al momento (mai persistita in repo), poi compila /login e
+// serializza il cookie di sessione in storageState.
+// La password viene usata solo in-memory nel processo di test: dopo il
+// resetta il storageState che e' in gitignore e sufficiente ai run futuri.
+// E2E_OWNER_PASSWORD env var e' opzionale, utile per debug manuale.
 
 const OWNER_EMAIL = process.env["E2E_OWNER_EMAIL"] ?? "owner@regia.local";
-const OWNER_PASSWORD = process.env["E2E_OWNER_PASSWORD"] ?? "E2E-Test-Password-2026!";
+const OWNER_PASSWORD =
+  process.env["E2E_OWNER_PASSWORD"] ?? crypto.randomBytes(24).toString("base64url");
 const STORAGE_PATH = path.resolve("./tests/e2e/.auth/owner.json");
 
 setup("authenticate as owner", async ({ page }) => {
