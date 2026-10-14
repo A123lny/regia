@@ -18,6 +18,9 @@
     "test": "dotenv -e .env.local -- vitest run",
     "boundaries": "depcruise src --config .dependency-cruiser.cjs",
     "seed:demo": "dotenv -e .env.staging -- tsx scripts/seed-demo.ts",
+    "test:e2e": "dotenv -e .env.staging -- playwright test",
+    "test:e2e:ui": "dotenv -e .env.staging -- playwright test --ui",
+    "test:e2e:report": "playwright show-report ./tests/e2e/.report",
     "ci": "bash scripts/ci.sh"
   },
   "dependencies": {
@@ -41,6 +44,7 @@
     "twilio": "^6.1.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.3",
