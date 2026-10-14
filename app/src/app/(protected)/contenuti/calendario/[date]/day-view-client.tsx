@@ -102,8 +102,30 @@ function isoToLocalInput(iso: string): string {
 }
 
 // Interpreta l'input `datetime-local` come local time e ritorna ISO UTC.
+// NB: evitiamo `new Date("YYYY-MM-DDTHH:mm")` perche' alcuni browser lo
+// interpretano come UTC (invece che local time), slittando il giorno in
+// timezone come Europe/Rome. Parsiamo esplicitamente ed usiamo il
+// constructor locale, che non ha ambiguita'.
 function localInputToIso(local: string): string {
-  return new Date(local).toISOString();
+  const [datePart, timePart = "00:00"] = local.split("T");
+  const [y, m, d] = (datePart ?? "").split("-").map((n) => parseInt(n, 10));
+  const [hh, mm] = timePart.split(":").map((n) => parseInt(n, 10));
+  if (
+    y === undefined ||
+    m === undefined ||
+    d === undefined ||
+    hh === undefined ||
+    mm === undefined ||
+    Number.isNaN(y) ||
+    Number.isNaN(m) ||
+    Number.isNaN(d) ||
+    Number.isNaN(hh) ||
+    Number.isNaN(mm)
+  ) {
+    // Fallback: lasciamo che il browser provi
+    return new Date(local).toISOString();
+  }
+  return new Date(y, m - 1, d, hh, mm, 0, 0).toISOString();
 }
 
 function PostCard({
