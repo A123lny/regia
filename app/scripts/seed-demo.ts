@@ -945,6 +945,19 @@ async function seedReminders(orgId: string, lennyBrandId: string) {
 
 async function seedAbandonmentSignals(orgId: string, lennyBrandId: string) {
   console.log("[seed-demo] segnali abbandono...");
+  // Pulizia segnali auto-generati dal detector M09 (notes fingerprint):
+  // il detector crea righe con "60+ giorni senza ordini (ultimo:..." che si
+  // affiancano a quelle controllate del seed e confondono il conteggio UI.
+  // Rilanciare "Ricalcola segnali" dalla UI le ricreera' comunque.
+  const { error: delErr, count: delCount } = await admin
+    .from("abandonment_signals")
+    .delete({ count: "exact" })
+    .eq("organization_id", orgId)
+    .like("notes", "60+ giorni senza ordini (ultimo:%");
+  if (delErr) throw new Error(`cleanup detector signals: ${delErr.message}`);
+  if (delCount && delCount > 0)
+    console.log(`  [abandonment_signals] ${delCount} auto-generati rimossi`);
+
   // Mix: 4 kinds x livelli di gravita'. UNIQUE parziale e' per (contact, kind)
   // dove resolved_at IS NULL, quindi varo contact_id per non collidere.
   const SIGNALS: Array<{
