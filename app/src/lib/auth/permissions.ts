@@ -74,7 +74,11 @@ export type Capability =
   | "signup.landing.crud"
   | "signup.events.read"
   // Analytics cross-modulo (m08-analytics) — RF-8.x
+  // RU-1a: separazione marketing (visibile Editor) vs commerciale (solo Owner).
+  // 'analytics.read' resta come alias legacy = marketing-level per retro-compat.
   | "analytics.read"
+  | "analytics.marketing.read"
+  | "analytics.commercial.read"
   // Governance (m13-governance) — §8.2 categorie mai autonome + RF-6.15..6.20
   | "governance.read"
   | "governance.crud"
@@ -172,7 +176,11 @@ const CAPABILITIES: Record<Capability, Role[]> = {
   "partner.activity.log": ["owner", "editor"], // log contatti operativi
   "signup.landing.crud": ["owner", "editor"],
   "signup.events.read": ["owner", "editor"],
+  // RU-1a: marketing visibile anche a Editor; commerciale (fatturato,
+  // margini, esiti promo in euro) riservato all'Owner.
   "analytics.read": ["owner", "editor"],
+  "analytics.marketing.read": ["owner", "editor"],
+  "analytics.commercial.read": ["owner"],
   "governance.read": ["owner", "editor"], // visibile a tutti, modifica solo Owner
   "governance.crud": ["owner"], // strategica: solo Owner
   "reminders.read": ["owner", "editor"],
@@ -288,7 +296,9 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   "partner.activity.log": "Registrare contatti e attività",
   "signup.landing.crud": "Configurare landing di iscrizione",
   "signup.events.read": "Vedere eventi iscrizione",
-  "analytics.read": "Vedere cruscotto analytics",
+  "analytics.read": "Vedere cruscotto analytics (alias legacy = marketing)",
+  "analytics.marketing.read": "Analytics marketing: contatti, campagne, iscrizioni (no €)",
+  "analytics.commercial.read": "Analytics commerciale: fatturato, esiti promo in euro (RU-1a)",
   "governance.read": "Vedere regole autonomia e vincoli commerciali",
   "governance.crud": "Modificare regole autonomia e blocchi prodotto",
   "reminders.read": "Vedere promemoria da fare",

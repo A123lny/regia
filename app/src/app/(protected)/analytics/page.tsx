@@ -82,6 +82,10 @@ export default async function AnalyticsPage({
   const session = await getSessionOrRedirect();
   if (!hasCapability(session.role, "analytics.read")) notFound();
 
+  // RU-1a: dati commerciali (fatturato in euro, esiti promo monetari) solo Owner.
+  // L'Editor accede alla pagina ma vede un placeholder al posto di queste sezioni.
+  const canCommercial = hasCapability(session.role, "analytics.commercial.read");
+
   const params = await searchParams;
   const period: AnalyticsPeriod = isPeriod(params.period) ? params.period : "30d";
 
@@ -269,35 +273,43 @@ export default async function AnalyticsPage({
               {orders.countInPeriod}
             </div>
           </div>
-          <div className="rounded-lg bg-bg p-3">
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-text-muted">
-              Fatturato
-              <TrendBadge
-                current={orders.totalCentsInPeriod}
-                previous={orders.totalCentsPreviousPeriod}
-              />
+          {canCommercial ? (
+            <>
+              <div className="rounded-lg bg-bg p-3">
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-text-muted">
+                  Fatturato
+                  <TrendBadge
+                    current={orders.totalCentsInPeriod}
+                    previous={orders.totalCentsPreviousPeriod}
+                  />
+                </div>
+                <div
+                  className="mt-1 text-2xl font-bold text-text"
+                  style={{ fontFamily: "var(--font-bricolage)" }}
+                >
+                  {formatCents(orders.totalCentsInPeriod)}
+                </div>
+                <div className="text-[11px] text-text-muted">
+                  vs {formatCents(orders.totalCentsPreviousPeriod)}
+                </div>
+              </div>
+              <div className="rounded-lg bg-bg p-3">
+                <div className="text-[10px] uppercase tracking-wider text-text-muted">
+                  Scontrino medio
+                </div>
+                <div
+                  className="mt-1 text-2xl font-bold text-text"
+                  style={{ fontFamily: "var(--font-bricolage)" }}
+                >
+                  {formatCents(orders.avgOrderValueCents)}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="col-span-2 flex items-center justify-center rounded-lg border border-dashed border-border bg-bg p-3 text-center text-[11px] italic text-text-muted">
+              Dati di fatturato riservati al titolare (RU-1a)
             </div>
-            <div
-              className="mt-1 text-2xl font-bold text-text"
-              style={{ fontFamily: "var(--font-bricolage)" }}
-            >
-              {formatCents(orders.totalCentsInPeriod)}
-            </div>
-            <div className="text-[11px] text-text-muted">
-              vs {formatCents(orders.totalCentsPreviousPeriod)}
-            </div>
-          </div>
-          <div className="rounded-lg bg-bg p-3">
-            <div className="text-[10px] uppercase tracking-wider text-text-muted">
-              Scontrino medio
-            </div>
-            <div
-              className="mt-1 text-2xl font-bold text-text"
-              style={{ fontFamily: "var(--font-bricolage)" }}
-            >
-              {formatCents(orders.avgOrderValueCents)}
-            </div>
-          </div>
+          )}
           <div className="rounded-lg bg-bg p-3">
             <div className="text-[10px] uppercase tracking-wider text-text-muted">
               Canali attivi
@@ -313,7 +325,7 @@ export default async function AnalyticsPage({
 
         <div className="mt-4">
           <h3 className="mb-2 text-xs uppercase tracking-wider text-text-muted">
-            Fatturato per canale
+            {canCommercial ? "Fatturato per canale" : "Ordini per canale"}
           </h3>
           {orders.byChannel.length === 0 ? (
             <p className="text-xs text-text-muted italic">Nessun ordine nel periodo</p>
@@ -328,8 +340,13 @@ export default async function AnalyticsPage({
                         {ORDER_CHANNEL_LABELS[c.channel as OrderChannel] ?? c.channel}
                       </span>
                       <span className="text-text-muted">
-                        {c.count} ord ·{" "}
-                        <strong className="text-text">{formatCents(c.totalCents)}</strong>
+                        {c.count} ord
+                        {canCommercial && (
+                          <>
+                            {" "}
+                            · <strong className="text-text">{formatCents(c.totalCents)}</strong>
+                          </>
+                        )}
                       </span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
