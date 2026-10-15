@@ -1,19 +1,25 @@
 // M9 Anti-abbandono — RN-40 + RF-9.x struttura.
 
 import { notFound } from "next/navigation";
-import { UserX, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
+import { UserX, AlertTriangle, AlertCircle } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";
-import { listAbandonmentSignals, getAbandonmentStats } from "@/modules/m09-reminders/public";
+import {
+  listAbandonmentSignals,
+  listResolvedAbandonmentSignals,
+  getAbandonmentStats,
+} from "@/modules/m09-reminders/public";
 import { HelpButton } from "@/components/help/help-button";
 import { AbandonmentClient } from "./abandonment-client";
+import { ResolvedSignalsCard } from "./resolved-signals-card";
 
 export default async function AntiAbbandonoPage() {
   const session = await getSessionOrRedirect();
   if (!hasCapability(session.role, "abandonment.read")) notFound();
 
-  const [signals, stats] = await Promise.all([
+  const [signals, resolvedSignals, stats] = await Promise.all([
     listAbandonmentSignals(session.organizationId, true, 200),
+    listResolvedAbandonmentSignals(session.organizationId, 50),
     getAbandonmentStats(session.organizationId),
   ]);
 
@@ -73,17 +79,7 @@ export default async function AntiAbbandonoPage() {
             {stats.activeLow}
           </div>
         </div>
-        <div className="rounded-xl border border-success/30 bg-success/5 p-4">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-success">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Risolti 30gg
-          </div>
-          <div
-            className="mt-1 text-3xl font-bold text-text"
-            style={{ fontFamily: "var(--font-bricolage)" }}
-          >
-            {stats.resolvedLast30d}
-          </div>
-        </div>
+        <ResolvedSignalsCard count={stats.resolvedLast30d} resolvedSignals={resolvedSignals} />
       </div>
 
       <AbandonmentClient signals={signals} canResolve={canResolve} canDetect={canDetect} />

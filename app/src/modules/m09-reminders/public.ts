@@ -37,7 +37,11 @@ export type {
   AbandonmentSignal,
 } from "./internal/abandonment-types";
 export { ABANDONMENT_KIND_LABELS, ABANDONMENT_SEVERITY_STYLES } from "./internal/abandonment-types";
-export { listAbandonmentSignals, getAbandonmentStats } from "./internal/abandonment-repo";
+export {
+  listAbandonmentSignals,
+  listResolvedAbandonmentSignals,
+  getAbandonmentStats,
+} from "./internal/abandonment-repo";
 export type { SignalRow as AbandonmentSignalRow } from "./internal/abandonment-repo";
 export { detectAbandonmentAction, resolveAbandonmentSignalAction } from "./internal/actions";
 export type { DetectAbandonmentResult } from "./internal/actions";

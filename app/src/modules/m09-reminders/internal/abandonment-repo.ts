@@ -75,6 +75,44 @@ export async function listAbandonmentSignals(
   });
 }
 
+/**
+ * Lista segnali risolti ordinati per data di risoluzione discendente.
+ * Serve alla pagina /anti-abbandono per mostrare lo storico cliccando sulla
+ * card "Risolti".
+ */
+export async function listResolvedAbandonmentSignals(
+  organizationId: string,
+  limit: number = 50,
+): Promise<SignalRow[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin
+    .from("abandonment_signals")
+    .select(
+      `${SELECT_COLS}, brands!inner(slug, display_name, color, is_archived), contacts!inner(first_name, last_name, email)`,
+    )
+    .eq("organization_id", organizationId)
+    .eq("brands.is_archived", false)
+    .not("resolved_at", "is", null)
+    .order("resolved_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`Errore lista signals risolti: ${error.message}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map((row): SignalRow => {
+    const parts = [row.contacts?.first_name, row.contacts?.last_name].filter(
+      (v: string | null | undefined): v is string => Boolean(v),
+    );
+    return {
+      ...rowToSignal(row),
+      brandSlug: row.brands.slug as string,
+      brandDisplayName: row.brands.display_name as string,
+      brandColor: row.brands.color as string,
+      contactFullName: parts.length > 0 ? parts.join(" ") : null,
+      contactEmail: (row.contacts?.email as string | null) ?? null,
+    };
+  });
+}
+
 export async function getAbandonmentStats(organizationId: string): Promise<{
   activeHigh: number;
   activeMedium: number;
