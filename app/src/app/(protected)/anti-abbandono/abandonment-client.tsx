@@ -3,7 +3,7 @@
 // Client anti-abbandono: leaderboard segnali + azioni resolve/detect.
 
 import { useState, useTransition } from "react";
-import { RefreshCw, CheckCircle2 } from "lucide-react";
+import { RefreshCw, CheckCircle2, X as XIcon } from "lucide-react";
 import { BrandChip } from "@/components/brand/brand-chip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,8 +86,8 @@ export function AbandonmentClient({ signals, canResolve, canDetect }: Props) {
 
 function SignalRow({ signal, canResolve }: { signal: AbandonmentSignalRow; canResolve: boolean }) {
   const [pending, startTransition] = useTransition();
-  const [expanded, setExpanded] = useState(false);
-  const [reason, setReason] = useState("Cliente ricontattato");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -122,48 +122,22 @@ function SignalRow({ signal, canResolve }: { signal: AbandonmentSignalRow; canRe
         <td className="p-3 text-xs italic text-text-muted">{signal.notes}</td>
         {canResolve && (
           <td className="p-3">
-            {!expanded ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setExpanded(true)}
-                className="border-success/40 text-success hover:bg-success/10"
-              >
-                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Risolvi
-              </Button>
-            ) : (
-              <div className="flex items-center gap-1">
-                <input
-                  type="text"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Motivo"
-                  maxLength={200}
-                  className="w-32 rounded-md border border-border bg-bg px-1.5 py-1 text-xs focus:border-primary focus:outline-none"
-                />
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => {
-                    setError(null);
-                    startTransition(async () => {
-                      const r = await resolveAbandonmentSignalAction({
-                        signalId: signal.id,
-                        reason: reason.trim(),
-                      });
-                      if (!r.ok) setError(r.error);
-                    });
-                  }}
-                  className="rounded-md bg-success p-1.5 text-white hover:bg-success/90 disabled:opacity-50"
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setReason("");
+                setError(null);
+                setDialogOpen(true);
+              }}
+              className="border-success/40 text-success hover:bg-success/10"
+            >
+              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Risolvi
+            </Button>
           </td>
         )}
       </tr>
-      {error && (
+      {error && !dialogOpen && (
         <tr>
           <td
             colSpan={6}
@@ -173,6 +147,151 @@ function SignalRow({ signal, canResolve }: { signal: AbandonmentSignalRow; canRe
           </td>
         </tr>
       )}
+      {dialogOpen && (
+        <ResolveDialog
+          signal={signal}
+          reason={reason}
+          setReason={setReason}
+          error={error}
+          pending={pending}
+          onClose={() => setDialogOpen(false)}
+          onConfirm={() => {
+            if (reason.trim().length < 3) {
+              setError("Scrivi almeno 3 caratteri per il motivo");
+              return;
+            }
+            setError(null);
+            startTransition(async () => {
+              const r = await resolveAbandonmentSignalAction({
+                signalId: signal.id,
+                reason: reason.trim(),
+              });
+              if (!r.ok) {
+                setError(r.error);
+                return;
+              }
+              setDialogOpen(false);
+            });
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function ResolveDialog({
+  signal,
+  reason,
+  setReason,
+  error,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  signal: AbandonmentSignalRow;
+  reason: string;
+  setReason: (s: string) => void;
+  error: string | null;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <tr>
+      <td colSpan={6} className="p-0">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={onClose}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="resolve-dialog-title"
+        >
+          <div
+            className="relative w-full max-w-xl overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-border p-5">
+              <div className="min-w-0 flex-1">
+                <h2
+                  id="resolve-dialog-title"
+                  className="text-xl font-bold text-text"
+                  style={{ fontFamily: "var(--font-bricolage)" }}
+                >
+                  Risolvi segnale
+                </h2>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-muted">
+                  <Badge className={`border ${ABANDONMENT_SEVERITY_STYLES[signal.severity]}`}>
+                    {signal.severity.toUpperCase()}
+                  </Badge>
+                  <span>{ABANDONMENT_KIND_LABELS[signal.kind]}</span>
+                  {signal.contactFullName && (
+                    <span>
+                      · <strong>{signal.contactFullName}</strong>
+                    </span>
+                  )}
+                  <span>
+                    · {signal.previousOrdersCount} &rarr; {signal.currentOrdersCount} ordini
+                  </span>
+                </div>
+                {signal.notes && (
+                  <p className="mt-2 rounded border border-border bg-bg px-2 py-1 text-[11px] italic text-text-muted">
+                    Nota segnale: {signal.notes}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-md p-1.5 text-text-muted hover:bg-surface-muted"
+                aria-label="Chiudi"
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 p-5">
+              <label className="block">
+                <span className="text-xs font-medium text-text">
+                  Motivo + note (min 3 caratteri)
+                </span>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={6}
+                  maxLength={1000}
+                  placeholder="Es: Chiamato il cliente, mi ha spiegato che il ritardo era dovuto a... Si e' chiarito, torna attivo. Prossimo contatto previsto a dicembre."
+                  className="mt-1 w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
+                  autoFocus
+                />
+                <div className="mt-1 flex justify-between text-[10px] text-text-muted">
+                  <span>Verra&apos; salvato in resolved_reason + visibile nello storico</span>
+                  <span>{reason.length}/1000</span>
+                </div>
+              </label>
+              {error && (
+                <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
+                  {error}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-border bg-surface-muted/40 p-4">
+              <Button variant="outline" size="sm" onClick={onClose}>
+                Annulla
+              </Button>
+              <Button
+                size="sm"
+                onClick={onConfirm}
+                disabled={pending}
+                className="bg-success text-white hover:bg-success/90"
+              >
+                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                {pending ? "Salvo..." : "Conferma risoluzione"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
   );
 }
