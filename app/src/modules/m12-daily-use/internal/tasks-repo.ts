@@ -101,6 +101,42 @@ export async function listTasksByDueRange(
   return ((data ?? []) as any[]).map(rowToTask);
 }
 
+/**
+ * Lista i task "attivi" (status=open) che devono comparire nel giorno
+ * visualizzato della day-view, secondo la logica "sliding forward":
+ * - Se il giorno visualizzato e' oggi: tutti i task open con due_at (inclusi
+ *   quelli overdue, cosi' l'utente non li dimentica)
+ * - Se e' un giorno futuro: solo i task con due_at >= dayStart (scadono
+ *   oggi o dopo)
+ * - Se e' un giorno passato: nessuno (i task non "si sdoppiano" indietro)
+ *
+ * Il colore / urgenza e' calcolato dal client in base alla differenza di
+ * giorni fra due_at e il giorno visualizzato.
+ */
+export async function listTasksActiveOnDay(
+  organizationId: string,
+  dayStartIso: string,
+  todayStartIso: string,
+): Promise<OperationalTask[]> {
+  if (dayStartIso < todayStartIso) return [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  let q = admin
+    .from("operational_tasks")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .eq("status", "open")
+    .not("due_at", "is", null);
+  if (dayStartIso !== todayStartIso) {
+    // Giorno futuro: filtro per scadenza >= giorno visualizzato
+    q = q.gte("due_at", dayStartIso);
+  }
+  const { data, error } = await q.order("due_at", { ascending: true });
+  if (error) throw new Error(`listTasksActiveOnDay: ${error.message}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map(rowToTask);
+}
+
 export type CreateTaskInput = {
   organizationId: string;
   title: string;

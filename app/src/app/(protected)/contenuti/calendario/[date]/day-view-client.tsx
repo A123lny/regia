@@ -25,8 +25,6 @@ import {
   Trash2,
   Plus,
   Check as CheckIcon,
-  Circle,
-  Undo2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -43,7 +41,6 @@ import {
 import {
   createTaskAction,
   completeTaskAction,
-  reopenTaskAction,
   cancelTaskAction,
 } from "@/modules/m12-daily-use/public";
 import type { OperationalTask, OperationalTaskPriority } from "@/modules/m12-daily-use/public";
@@ -241,30 +238,78 @@ function PostCard({
   );
 }
 
-const PRIORITY_DOT: Record<OperationalTaskPriority, string> = {
-  urgent: "text-danger",
-  important: "text-warning",
-  opportunity: "text-success",
+// Calcola giorni fra due_at e il giorno visualizzato (entrambi normalizzati
+// a mezzanotte locale). Positivo = la scadenza e' nel futuro rispetto al
+// giorno visualizzato, 0 = scade in questo giorno, negativo = overdue.
+function daysUntilDue(dayYmd: string, dueAtIso: string | null): number {
+  if (!dueAtIso) return 999;
+  const parts = dayYmd.split("-");
+  const y1 = parseInt(parts[0] ?? "", 10);
+  const m1 = parseInt(parts[1] ?? "", 10);
+  const d1 = parseInt(parts[2] ?? "", 10);
+  const due = new Date(dueAtIso);
+  const a = Date.UTC(y1, m1 - 1, d1);
+  const b = Date.UTC(due.getFullYear(), due.getMonth(), due.getDate());
+  return Math.round((b - a) / (24 * 3600 * 1000));
+}
+
+type UrgencyLevel = "overdue" | "today" | "tomorrow" | "soon" | "later";
+
+function urgencyFromDays(days: number): UrgencyLevel {
+  if (days < 0) return "overdue";
+  if (days === 0) return "today";
+  if (days === 1) return "tomorrow";
+  if (days <= 3) return "soon";
+  return "later";
+}
+
+const URGENCY_STYLES: Record<UrgencyLevel, { bar: string; chip: string; chipLabel: string }> = {
+  overdue: {
+    bar: "bg-danger",
+    chip: "bg-danger text-white",
+    chipLabel: "In ritardo",
+  },
+  today: {
+    bar: "bg-danger",
+    chip: "bg-danger/90 text-white",
+    chipLabel: "Scade oggi",
+  },
+  tomorrow: {
+    bar: "bg-warning",
+    chip: "bg-warning/20 text-warning border border-warning/40",
+    chipLabel: "Scade domani",
+  },
+  soon: {
+    bar: "bg-warning/60",
+    chip: "bg-warning/10 text-warning border border-warning/30",
+    chipLabel: "In arrivo",
+  },
+  later: {
+    bar: "bg-success/70",
+    chip: "bg-success/10 text-success border border-success/30",
+    chipLabel: "Pianificato",
+  },
 };
 
-function TaskCard({
+function TaskPillCard({
   task,
-  isPast,
+  dayYmd,
   currentUserId,
   onRefresh,
 }: {
   task: OperationalTask;
-  isPast: boolean;
+  dayYmd: string;
   currentUserId: string;
   onRefresh: () => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const isDone = task.status === "done";
+  const days = daysUntilDue(dayYmd, task.dueAt);
+  const urgency = urgencyFromDays(days);
+  const style = URGENCY_STYLES[urgency];
 
-  const toggle = () => {
+  const complete = () => {
     startTransition(async () => {
-      if (isDone) await reopenTaskAction(task.id);
-      else await completeTaskAction(task.id);
+      await completeTaskAction(task.id);
       onRefresh();
     });
   };
@@ -277,100 +322,141 @@ function TaskCard({
     });
   };
 
+  const dueLabel = task.dueAt
+    ? new Date(task.dueAt).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })
+    : "—";
+  const whenLabel =
+    days === 0
+      ? `oggi · ${formatHm(task.dueAt)}`
+      : days === 1
+        ? `domani · ${formatHm(task.dueAt)}`
+        : days > 1
+          ? `fra ${days} giorni (${dueLabel})`
+          : days === -1
+            ? `ieri (${dueLabel})`
+            : `${Math.abs(days)} giorni fa (${dueLabel})`;
+
   return (
-    <div
-      className={`group relative flex items-start gap-2 rounded-md border border-border bg-surface p-2 shadow-sm ${
-        isDone ? "opacity-60" : ""
-      } ${isPast && !isDone ? "opacity-70" : ""}`}
-    >
-      <div className="absolute inset-y-0 left-0 w-1 rounded-l-md bg-primary" aria-hidden="true" />
-      <button
-        type="button"
-        onClick={toggle}
-        disabled={pending}
-        className="mt-0.5 shrink-0 pl-1"
-        aria-label={isDone ? "Riapri task" : "Completa task"}
-        title={isDone ? "Riapri" : "Completa"}
-      >
-        {isDone ? (
-          <CheckIcon className="h-4 w-4 rounded-full bg-success p-0.5 text-white" />
-        ) : (
-          <Circle className={`h-4 w-4 ${PRIORITY_DOT[task.priority]}`} />
-        )}
-      </button>
-      <div className="flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-primary">
-            Task · {task.priority} · {formatHm(task.dueAt)}
+    <div className="group relative overflow-hidden rounded-lg border border-border bg-surface p-3 shadow-sm transition-shadow hover:shadow">
+      <div className={`absolute inset-y-0 left-0 w-1.5 ${style.bar}`} aria-hidden="true" />
+      <div className="pl-3">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${style.chip}`}
+          >
+            {style.chipLabel}
           </span>
           {task.createdBy !== currentUserId && (
-            <span className="rounded-full bg-text-muted/10 px-1.5 py-0.5 text-[9px] text-text-muted">
+            <span className="rounded-full bg-text-muted/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-text-muted">
               Altri
             </span>
           )}
         </div>
-        <div className={`mt-0.5 text-xs font-medium text-text ${isDone ? "line-through" : ""}`}>
-          {truncate(task.title, 60)}
-        </div>
+        <div className="text-sm font-semibold text-text">{truncate(task.title, 80)}</div>
         {task.description && (
-          <div className="text-[11px] text-text-muted">{truncate(task.description, 90)}</div>
+          <p className="mt-0.5 line-clamp-2 text-[11px] text-text-muted">{task.description}</p>
         )}
-      </div>
-      <div className="flex shrink-0 items-start gap-0.5">
-        {isDone && (
-          <button
-            type="button"
-            onClick={toggle}
-            disabled={pending}
-            aria-label="Riapri"
-            title="Riapri"
-            className="rounded p-1 text-text-muted opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
-          >
-            <Undo2 className="h-3.5 w-3.5" />
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={remove}
-          disabled={pending}
-          aria-label="Elimina task"
-          title="Elimina"
-          className="rounded p-1 text-text-muted opacity-0 transition-opacity hover:text-danger group-hover:opacity-100"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-text-muted">
+          <span>{whenLabel}</span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={complete}
+              disabled={pending}
+              className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-1 text-[11px] font-medium text-success transition-colors hover:bg-success/20 disabled:opacity-50"
+              aria-label="Completa task"
+              title="Segna come fatto"
+            >
+              <CheckIcon className="h-3 w-3" /> Fatto
+            </button>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={pending}
+              aria-label="Elimina task"
+              title="Elimina"
+              className="rounded p-1 text-text-muted opacity-0 transition-opacity hover:text-danger group-hover:opacity-100"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
+  );
+}
+
+function TaskBanner({
+  tasks,
+  dayYmd,
+  currentUserId,
+  onRefresh,
+}: {
+  tasks: OperationalTask[];
+  dayYmd: string;
+  currentUserId: string;
+  onRefresh: () => void;
+}) {
+  if (tasks.length === 0) return null;
+  const overdueCount = tasks.filter((t) => daysUntilDue(dayYmd, t.dueAt) < 0).length;
+  const todayCount = tasks.filter((t) => daysUntilDue(dayYmd, t.dueAt) === 0).length;
+  const sorted = [...tasks].sort(
+    (a, b) => daysUntilDue(dayYmd, a.dueAt) - daysUntilDue(dayYmd, b.dueAt),
+  );
+
+  return (
+    <section className="mb-4 rounded-lg border border-border bg-surface p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-text">
+          Task attivi ({tasks.length})
+        </h2>
+        {overdueCount > 0 && (
+          <span className="rounded-full bg-danger px-2 py-0.5 text-[10px] font-bold text-white">
+            {overdueCount} in ritardo
+          </span>
+        )}
+        {todayCount > 0 && (
+          <span className="rounded-full bg-danger/20 px-2 py-0.5 text-[10px] font-bold text-danger">
+            {todayCount} oggi
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {sorted.map((t) => (
+          <TaskPillCard
+            key={t.id}
+            task={t}
+            dayYmd={dayYmd}
+            currentUserId={currentUserId}
+            onRefresh={onRefresh}
+          />
+        ))}
+      </div>
+    </section>
   );
 }
 
 function HourSlot({
   hour,
   posts,
-  tasks,
   isPast,
-  currentUserId,
   onReschedule,
   onDelete,
   onNewTask,
-  onRefresh,
 }: {
   hour: number;
   posts: Post[];
-  tasks: OperationalTask[];
   isPast: boolean;
-  currentUserId: string;
   onReschedule: (post: Post) => void;
   onDelete: (post: Post) => void;
   onNewTask: (hour: number) => void;
-  onRefresh: () => void;
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id: `hour-${hour}`,
     disabled: isPast,
   });
 
-  const isEmpty = posts.length === 0 && tasks.length === 0;
+  const isEmpty = posts.length === 0;
 
   return (
     <div className="grid grid-cols-[60px_1fr] gap-2">
@@ -411,15 +497,6 @@ function HourSlot({
                 isPast={isPast}
                 onReschedule={onReschedule}
                 onDelete={onDelete}
-              />
-            ))}
-            {tasks.map((t) => (
-              <TaskCard
-                key={t.id}
-                task={t}
-                isPast={isPast}
-                currentUserId={currentUserId}
-                onRefresh={onRefresh}
               />
             ))}
             {!isPast && (
@@ -481,18 +558,6 @@ export function DayViewClient({
     }
     return map;
   }, [posts]);
-
-  // Raggruppo task per ora (basato su due_at)
-  const tasksByHour = useMemo(() => {
-    const map = new Map<number, OperationalTask[]>();
-    for (const t of tasks) {
-      const h = hourOf(t.dueAt);
-      const bucket = map.get(h);
-      if (bucket) bucket.push(t);
-      else map.set(h, [t]);
-    }
-    return map;
-  }, [tasks]);
 
   const outOfRange = posts.filter((p) => {
     const h = hourOf(p.scheduledAt);
@@ -575,6 +640,13 @@ export function DayViewClient({
         </div>
       )}
 
+      <TaskBanner
+        tasks={tasks}
+        dayYmd={dayYmd}
+        currentUserId={currentUserId}
+        onRefresh={handleRefresh}
+      />
+
       <DndContext id="calendario-giorno" sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="rounded-lg border border-border bg-surface p-3">
           <div className="flex flex-col gap-2">
@@ -583,13 +655,10 @@ export function DayViewClient({
                 key={h}
                 hour={h}
                 posts={postsByHour.get(h) ?? []}
-                tasks={tasksByHour.get(h) ?? []}
                 isPast={isPast}
-                currentUserId={currentUserId}
                 onReschedule={openReschedule}
                 onDelete={setDeleting}
                 onNewTask={setNewTaskHour}
-                onRefresh={handleRefresh}
               />
             ))}
           </div>

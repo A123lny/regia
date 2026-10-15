@@ -8,7 +8,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
 import { listByOrgOnDay } from "@/modules/m03-editorial/public";
-import { listTasksByDueRange, listOrgUsers } from "@/modules/m12-daily-use/server";
+import { listTasksActiveOnDay, listOrgUsers } from "@/modules/m12-daily-use/server";
 import { DayViewClient } from "./day-view-client";
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -63,9 +63,13 @@ export default async function DayViewPage({ params }: { params: Promise<{ date: 
   const prevDate = toYmd(addDays(dayStart, -1));
   const nextDate = toYmd(addDays(dayStart, 1));
 
+  // "Oggi" 00:00 local -> ISO, serve per il filtro sliding forward dei task
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
   const [posts, tasks, users] = await Promise.all([
     listByOrgOnDay(session.organizationId, dayStart.toISOString(), dayEnd.toISOString()),
-    listTasksByDueRange(session.organizationId, dayStart.toISOString(), dayEnd.toISOString()),
+    listTasksActiveOnDay(session.organizationId, dayStart.toISOString(), todayStart.toISOString()),
     listOrgUsers(session.organizationId),
   ]);
 
