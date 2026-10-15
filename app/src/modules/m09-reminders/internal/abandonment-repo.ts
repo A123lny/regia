@@ -38,6 +38,22 @@ export type SignalRow = AbandonmentSignal & {
   contactEmail: string | null;
 };
 
+// Mapping esplicito severity -> peso (0 = piu' urgente).
+// Non possiamo usare .order('severity') di Supabase perche' e' ordinamento
+// alfabetico sulla stringa: desc=medium,low,high (sbagliato).
+const SEVERITY_WEIGHT: Record<AbandonmentSeverity, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
+
+function sortBySeverityDesc(a: SignalRow, b: SignalRow): number {
+  const dSev = SEVERITY_WEIGHT[a.severity] - SEVERITY_WEIGHT[b.severity];
+  if (dSev !== 0) return dSev;
+  // Tie-break: segnale piu' recente prima
+  return b.signalAt.localeCompare(a.signalAt);
+}
+
 export async function listAbandonmentSignals(
   organizationId: string,
   onlyActive: boolean = true,
@@ -53,14 +69,13 @@ export async function listAbandonmentSignals(
     .eq("organization_id", organizationId)
     .eq("brands.is_archived", false);
   if (onlyActive) q = q.is("resolved_at", null);
-  q = q
-    .order("severity", { ascending: false })
-    .order("signal_at", { ascending: false })
-    .limit(limit);
+  // Niente .order severity qui: ordinamento alfabetico di Supabase sbaglia
+  // (medium > low > high lessicografico). Facciamo il sort esplicito sotto.
+  q = q.order("signal_at", { ascending: false }).limit(limit);
   const { data, error } = await q;
   if (error) throw new Error(`Errore lista signals: ${error.message}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return ((data ?? []) as any[]).map((row): SignalRow => {
+  const rows = ((data ?? []) as any[]).map((row): SignalRow => {
     const parts = [row.contacts?.first_name, row.contacts?.last_name].filter(
       (v: string | null | undefined): v is string => Boolean(v),
     );
@@ -73,6 +88,7 @@ export async function listAbandonmentSignals(
       contactEmail: (row.contacts?.email as string | null) ?? null,
     };
   });
+  return rows.sort(sortBySeverityDesc);
 }
 
 /**
