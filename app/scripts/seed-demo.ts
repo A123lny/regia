@@ -856,6 +856,20 @@ async function seedSignupLandings(orgId: string, brandMap: Map<string, string>) 
 
 async function seedReminders(orgId: string, lennyBrandId: string) {
   console.log("[seed-demo] promemoria...");
+  // Pulizia reminder auto-generati dal detector M09 (fingerprint: channel_hint IS NULL):
+  // il bottone "Ricalcola segnali" scansiona veicoli/voucher/dormienti e crea
+  // pending con channel_hint non settato (lo decide sendReminderNow al momento).
+  // Noi del seed settiamo channel_hint esplicito, quindi la IS NULL discrimina
+  // tutto cio' che e' stato auto-generato.
+  const { error: delErr, count: delCount } = await admin
+    .from("reminders")
+    .delete({ count: "exact" })
+    .eq("organization_id", orgId)
+    .is("channel_hint", null);
+  if (delErr) throw new Error(`cleanup detector reminders: ${delErr.message}`);
+  if (delCount && delCount > 0)
+    console.log(`  [reminders] ${delCount} auto-generati rimossi`);
+
   const KINDS = [
     "welcome",
     "thanks_order",
