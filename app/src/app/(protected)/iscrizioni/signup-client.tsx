@@ -3,7 +3,8 @@
 // Client per admin iscrizioni: 2 tab (Landing / Eventi) con dialog CRUD.
 
 import { useState, useTransition } from "react";
-import { Plus, Link as LinkIcon, ExternalLink, Copy, CheckCircle2 } from "lucide-react";
+import { Plus, Link as LinkIcon, ExternalLink, Copy, CheckCircle2, QrCode } from "lucide-react";
+import { QrDialog } from "./qr-dialog";
 import { BrandChip } from "@/components/brand/brand-chip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,7 @@ function LandingsTab({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<LandingRow | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const [qrFor, setQrFor] = useState<{ slug: string; headline: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
   async function copyUrl(slug: string) {
@@ -135,9 +137,15 @@ function LandingsTab({
                   brands={brands}
                   offers={offers}
                   initial={editing}
-                  onDone={() => {
+                  onDone={(created) => {
+                    const wasCreate = !editing;
                     setDialogOpen(false);
                     setEditing(null);
+                    // Al termine di una CREAZIONE riuscita apro automaticamente
+                    // il QR dialog cosi' l'utente puo' scaricare subito il QR.
+                    if (wasCreate && created) {
+                      setQrFor({ slug: created.slug, headline: created.headline });
+                    }
                   }}
                 />
               </div>
@@ -224,10 +232,23 @@ function LandingsTab({
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
+                <button
+                  type="button"
+                  onClick={() => setQrFor({ slug: l.slug, headline: l.headline })}
+                  className="rounded-md p-1 text-text-muted hover:bg-primary/10 hover:text-primary"
+                  aria-label="Mostra QR code"
+                  title="Mostra QR code"
+                >
+                  <QrCode className="h-3.5 w-3.5" />
+                </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {qrFor && (
+        <QrDialog slug={qrFor.slug} headline={qrFor.headline} onClose={() => setQrFor(null)} />
       )}
     </div>
   );
@@ -242,7 +263,7 @@ function LandingForm({
   brands: BrandOpt[];
   offers: OfferOpt[];
   initial: LandingRow | null;
-  onDone: () => void;
+  onDone: (created?: { slug: string; headline: string }) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -281,8 +302,9 @@ function LandingForm({
           if (offerId) payload.welcomeOfferId = offerId;
 
           const result = await upsertLandingAction(payload);
-          if (result.ok) onDone();
-          else setError(result.error);
+          if (result.ok) {
+            onDone({ slug: result.slug, headline: payload.headline });
+          } else setError(result.error);
         });
       }}
       className="space-y-3"
@@ -415,7 +437,7 @@ function LandingForm({
 
       {error && <p className="text-xs text-danger">{error}</p>}
       <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="outline" onClick={onDone}>
+        <Button type="button" variant="outline" onClick={() => onDone()}>
           Annulla
         </Button>
         <Button
