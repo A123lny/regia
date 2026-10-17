@@ -283,13 +283,25 @@ async function seedVehicles(orgId: string) {
 
 async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
   console.log("[seed-demo] catalogo...");
+  // Pulizia residui vecchi: i piatti Lenny food (pizza/pasta/bevande) sono
+  // stati rimossi dal catalogo di Regia. Il ristoratore li gestisce nel suo
+  // gestionale. Nel catalogo di Lenny stanno solo le CONSEGNE (unico
+  // prodotto economico di cui il gruppo e' proprietario).
+  const lennyFoodSkus = ["PIZZA-MARG", "PIZZA-DIAV", "PASTA-CARB", "BEV-COLA"];
+  const { error: delErr, count: delCount } = await admin
+    .from("brand_products")
+    .delete({ count: "exact" })
+    .eq("organization_id", orgId)
+    .in("sku", lennyFoodSkus);
+  if (delErr) throw new Error(`cleanup lenny food: ${delErr.message}`);
+  if (delCount && delCount > 0)
+    console.log(`  [brand_products] ${delCount} piatti Lenny rimossi (gestiti dal ristoratore)`);
+
   const rows: any[] = [];
   // Convenzione:
-  // - Prodotti Lenny food (pizze/pasta/bevande) = anagrafica senza cost/margin:
-  //   il costo materia prima e' del ristoratore, non del gruppo.
-  // - Prodotti Lenny CONSEGNA = margine del gruppo sulla logistica (rider).
-  //   Qui cost = rider+ammortamenti, margin = quello che resta a Lenny.
-  // - Prodotti stazione/officina/eni-cafe = stock di proprieta' -> cost+margin pieni.
+  // - Lenny: solo CONSEGNA. Il gruppo guadagna sulla logistica (rider).
+  //   I piatti sono del ristoratore -> non entrano in catalogo Regia.
+  // - Stazione / Officina / Eni-cafe: stock di proprieta' -> cost+margin pieni.
   const products: Array<{
     brand: string;
     sku: string;
@@ -300,40 +312,7 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
     cost?: number;
     marginPct?: number;
   }> = [
-    // Lenny food: anagrafica piatti (nessun cost/margin, gestiti dal ristoratore)
-    {
-      brand: "lenny",
-      sku: "PIZZA-MARG",
-      name: "Pizza Margherita",
-      category: "pizza",
-      unit: "pezzo",
-      price: 700,
-    },
-    {
-      brand: "lenny",
-      sku: "PIZZA-DIAV",
-      name: "Pizza Diavola",
-      category: "pizza",
-      unit: "pezzo",
-      price: 850,
-    },
-    {
-      brand: "lenny",
-      sku: "PASTA-CARB",
-      name: "Pasta Carbonara",
-      category: "primi",
-      unit: "pezzo",
-      price: 900,
-    },
-    {
-      brand: "lenny",
-      sku: "BEV-COLA",
-      name: "Coca Cola 33cl",
-      category: "bevande",
-      unit: "pezzo",
-      price: 300,
-    },
-    // Lenny consegna: qui il gruppo guadagna sulla logistica
+    // Lenny consegna: il gruppo guadagna sulla logistica
     {
       brand: "lenny",
       sku: "CONSEGNA-STD",
