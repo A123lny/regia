@@ -284,7 +284,23 @@ async function seedVehicles(orgId: string) {
 async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
   console.log("[seed-demo] catalogo...");
   const rows: any[] = [];
-  const products = [
+  // Convenzione:
+  // - Prodotti Lenny food (pizze/pasta/bevande) = anagrafica senza cost/margin:
+  //   il costo materia prima e' del ristoratore, non del gruppo.
+  // - Prodotti Lenny CONSEGNA = margine del gruppo sulla logistica (rider).
+  //   Qui cost = rider+ammortamenti, margin = quello che resta a Lenny.
+  // - Prodotti stazione/officina/eni-cafe = stock di proprieta' -> cost+margin pieni.
+  const products: Array<{
+    brand: string;
+    sku: string;
+    name: string;
+    category: string;
+    unit: string;
+    price: number;
+    cost?: number;
+    marginPct?: number;
+  }> = [
+    // Lenny food: anagrafica piatti (nessun cost/margin, gestiti dal ristoratore)
     {
       brand: "lenny",
       sku: "PIZZA-MARG",
@@ -317,6 +333,28 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       unit: "pezzo",
       price: 300,
     },
+    // Lenny consegna: qui il gruppo guadagna sulla logistica
+    {
+      brand: "lenny",
+      sku: "CONSEGNA-STD",
+      name: "Consegna standard",
+      category: "consegna",
+      unit: "servizio",
+      price: 300,
+      cost: 180, // rider + packaging ammortizzato
+      marginPct: 40,
+    },
+    {
+      brand: "lenny",
+      sku: "CONSEGNA-EXP",
+      name: "Consegna espressa <20min",
+      category: "consegna",
+      unit: "servizio",
+      price: 500,
+      cost: 250,
+      marginPct: 50,
+    },
+    // Stazione/Officina/Eni-cafe: stock di proprieta' con cost+margin pieni
     {
       brand: "stazione",
       sku: "CARB-DIES",
@@ -324,6 +362,8 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       category: "carburante",
       unit: "litro",
       price: 180,
+      cost: 160,
+      marginPct: 11,
     },
     {
       brand: "stazione",
@@ -332,6 +372,8 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       category: "carburante",
       unit: "litro",
       price: 185,
+      cost: 165,
+      marginPct: 11,
     },
     {
       brand: "stazione",
@@ -340,6 +382,8 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       category: "lavaggio",
       unit: "servizio",
       price: 900,
+      cost: 300,
+      marginPct: 66,
     },
     {
       brand: "stazione",
@@ -348,6 +392,8 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       category: "lavaggio",
       unit: "servizio",
       price: 1500,
+      cost: 500,
+      marginPct: 66,
     },
     {
       brand: "officina",
@@ -356,6 +402,8 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       category: "manutenzione",
       unit: "servizio",
       price: 12000,
+      cost: 6000,
+      marginPct: 50,
     },
     {
       brand: "officina",
@@ -364,6 +412,8 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       category: "gomme",
       unit: "servizio",
       price: 4000,
+      cost: 2000,
+      marginPct: 50,
     },
     {
       brand: "officina",
@@ -372,6 +422,8 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       category: "manodopera",
       unit: "ora",
       price: 4500,
+      cost: 2250,
+      marginPct: 50,
     },
     {
       brand: "eni-cafe",
@@ -380,6 +432,8 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       category: "bar",
       unit: "pezzo",
       price: 110,
+      cost: 25,
+      marginPct: 77,
     },
     {
       brand: "eni-cafe",
@@ -388,6 +442,8 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       category: "bar",
       unit: "pezzo",
       price: 150,
+      cost: 60,
+      marginPct: 60,
     },
     {
       brand: "eni-cafe",
@@ -396,6 +452,8 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       category: "bar",
       unit: "servizio",
       price: 230,
+      cost: 80,
+      marginPct: 65,
     },
     {
       brand: "eni-cafe",
@@ -404,6 +462,8 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       category: "bar",
       unit: "pezzo",
       price: 180,
+      cost: 40,
+      marginPct: 77,
     },
   ];
   for (let i = 0; i < products.length; i++) {
@@ -419,8 +479,8 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
       category: p.category,
       unit: p.unit,
       price_current_cents: p.price,
-      cost_current_cents: Math.floor(p.price * 0.5),
-      min_margin_pct: 25,
+      cost_current_cents: p.cost ?? null,
+      min_margin_pct: p.marginPct ?? null,
       source: "manuale",
     });
   }
