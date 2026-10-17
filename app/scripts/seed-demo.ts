@@ -472,18 +472,84 @@ async function seedCatalog(orgId: string, brandMap: Map<string, string>) {
 
 async function seedOrders(orgId: string, brandMap: Map<string, string>) {
   console.log("[seed-demo] ordini...");
-  const rows: any[] = [];
+  // SKU di catalogo per generare righe plausibili. Lenny: solo consegne +
+  // righe "piatto generico" senza product_id (snapshot name = "Pizza/Pasta/..."
+  // -> simula quello che arriverebbe dal gestionale ristoratore in futuro).
+  const PRODUCT_POOLS: Record<string, Array<{ sku?: string; name: string; price: number }>> = {
+    lenny: [
+      { name: "Pizza del territorio", price: 850 },
+      { name: "Primo di stagione", price: 950 },
+      { name: "Bevanda 33cl", price: 300 },
+      { sku: "CONSEGNA-STD", name: "Consegna standard", price: 300 },
+      { sku: "CONSEGNA-EXP", name: "Consegna espressa <20min", price: 500 },
+    ],
+    stazione: [
+      { sku: "CARB-DIES", name: "Diesel", price: 180 },
+      { sku: "CARB-BENZ", name: "Benzina", price: 185 },
+      { sku: "LAV-BASE", name: "Lavaggio base", price: 900 },
+      { sku: "LAV-PREM", name: "Lavaggio premium", price: 1500 },
+    ],
+    officina: [
+      { sku: "TAGL-STD", name: "Tagliando standard", price: 12000 },
+      { sku: "GOM-INV", name: "Cambio gomme invernali", price: 4000 },
+      { sku: "ORA-OFFI", name: "Ora officina", price: 4500 },
+    ],
+    "eni-cafe": [
+      { sku: "CAFE-ESPR", name: "Caffe espresso", price: 110 },
+      { sku: "BRIO-NAT", name: "Brioche al naturale", price: 150 },
+      { sku: "COMBO-COLAZ", name: "Colazione caffe+brioche", price: 230 },
+      { sku: "TEA", name: "The caldo", price: 180 },
+    ],
+  };
+
+  const orders: any[] = [];
+  const lines: any[] = [];
   const brandsSlugs = Array.from(brandMap.keys());
   for (let i = 0; i < 30; i++) {
     const brandSlug = pick(brandsSlugs, i);
     const brandId = brandMap.get(brandSlug)!;
     const daysAgo = (i * 3) % 90;
-    const total = 500 + ((i * 1234) % 4500);
     const status = i % 7 === 6 ? "cancelled" : i % 11 === 10 ? "refunded" : "completed";
     const completedAt =
       status === "completed" || status === "refunded" ? isoDaysAgo(Math.max(0, daysAgo - 1)) : null;
-    rows.push({
-      id: demoUuid(`order-${i}`),
+    const orderId = demoUuid(`order-${i}`);
+
+    // Costruzione righe: 1-3 prodotti dal pool del brand
+    const pool = PRODUCT_POOLS[brandSlug] ?? [];
+    const nLines = Math.min(pool.length, 1 + (i % 3));
+    let totalCents = 0;
+    for (let j = 0; j < nLines; j++) {
+      const p = pool[(i * 7 + j) % pool.length]!;
+      const qty = p.sku === "CARB-DIES" || p.sku === "CARB-BENZ" ? 20 + (i % 15) : 1 + (j % 2);
+      const lineTotal = p.price * qty;
+      totalCents += lineTotal;
+      lines.push({
+        id: demoUuid(`order-line-${i}-${j}`),
+        order_id: orderId,
+        product_id: p.sku ? demoUuid(`product-${p.sku}`) : null,
+        name_snapshot: p.name,
+        unit_price_cents: p.price,
+        quantity: qty,
+        line_total_cents: lineTotal,
+      });
+    }
+    // Per Lenny delivery assicuriamoci che ci sia una consegna
+    if (brandSlug === "lenny" && !lines.some((l) => l.order_id === orderId && l.name_snapshot.startsWith("Consegna"))) {
+      const consegna = pool.find((p) => p.sku === "CONSEGNA-STD")!;
+      totalCents += consegna.price;
+      lines.push({
+        id: demoUuid(`order-line-${i}-consegna`),
+        order_id: orderId,
+        product_id: demoUuid(`product-${consegna.sku}`),
+        name_snapshot: consegna.name,
+        unit_price_cents: consegna.price,
+        quantity: 1,
+        line_total_cents: consegna.price,
+      });
+    }
+
+    orders.push({
+      id: orderId,
       organization_id: orgId,
       brand_id: brandId,
       contact_id: demoUuid(`contact-${i % 30}`),
@@ -498,13 +564,14 @@ async function seedOrders(orgId: string, brandMap: Map<string, string>) {
         i,
       ),
       status,
-      total_cents: total,
+      total_cents: totalCents,
       currency: "EUR",
       placed_at: isoDaysAgo(daysAgo),
       completed_at: completedAt,
     });
   }
-  await upsert("brand_orders", rows);
+  await upsert("brand_orders", orders);
+  await upsert("brand_order_lines", lines);
 }
 
 // ============================================================================
