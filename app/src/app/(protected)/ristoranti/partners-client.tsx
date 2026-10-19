@@ -166,9 +166,16 @@ export function PartnersClient({ partners, lennyBrandId, canCrud, canLogActivity
                       )}
                     </td>
                     <td className="p-3">
-                      <Badge className={`border ${STATUS_STYLE[p.onboardingStatus]}`}>
-                        {ONBOARDING_STATUS_LABELS[p.onboardingStatus]}
-                      </Badge>
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge className={`border ${STATUS_STYLE[p.onboardingStatus]}`}>
+                          {ONBOARDING_STATUS_LABELS[p.onboardingStatus]}
+                        </Badge>
+                        {p.coolingFlag && (
+                          <Badge className="border border-warning/40 bg-warning/10 text-warning">
+                            In raffreddamento
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
