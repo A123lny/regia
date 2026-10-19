@@ -617,7 +617,55 @@ async function seedPartnerRestaurants(orgId: string, brandMap: Map<string, strin
 
 async function seedSupplyPartners(orgId: string) {
   console.log("[seed-demo] fornitori...");
+  // Pulizia Barilla: nel seed precedente c'era ma non ha senso nel modello
+  // del gruppo. Lenny non ha fornitori propri (ingredienti gestiti dai
+  // ristoratori partner). I fornitori veri sono solo per Stazione (Eni
+  // carburanti), Officina (ricambi) ed Eni Cafe (bar).
+  await admin.from("supply_partners").delete().eq("organization_id", orgId).eq("name", "Barilla");
+
   const rows = [
+    // Stazione: fornitore carburanti con name_veto (Eni ha brand da proteggere)
+    {
+      id: demoUuid("supply-eni"),
+      organization_id: orgId,
+      name: "Eni Trading & Shipping",
+      referent_name: "Marco Rossi",
+      phone: "+39026789012",
+      email: "stazioni@eni.com",
+      category: "Carburanti",
+      general_consent: false,
+      involvement_level: "name_veto",
+      advance_notice_days: 14,
+      veto_notes: "Eni richiede 'Carburante Eni' invece di 'benzina' nelle comunicazioni ufficiali",
+    },
+    // Eni Cafe: Illy per il caffe (approves, serve OK sulle promo con il brand)
+    {
+      id: demoUuid("supply-illy"),
+      organization_id: orgId,
+      name: "Illycaffe S.p.A.",
+      referent_name: "Elena Marchetti",
+      phone: "+39040389021",
+      email: "trade.it@illy.com",
+      category: "Caffe",
+      general_consent: true,
+      general_consent_note: "Accordo HORECA 2026: promo standard pre-approvate",
+      involvement_level: "approves",
+      advance_notice_days: 7,
+    },
+    // Eni Cafe: Melegatti per brioche (informed, nessun gate)
+    {
+      id: demoUuid("supply-melegatti"),
+      organization_id: orgId,
+      name: "Melegatti",
+      referent_name: "Alberto Veneziani",
+      phone: "+39045678901",
+      email: "horeca@melegatti.it",
+      category: "Brioche e dolci da bar",
+      general_consent: false,
+      involvement_level: "informed",
+      advance_notice_days: 3,
+    },
+    // Eni Cafe: Coca-Cola per bevande (approves + blanket)
     {
       id: demoUuid("supply-coca"),
       organization_id: orgId,
@@ -631,30 +679,18 @@ async function seedSupplyPartners(orgId: string) {
       involvement_level: "approves",
       advance_notice_days: 7,
     },
+    // Officina: Bosch per ricambi (informed, grandi marchi)
     {
-      id: demoUuid("supply-barilla"),
+      id: demoUuid("supply-bosch"),
       organization_id: orgId,
-      name: "Barilla",
-      referent_name: "Laura Bianchi",
-      phone: "+39023334455",
-      email: "trade@barilla.com",
-      category: "Pasta",
+      name: "Bosch Service",
+      referent_name: "Thomas Müller",
+      phone: "+390118901234",
+      email: "aftermarket.it@bosch.com",
+      category: "Ricambi auto",
       general_consent: false,
       involvement_level: "informed",
       advance_notice_days: 3,
-    },
-    {
-      id: demoUuid("supply-eni"),
-      organization_id: orgId,
-      name: "Eni Trading & Shipping",
-      referent_name: "Marco Rossi",
-      phone: "+39026789012",
-      email: "stazioni@eni.com",
-      category: "Carburanti",
-      general_consent: false,
-      involvement_level: "name_veto",
-      advance_notice_days: 14,
-      veto_notes: "Eni richiede 'Carburante Eni' invece di 'benzina' nelle comunicazioni ufficiali",
     },
   ];
   await upsert("supply_partners", rows);
