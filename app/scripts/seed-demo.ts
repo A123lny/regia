@@ -891,6 +891,17 @@ async function seedVouchers(orgId: string) {
     { id: demoUuid("offer-10pct-pizza"), kind: "percentuale", pct: 10.0 },
     { id: demoUuid("offer-2eur-benz"), kind: "valore_fisso", value: 200 },
   ];
+  // Attribuzione RF-9.3: 6 voucher collegati ai 3 draft published (seed i=15,16,17).
+  // Serve a popolare la sezione "Attribuzione contenuto -> vendita" in /analytics.
+  // Risultato atteso: copertura 30% (6/20), 3 attribuiti redeemed.
+  const sourceDraftByVoucher: Record<number, string> = {
+    0: demoUuid("draft-15"), // issued -> emesso attribuito
+    1: demoUuid("draft-15"),
+    2: demoUuid("draft-16"), // issued -> emesso attribuito
+    10: demoUuid("draft-16"), // redeemed -> riscattato attribuito
+    11: demoUuid("draft-17"), // redeemed -> riscattato attribuito
+    12: demoUuid("draft-17"), // redeemed -> riscattato attribuito
+  };
   const rows: any[] = [];
   for (let i = 0; i < 20; i++) {
     const offer = offers[i % offers.length]!;
@@ -932,6 +943,7 @@ async function seedVouchers(orgId: string) {
       redeemed_at: redeemedAt,
       cancelled_at: cancelledAt,
       cancelled_reason: cancelledReason,
+      source_draft_id: sourceDraftByVoucher[i] ?? null,
     });
   }
   await upsert("vouchers", rows);
