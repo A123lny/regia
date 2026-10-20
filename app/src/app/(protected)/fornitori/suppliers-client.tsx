@@ -82,7 +82,7 @@ export function SuppliersClient({ partners, canCrud }: Props) {
                 <th className="w-40 p-3">Referente</th>
                 <th className="w-32 p-3">Categoria</th>
                 <th className="w-40 p-3">Coinvolgimento</th>
-                <th className="p-3">Assenso RF-6.19</th>
+                <th className="p-3">Consenso RF-6.19</th>
               </tr>
             </thead>
             <tbody>
@@ -130,7 +130,7 @@ export function SuppliersClient({ partners, canCrud }: Props) {
                       <div>
                         <Badge className="border border-success/40 bg-success/15 text-success">
                           <ShieldCheck className="mr-1 h-3 w-3" />
-                          Assenso attivo
+                          Consenso attivo
                         </Badge>
                         {p.generalConsentNote && (
                           <div className="mt-1 text-[11px] italic text-text-muted">
@@ -141,7 +141,7 @@ export function SuppliersClient({ partners, canCrud }: Props) {
                     ) : (
                       <Badge className="border border-warning/40 bg-warning/15 text-warning">
                         <ShieldAlert className="mr-1 h-3 w-3" />
-                        Nessun assenso
+                        Nessun consenso
                       </Badge>
                     )}
                   </td>
@@ -308,7 +308,7 @@ function PartnerForm({ initial, onDone }: { initial: SupplyPartner | null; onDon
             className="h-4 w-4 accent-primary"
           />
           <ShieldCheck className="h-3.5 w-3.5 text-success" />
-          Assenso generale a promozioni (RF-6.19)
+          Consenso generale a promozioni (RF-6.19)
         </label>
         {generalConsent && (
           <div className="mt-2">

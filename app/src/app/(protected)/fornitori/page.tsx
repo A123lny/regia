@@ -34,7 +34,7 @@ export default async function FornitoriPage() {
         <p className="mt-1 text-sm text-text-muted">
           Partner spesa del gruppo (fornitori di Stazione, Officina, Eni Café). Lenny food non ne
           ha: gli ingredienti li gestisce ogni ristoratore. RF-6.19: nessuno sconto sui loro
-          prodotti senza il loro assenso — vincolo enforced dal codice sull&apos;emissione voucher.
+          prodotti senza il loro consenso — vincolo enforced dal codice sull&apos;emissione voucher.
         </p>
       </header>
 
@@ -50,7 +50,7 @@ export default async function FornitoriPage() {
         </div>
         <div className="rounded-xl border border-success/30 bg-success/5 p-4">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-success">
-            <ShieldCheck className="h-3.5 w-3.5" /> Con assenso
+            <ShieldCheck className="h-3.5 w-3.5" /> Con consenso
           </div>
           <div
             className="mt-1 text-3xl font-bold text-text"
@@ -61,7 +61,7 @@ export default async function FornitoriPage() {
         </div>
         <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-warning">
-            <ShieldAlert className="h-3.5 w-3.5" /> Senza assenso
+            <ShieldAlert className="h-3.5 w-3.5" /> Senza consenso
           </div>
           <div
             className="mt-1 text-3xl font-bold text-text"
