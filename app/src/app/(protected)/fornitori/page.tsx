@@ -32,8 +32,9 @@ export default async function FornitoriPage() {
           <HelpButton pageKey="fornitori" />
         </div>
         <p className="mt-1 text-sm text-text-muted">
-          Partner spesa (fornitori Lenny). RF-6.19: nessuno sconto sui loro prodotti senza il loro
-          assenso — è un vincolo enforced dal codice sull&apos;emissione voucher.
+          Partner spesa del gruppo (fornitori di Stazione, Officina, Eni Café). Lenny food non ne
+          ha: gli ingredienti li gestisce ogni ristoratore. RF-6.19: nessuno sconto sui loro
+          prodotti senza il loro assenso — vincolo enforced dal codice sull&apos;emissione voucher.
         </p>
       </header>
 
