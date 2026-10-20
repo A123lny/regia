@@ -215,6 +215,59 @@ async function seedContacts(orgId: string, lennyBrandId: string) {
       address_cap: pick(["47900", "47891", "47893", "47894"], i),
     });
   }
+
+  // 3 duplicati sintetici per far vedere il detector in azione.
+  // Dedup-detector matcha su email/phone/whatsapp normalizzati (lowercase,
+  // phone senza spazi/trattini/+). I 3 casi coprono i 3 criteri.
+  // Prendo come "principale" i contatti 0, 1, 2 esistenti e creo un
+  // duplicato per ciascuno con un campo match differente.
+  const base0 = rows[0]!; // Caso A: stessa email del principale
+  const base1 = rows[1]!; // Caso B: stesso telefono (ma con formato diverso)
+  const base2 = rows[2]!; // Caso C: stesso whatsapp
+  rows.push(
+    {
+      // Duplicato per EMAIL: stesso valore di base0.email
+      id: demoUuid("contact-dup-email"),
+      organization_id: orgId,
+      brand_id: lennyBrandId,
+      first_name: base0.first_name,
+      last_name: base0.last_name,
+      email: base0.email, // STESSA email -> match
+      phone: `+393999000001`,
+      whatsapp: `+393999000001`,
+      source: "web",
+      tags: [],
+      address_cap: "47900",
+    },
+    {
+      // Duplicato per PHONE: stesso numero scritto con spazi (il normalizer li toglie)
+      id: demoUuid("contact-dup-phone"),
+      organization_id: orgId,
+      brand_id: lennyBrandId,
+      first_name: base1.first_name,
+      last_name: base1.last_name,
+      email: `${(base1.first_name as string).toLowerCase()}.alt@example.com`,
+      phone: (base1.phone as string).replace("+393", "+39 3").replace(/(.{3})(.{3})(.{3})/, "$1 $2 $3"), // stesso numero con spazi
+      whatsapp: null,
+      source: "manuale",
+      tags: [],
+      address_cap: "47891",
+    },
+    {
+      // Duplicato per WHATSAPP: stesso numero
+      id: demoUuid("contact-dup-whatsapp"),
+      organization_id: orgId,
+      brand_id: lennyBrandId,
+      first_name: base2.first_name,
+      last_name: base2.last_name,
+      email: `${(base2.first_name as string).toLowerCase()}.b@example.com`,
+      phone: `+393999000003`,
+      whatsapp: base2.whatsapp, // STESSO whatsapp -> match
+      source: "import",
+      tags: [],
+      address_cap: "47893",
+    },
+  );
   await upsert("contacts", rows);
 }
 
