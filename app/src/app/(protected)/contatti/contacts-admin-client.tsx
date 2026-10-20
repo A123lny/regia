@@ -423,35 +423,50 @@ function ContactDetailDrawer({
           )}
         </section>
 
-        {/* Veicoli (RF-1.3) */}
-        <section className="space-y-2 rounded-lg border border-border bg-surface p-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-text">Veicoli (RF-1.3)</h3>
-            {canCrud && vehicles && (
-              <AddVehicleButton
-                contactId={contact.id}
-                onAdded={(v) => setVehicles([...(vehicles ?? []), v])}
-              />
-            )}
-          </div>
-          {loading && <p className="text-xs text-text-muted">Caricamento...</p>}
-          {vehicles && vehicles.length === 0 && (
-            <p className="text-xs text-text-muted">Nessun veicolo agganciato.</p>
-          )}
-          {vehicles && vehicles.length > 0 && (
-            <ul className="space-y-2">
-              {vehicles.map((v) => (
-                <VehicleRow
-                  key={v.id}
-                  vehicle={v}
-                  contactId={contact.id}
-                  canCrud={canCrud}
-                  onDeleted={() => setVehicles((vehicles ?? []).filter((x) => x.id !== v.id))}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
+        {/* Veicoli (RF-1.3). I veicoli hanno senso solo per brand automotive
+            (stazione, officina). Per brand non-automotive (lenny, eni-cafe)
+            la sezione resta nascosta se vuota — niente placeholder "nessun
+            veicolo" che e' sempre vero e genera rumore. Resta visibile se
+            qualcuno ha comunque agganciato un veicolo manualmente. */}
+        {(() => {
+          const AUTOMOTIVE_BRANDS = new Set(["stazione", "officina"]);
+          const isAutomotive = AUTOMOTIVE_BRANDS.has(contact.brandSlug);
+          const hasVehicles = vehicles && vehicles.length > 0;
+          if (!isAutomotive && !hasVehicles && !loading) return null;
+          return (
+            <section className="space-y-2 rounded-lg border border-border bg-surface p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-text">Veicoli (RF-1.3)</h3>
+                {canCrud && vehicles && (
+                  <AddVehicleButton
+                    contactId={contact.id}
+                    onAdded={(v) => setVehicles([...(vehicles ?? []), v])}
+                  />
+                )}
+              </div>
+              {loading && <p className="text-xs text-text-muted">Caricamento...</p>}
+              {vehicles && vehicles.length === 0 && (
+                <p className="text-xs text-text-muted">
+                  Nessun veicolo agganciato. Si popola quando il cliente passa in officina o
+                  stazione.
+                </p>
+              )}
+              {vehicles && vehicles.length > 0 && (
+                <ul className="space-y-2">
+                  {vehicles.map((v) => (
+                    <VehicleRow
+                      key={v.id}
+                      vehicle={v}
+                      contactId={contact.id}
+                      canCrud={canCrud}
+                      onDeleted={() => setVehicles((vehicles ?? []).filter((x) => x.id !== v.id))}
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+          );
+        })()}
 
         {error && (
           <div className="rounded-md border border-danger/40 bg-danger/10 p-3 text-xs text-danger">
