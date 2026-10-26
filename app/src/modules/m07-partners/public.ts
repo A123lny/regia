@@ -53,7 +53,11 @@ export { LAUNCH_WINDOW_DAYS } from "./internal/launch-tracker";
 export type { PartnerLaunchStatus } from "./internal/launch-tracker";
 
 // RN-28 Errori consegna ristorante
-export { SEVERITY_LABELS, SEVERITY_STYLES } from "./internal/delivery-errors-repo";
+export {
+  SEVERITY_LABELS,
+  SEVERITY_STYLES,
+  getPartnerErrorsSummary,
+} from "./internal/delivery-errors-repo";
 export type {
   DeliveryError,
   DeliveryErrorSeverity,
