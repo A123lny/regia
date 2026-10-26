@@ -18,3 +18,6 @@ data/
 
 # Config locale Claude Code (per-macchina)
 .claude/
+
+# Node dependencies (root cache + workspace app/)
+node_modules/
