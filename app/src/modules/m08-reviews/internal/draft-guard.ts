@@ -5,7 +5,7 @@ import type { BrandContext } from "./prompt-builder";
 
 export type DraftValidation = { ok: true } | { ok: false; reason: string };
 
-const LENNY_BLAME_PATTERN = /ristorante[^.]{0,80}(colpa|problemi?|errori?|sbaglio|disservizi)/i;
+const LENNY_BLAME_PATTERN = /ristorante[^.]{0,80}(colpa|problemi?|errori?|sbagli|disservizi)/i;
 
 export function validateDraft(draft: string, brand: BrandContext): DraftValidation {
   const trimmed = draft.trim();

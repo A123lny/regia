@@ -112,4 +112,13 @@ describe("RF-8.7 · M08 draft guard", () => {
     const r = validateDraft("Il ristorante vicino aveva colpa.", officina);
     expect(r.ok).toBe(true);
   });
+
+  it("draft Lenny con 'ristorante sbaglia' → rifiutato RF-8.7 (stem-anchor sbagli*)", () => {
+    const r = validateDraft(
+      "Ci dispiace, il ristorante sbaglia spesso nella preparazione.",
+      lenny,
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toMatch(/RF-8\.7/);
+  });
 });
