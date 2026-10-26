@@ -4,19 +4,14 @@ async function main() {
   const url = process.env["NEXT_PUBLIC_SUPABASE_URL"]!;
   const key = process.env["SUPABASE_SERVICE_ROLE_KEY"]!;
   const admin = createClient(url, key);
-  const { data: brands } = await admin
-    .from("brands")
-    .select("id, slug")
-    .eq("is_archived", false);
+  const { data: brands } = await admin.from("brands").select("id, slug").eq("is_archived", false);
   const brandMap = new Map<string, string>();
   for (const b of (brands ?? []) as Array<Record<string, unknown>>) {
     brandMap.set(b["id"] as string, b["slug"] as string);
   }
   const { data } = await admin
     .from("brand_products")
-    .select(
-      "name, category, price_current_cents, cost_current_cents, min_margin_pct, brand_id",
-    );
+    .select("name, category, price_current_cents, cost_current_cents, min_margin_pct, brand_id");
   const rows = (data ?? []) as Array<Record<string, unknown>>;
   console.log(`Prodotti: ${rows.length}`);
   for (const p of rows) {

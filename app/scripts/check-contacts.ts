@@ -26,9 +26,7 @@ async function main() {
   console.log(`\nPer tag:`);
   for (const [t, n] of byTag) console.log(`  ${t}: ${n}`);
 
-  const { data: consents } = await admin
-    .from("contact_consents")
-    .select("channel, status");
+  const { data: consents } = await admin.from("contact_consents").select("channel, status");
   const cRows = (consents ?? []) as Array<Record<string, unknown>>;
   console.log(`\nConsensi totali: ${cRows.length}`);
   const byChannel = new Map<string, { granted: number; revoked: number }>();

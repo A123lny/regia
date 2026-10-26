@@ -6,9 +6,7 @@ async function main() {
   const admin = createClient(url, key);
   const { data } = await admin
     .from("contact_segments")
-    .select(
-      "name, criteria, contact_count_materialized, is_active, brands(slug, display_name)",
-    );
+    .select("name, criteria, contact_count_materialized, is_active, brands(slug, display_name)");
   const rows = (data ?? []) as Array<Record<string, unknown>>;
   console.log(`Segmenti: ${rows.length}`);
   for (const s of rows) {

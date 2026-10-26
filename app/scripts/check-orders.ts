@@ -4,10 +4,7 @@ async function main() {
   const url = process.env["NEXT_PUBLIC_SUPABASE_URL"]!;
   const key = process.env["SUPABASE_SERVICE_ROLE_KEY"]!;
   const admin = createClient(url, key);
-  const { data: brands } = await admin
-    .from("brands")
-    .select("id, slug")
-    .eq("is_archived", false);
+  const { data: brands } = await admin.from("brands").select("id, slug").eq("is_archived", false);
   const brandMap = new Map<string, string>();
   for (const b of (brands ?? []) as Array<Record<string, unknown>>) {
     brandMap.set(b["id"] as string, b["slug"] as string);

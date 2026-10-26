@@ -247,7 +247,9 @@ async function seedContacts(orgId: string, lennyBrandId: string) {
       first_name: base1.first_name,
       last_name: base1.last_name,
       email: `${(base1.first_name as string).toLowerCase()}.alt@example.com`,
-      phone: (base1.phone as string).replace("+393", "+39 3").replace(/(.{3})(.{3})(.{3})/, "$1 $2 $3"), // stesso numero con spazi
+      phone: (base1.phone as string)
+        .replace("+393", "+39 3")
+        .replace(/(.{3})(.{3})(.{3})/, "$1 $2 $3"), // stesso numero con spazi
       whatsapp: null,
       source: "manuale",
       tags: [],
@@ -587,7 +589,10 @@ async function seedOrders(orgId: string, brandMap: Map<string, string>) {
       });
     }
     // Per Lenny delivery assicuriamoci che ci sia una consegna
-    if (brandSlug === "lenny" && !lines.some((l) => l.order_id === orderId && l.name_snapshot.startsWith("Consegna"))) {
+    if (
+      brandSlug === "lenny" &&
+      !lines.some((l) => l.order_id === orderId && l.name_snapshot.startsWith("Consegna"))
+    ) {
       const consegna = pool.find((p) => p.sku === "CONSEGNA-STD")!;
       totalCents += consegna.price;
       lines.push({
@@ -1074,8 +1079,7 @@ async function seedReminders(orgId: string, lennyBrandId: string) {
     .eq("organization_id", orgId)
     .is("channel_hint", null);
   if (delErr) throw new Error(`cleanup detector reminders: ${delErr.message}`);
-  if (delCount && delCount > 0)
-    console.log(`  [reminders] ${delCount} auto-generati rimossi`);
+  if (delCount && delCount > 0) console.log(`  [reminders] ${delCount} auto-generati rimossi`);
 
   const KINDS = [
     "welcome",
@@ -1111,8 +1115,7 @@ async function seedReminders(orgId: string, lennyBrandId: string) {
       kind,
       channel_hint: pick([...CHANNELS], i),
       status: "pending",
-      scheduled_at:
-        daysOffset <= 0 ? isoDaysAgo(-daysOffset) : isoDaysFromNow(daysOffset),
+      scheduled_at: daysOffset <= 0 ? isoDaysAgo(-daysOffset) : isoDaysFromNow(daysOffset),
       message_hint: MESSAGE_HINTS[kind],
       sent_at: null,
       dismissed_at: null,

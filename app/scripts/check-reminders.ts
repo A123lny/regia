@@ -20,12 +20,8 @@ async function main() {
   const sent = rows.filter((r) => r["status"] === "sent");
   const dismissed = rows.filter((r) => r["status"] === "dismissed");
   const expired = rows.filter((r) => r["status"] === "expired");
-  const pendingToday = pending.filter(
-    (r) => new Date(r["scheduled_at"] as string) <= now,
-  );
-  const pendingWeek = pending.filter(
-    (r) => new Date(r["scheduled_at"] as string) <= in7days,
-  );
+  const pendingToday = pending.filter((r) => new Date(r["scheduled_at"] as string) <= now);
+  const pendingWeek = pending.filter((r) => new Date(r["scheduled_at"] as string) <= in7days);
   const sentLast30d = sent.filter(
     (r) => r["sent_at"] && new Date(r["sent_at"] as string) >= since30d,
   );
@@ -33,7 +29,9 @@ async function main() {
     (r) => r["dismissed_at"] && new Date(r["dismissed_at"] as string) >= since30d,
   );
   console.log(`Totale: ${rows.length}`);
-  console.log(`Pending: ${pending.length} (oggi: ${pendingToday.length}, 7gg: ${pendingWeek.length})`);
+  console.log(
+    `Pending: ${pending.length} (oggi: ${pendingToday.length}, 7gg: ${pendingWeek.length})`,
+  );
   console.log(`Sent: ${sent.length} (ultimi 30gg: ${sentLast30d.length})`);
   console.log(`Dismissed: ${dismissed.length} (ultimi 30gg: ${dismissedLast30d.length})`);
   console.log(`Expired: ${expired.length}`);
