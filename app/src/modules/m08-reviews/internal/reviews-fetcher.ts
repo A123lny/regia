@@ -5,6 +5,7 @@ import { getAdminClient } from "@/lib/db/admin";
 import { classifyReview } from "./classifier";
 import { insertReviewFromFetch } from "./reviews-repo";
 import type { GoogleReviewsFetcher } from "./google-places-adapter";
+import { generateDraftForReview } from "./draft-generator";
 
 export type FetchSummary = {
   brandsScanned: number;
@@ -50,7 +51,19 @@ export async function fetchAllBrandsReviews(
           classification,
           classificationReason: reason,
         });
-        if (inserted) summary.newInserted++;
+        if (inserted) {
+          summary.newInserted++;
+          if (classification !== "serious") {
+            // Fire-and-forget: generiamo la bozza senza bloccare il fetch.
+            // In produzione F0 è sincrono (no coda); per volumi F0 va bene.
+            void generateDraftForReview(organizationId, inserted.id).catch((e) => {
+              summary.errors.push({
+                brandId: brand.id,
+                message: `draft gen fallita: ${e instanceof Error ? e.message : String(e)}`,
+              });
+            });
+          }
+        }
       }
     } catch (e) {
       summary.errors.push({
