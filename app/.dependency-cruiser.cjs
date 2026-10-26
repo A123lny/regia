@@ -61,6 +61,7 @@ module.exports = {
           "^src/modules/m07-outreach/internal/",
           "^src/modules/m07-partners/internal/",
           "^src/modules/m08-analytics/internal/",
+          "^src/modules/m08-reviews/internal/",
           "^src/modules/m09-reminders/internal/",
           "^src/modules/m10-signup/internal/",
           "^src/modules/m11-admin/internal/",
