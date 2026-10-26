@@ -1,32 +1,99 @@
 # Diario di bordo — Regìa
 
-> Aggiornato: 13 ottobre 2026 · Una pagina al massimo. Le voci vecchie si potano:
+> Aggiornato: 26 ottobre 2026 · Una pagina al massimo. Le voci vecchie si potano:
 > la storia completa sta in git. Regole d'uso: vedi CLAUDE.md, sezione "Rito di sessione".
 
 ## Adesso
 
-- **Audit v1.5 praticamente chiuso.** 6 P1 + 4 P2 + 4 P3 implementati su main
-  (ultimo HEAD `77992b8`). Resta solo **RN-69** (WhatsApp foto dal campo) in attesa
-  di setup Twilio sandbox. Capitolato v1.5 e' sostanzialmente coperto.
-- **Dati di test popolati:** script `npm run seed:demo` (idempotente, UUID
-  deterministici) ha caricato su Cloud 30 contatti + 90 consensi + 10 veicoli +
-  15 prodotti + 30 ordini + 5 ristoranti Lenny (1 cooling + 1 in lancio) +
-  3 fornitori + 20 bozze + 20 voucher + 3 segmenti + 2 campagne + 2 landing.
-  Rilanciabile per reset parziale, upsert idempotente non duplica.
-- **UI riorganizzata (RF-12.1):** sidebar divisa in 6 gruppi semantici
-  (Operativo quotidiano · Marketing · Commerciale · Clienti · Insight · Config)
-  invece della lista piatta di 18 voci. Allineato alla distinzione marketing vs
-  commerciale esplicita nel capitolato.
-- **POC desktop OS parallelo:** branch `feature/desktop-shell` + worktree
-  `../regia-desktop/` su porta :3001 con wallpaper + icone + finestre draggabili
-  (react-rnd) + dock + taskbar + search palette Cmd+K + post-it + widget notifiche
-  live. Decisione sul destino (merge/scarta/accantona) ancora aperta.
-- **Prossimo:** smoke test M05 end-to-end su Cloud (Resend+Twilio reali) oppure
-  F0-b hosting (DigitalOcean + CI GitHub Actions). I bloccanti strategici
-  (connettori M1 reali, M14 social) dipendono tutti da credenziali esterne.
+- **Tour funzionale completato.** Esaminati 20+ pagine con l'utente in sessioni
+  di spiegazione guidata (operativo + marketing + commerciale + clienti + insight
+  + config), ciascuna con mini-fix UX emersi durante il walkthrough. Lo stato
+  del software operativo e' solido: nessun bug bloccante trovato, molti aggiustamenti
+  di coerenza (es. chip cooling, assenso->consenso, veicoli nascosti per brand
+  non-automotive, chip "In raffreddamento" visibile su tabella ristoranti).
+- **CI GitHub Actions attiva e verde** (HEAD `e6d13a6`). Il workflow esisteva da
+  2 ott ma falliva da settimane al passo `format:check` per 13 file aggiunti
+  senza passare da prettier globale. Fix: `prettier --write .` + aggiunto
+  node_modules root a .gitignore. Ogni push triggera: lint + prettier + typecheck
+  + boundaries + supabase db reset + vitest in ~6 min.
+- **Suite E2E Playwright: 49 test** (39 smoke + 10 deep). I 7 flow deep implementati
+  nelle ultime 2 sessioni coprono: M03 draft->approve->schedule, M06 voucher
+  idempotenza (RF-6.26), M10 signup pubblico, M09 abbandono resolve + audit,
+  M01 revoca consenso, M07 campagna launcher preview. Pattern: insert via admin
+  DB + UI action + assertion DB + cleanup afterEach. Full suite ~2.3 min local.
+- **Dati di test completati:** `npm run seed:demo` ora carica 33 contatti (3 duplicati
+  per test dedup) + 90 consensi + 10 veicoli + 13 prodotti (modello consegne Lenny
+  only, costi reali per gli altri brand) + 30 ordini con 63 righe + 5 ristoranti
+  Lenny + 5 fornitori realistici (zero Barilla, aggiunti Illy/Melegatti/Bosch)
+  + 20 bozze (6 con attribuzione RF-9.3) + 20 voucher + 3 segmenti + 2 campagne
+  + 2 landing + 12 promemoria + 9 segnali abbandono. Idempotente.
+- **UX fixes applicati durante tour:**
+  - Calendario day-view: task "sliding" su tutti i giorni fino a scadenza con
+    colori graduati (verde/giallo/arancione/rosso) + fix timezone parsing
+  - Anti-abbandono: ordinamento esplicito severity high->medium->low + card
+    risolti cliccabile con modal storico + textarea 1000 char con outcome
+  - Iscrizioni: generatore QR integrato (libreria qrcode client-side) con
+    bottone "Scarica PNG" + auto-open su create landing
+  - Analytics: separate capability analytics.marketing.read vs .commercial.read
+    (RU-1a) per nascondere fatturato all'Editor futuro
+  - Fornitori: assenso -> consenso (coerente lessico), descrizione header
+    corretta (Lenny food non ha fornitori)
+  - Ristoranti: chip "In raffreddamento" esplicito nella colonna Status
+- **Prossimo:** 4 blocchi rimanenti dall'audit sopravvivono:
+  (1) hosting Vercel (sblocca scheduler cron M09 + QR da smartphone + demo
+  pubblica); (2) connettori M1 reali Lenny/Stazione (sblocca RN-47/48 metriche);
+  (3) M14 auto-publishing social (bloccato Meta dev account); (4) M08 recensioni
+  + M08b email assistenza (scope da brainstormare).
 
 ## Fatto
 
+- **26 ott 2026 — Audit stato + 5 flow E2E deep + CI verde.**
+  Audit completo del codebase: resi espliciti i gap (M14, M08 recensioni,
+  M08b email assistenza, connettori M1, scheduler cron M09). Fix CI GitHub
+  Actions che falliva da 1 mese per prettier format:check su 13 file:
+  `prettier --write .` + node_modules root in gitignore. Scritti 5 flow E2E
+  deep aggiuntivi (voucher idempotenza, signup pubblico, campagna launcher,
+  abbandono resolve, revoca consenso) seguendo pattern consolidato di
+  contenuti-flow. Suite totale 49 test, 2.3 min full run.
+- **22-24 ott 2026 — Tour funzionale guidato 20+ pagine + mini-fix UX.**
+  Walkthrough paga per pagina con ipotesi di uso reale. Fix emersi:
+  (a) chip "In raffreddamento" visibile in colonna Status ristoranti;
+  (b) fornitori "assenso"->"consenso" (coerente con lessico contatti) +
+  descrizione header corretta (Lenny food = ristoratori, non fornitori);
+  (c) ridisegno fornitori seed: zero Barilla, aggiunti Illy/Melegatti/Bosch
+  mappati sui brand che davvero ne hanno (Stazione/Officina/Eni Cafe);
+  (d) catalogo Lenny: rimossi piatti (gestiti dai ristoratori), aggiunte
+  2 consegne con cost+margin reali (unico stock di proprieta' del gruppo);
+  (e) brand_order_lines popolate (63 righe) per 30 ordini seed;
+  (f) sezione veicoli dossier contatto nascosta per brand non-automotive
+  (Lenny food/Eni Cafe) quando vuota — RF-1.3 ha senso solo stazione/officina.
+- **20-21 ott 2026 — Analytics + calendario + anti-abbandono deep polish.**
+  (a) RU-1a: separate capability `analytics.marketing.read` (owner+editor) e
+  `analytics.commercial.read` (solo owner, nasconde fatturato in euro);
+  (b) Calendario day-view: task "sliding" su tutti i giorni da oggi fino a
+  scadenza con colori graduati overdue/today/tomorrow/soon/later + fix
+  timezone parsing esplicito YYYY-MM-DDTHH:mm per evitare slittamento giorno;
+  (c) Anti-abbandono: ordinamento esplicito severity high->medium->low (prima
+  Supabase ordinava alfabeticamente), card "Risolti 30gg" cliccabile con
+  modal storico (motivo + note), form risoluzione in modal con textarea
+  1000 char + outcome dropdown; (d) 1° flow E2E deep contenuti-flow (M03
+  draft->approve->schedule, 2 test).
+- **19-20 ott 2026 — Iscrizioni QR integrato + segmenti + dedup seed.**
+  (a) Pagina iscrizioni: modal QR generato client-side via libreria qrcode
+  (zero backend), bottone "Scarica PNG" + auto-open dopo creazione nuova
+  landing; (b) Dedup detector seed: aggiunti 3 duplicati sintetici (email/
+  phone/whatsapp match) per vedere il flow unifica; (c) 3 flow E2E deep
+  aggiuntivi: anti-abbandono resolve + audit, revoca consenso, campagna
+  launcher 3 strati; (d) seed demo copre 33 contatti + 90 consensi + 20
+  reminder + 9 abandonment signals + 20 voucher con attribuzione RF-9.3
+  al 30%.
+- **17-18 ott 2026 — Suite Playwright E2E iniziale + testing guide.**
+  Setup Playwright 1.56: auth setup via admin API genera magic link e
+  salva storageState riusato. 38 smoke test su 13 moduli (page loads +
+  heading + bottone primario). Config: workers=1 (seriale, DB staging
+  condiviso), trace retain-on-failure, HTML report. docs/testing-guide.md
+  pagina per pagina + flow critici 30min + template per estendere. 2°
+  flow E2E deep: dashboard + anti-abbandono smoke completo.
 - **13 ott 2026 — RN-37/38/39 M07: analisi mercato rete per categoria.**
   Nuova pagina `/ristoranti/mercato` (Owner-only). Aggregator confronta ordini
   medi per partner per ciascuna cuisine_category vs mediana rete: verdetti
