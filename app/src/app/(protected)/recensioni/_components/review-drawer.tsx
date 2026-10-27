@@ -88,7 +88,9 @@ export function ReviewDrawer({
             <h2 className="font-serif text-2xl">{review.authorName ?? "Anonimo"}</h2>
             <div className="text-amber-600">{"★".repeat(review.rating)}</div>
           </div>
-          <button className="text-slate-500" onClick={onClose}>✕</button>
+          <button className="text-slate-500" onClick={onClose}>
+            ✕
+          </button>
         </div>
 
         <section className="mt-4 rounded border border-slate-200 p-3 text-sm">
@@ -152,10 +154,7 @@ export function ReviewDrawer({
               {review.approvedReply}
             </div>
             <div className="mt-3 flex gap-2">
-              <button
-                className="rounded border px-3 py-1.5 text-sm"
-                onClick={copyToClipboard}
-              >
+              <button className="rounded border px-3 py-1.5 text-sm" onClick={copyToClipboard}>
                 Copia negli appunti
               </button>
               {googleUrl && (
@@ -189,8 +188,8 @@ export function ReviewDrawer({
         {review.status === "serious_signaled" && (
           <section className="mt-4 space-y-3">
             <div className="rounded border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800">
-              Caso grave segnalato (RF-8.4). Prima si risolve privatamente con la
-              persona, poi si decide se rispondere pubblicamente.
+              Caso grave segnalato (RF-8.4). Prima si risolve privatamente con la persona, poi si
+              decide se rispondere pubblicamente.
             </div>
             <label className="block text-sm font-medium">Come hai risolto?</label>
             <textarea

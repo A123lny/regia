@@ -146,7 +146,9 @@ export type InsertReviewFromFetchInput = {
   classificationReason: string;
 };
 
-export async function insertReviewFromFetch(input: InsertReviewFromFetchInput): Promise<Review | null> {
+export async function insertReviewFromFetch(
+  input: InsertReviewFromFetchInput,
+): Promise<Review | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const initialStatus: ReviewStatus =
@@ -213,10 +215,7 @@ export async function approveReview(
   if (error) throw new Error(`approveReview: ${error.message}`);
 }
 
-export async function markReviewPublished(
-  organizationId: string,
-  id: string,
-): Promise<void> {
+export async function markReviewPublished(organizationId: string, id: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const { error } = await admin
@@ -253,10 +252,7 @@ export async function resolveSerious(
   if (error) throw new Error(`resolveSerious: ${error.message}`);
 }
 
-export async function reopenSeriousForDraft(
-  organizationId: string,
-  id: string,
-): Promise<void> {
+export async function reopenSeriousForDraft(organizationId: string, id: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const { error } = await admin

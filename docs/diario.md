@@ -1,10 +1,21 @@
 # Diario di bordo — Regìa
 
-> Aggiornato: 26 ottobre 2026 · Una pagina al massimo. Le voci vecchie si potano:
+> Aggiornato: 27 ottobre 2026 · Una pagina al massimo. Le voci vecchie si potano:
 > la storia completa sta in git. Regole d'uso: vedi CLAUDE.md, sezione "Rito di sessione".
 
 ## Adesso
 
+- **M08 Recensioni e reputazione — F0 core completato** (14 task, 16 commit da
+  `b99bbe1` a `4f82381`). Nuovo modulo `m08-reviews` con fetcher Google Places
+  giornaliero (`/api/reviews/fetch` cron 06:00), classifier euristico (rating +
+  keyword grave), bozza AI Anthropic tono-coerente con guard RF-8.7 anti-blame
+  (Lenny no colpa ristorante), workflow approvazione Owner, publish manuale con
+  copy clipboard. Pagina `/recensioni` con KPI/filtri/tabella + drawer 7 stati.
+  2 nuove migrazioni, 5 invarianti (15+ test case), 3 unit test, 2 E2E spec
+  (scritti ma non eseguibili per env issue pre-esistente SERVICE_ROLE_KEY).
+  Esecuzione subagent-driven con reviewer per task: 4 fix round totali
+  (regex sbagli stem-anchor, AiConfigError fail-fast, audit regenerate,
+  clipboard+remount drawer).
 - **Tour funzionale completato.** Esaminati 20+ pagine con l'utente in sessioni
   di spiegazione guidata (operativo + marketing + commerciale + clienti + insight
   + config), ciascuna con mini-fix UX emersi durante il walkthrough. Lo stato
@@ -39,14 +50,32 @@
   - Fornitori: assenso -> consenso (coerente lessico), descrizione header
     corretta (Lenny food non ha fornitori)
   - Ristoranti: chip "In raffreddamento" esplicito nella colonna Status
-- **Prossimo:** 4 blocchi rimanenti dall'audit sopravvivono:
-  (1) hosting Vercel (sblocca scheduler cron M09 + QR da smartphone + demo
-  pubblica); (2) connettori M1 reali Lenny/Stazione (sblocca RN-47/48 metriche);
-  (3) M14 auto-publishing social (bloccato Meta dev account); (4) M08 recensioni
-  + M08b email assistenza (scope da brainstormare).
+- **Prossimo:** 3 blocchi rimanenti dall'audit:
+  (1) hosting Vercel (sblocca scheduler cron M05/M08 reali + QR da smartphone +
+  demo pubblica); (2) connettori M1 reali Lenny/Stazione (sblocca RN-47/48
+  metriche); (3) M14 auto-publishing social (bloccato Meta dev account) +
+  M08b email assistenza (scope da brainstormare).
 
 ## Fatto
 
+- **27 ott 2026 — M08 Recensioni e reputazione (RF-8.1..8.9) — F0 core 14 task.**
+  Nuovo modulo `m08-reviews` end-to-end. Spec+plan in `docs/superpowers/{specs,plans}/`.
+  Esecuzione subagent-driven: 14 task bite-sized, ciascuno dispatcato come fresh
+  implementer subagent (haiku per transcription, sonnet per integration), review
+  task-reviewer dopo ciascuno (sonnet), 4 fix round completati (regex stem-anchor
+  RF-8.7, AiConfigError fail-fast, audit regenerate action, clipboard try/catch
+  + drawer re-mount). Componenti: migration `reviews` + `brands.google_place_id`;
+  classifier euristico (rating + 11 keyword grave); `GooglePlacesAdapter`
+  (RS-2) + fetcher idempotente; prompt builder con RF-8.7 Lenny guard + draft
+  guard regex post-generation; draft generator Anthropic con retry max 2 + fatale
+  AiConfigError; 5 server actions + capability `reviews.{read,respond}` (owner /
+  owner+editor); endpoint cron `/api/reviews/fetch 0 6 * * *` + script fallback
+  locale; UI pagina `/recensioni` con 4 KPI + filtri + tabella + sidebar; drawer
+  7 stati con approve/publish/resolve/regenerate wiring; 5 invarianti (dedup
+  fetcher, classifier, prompt+guard, publish-flow, tenant-scope, serious-no-draft)
+  + 2 E2E spec. Totale 16 commit (`b99bbe1`..`4f82381`). FUORI SCOPE F0 (deferred):
+  RF-8.8 richiesta review post-risoluzione (hook da M09), RF-8.9 commenti social
+  (bloccato Meta), GBP write API (nessun brand verificato oggi).
 - **26 ott 2026 — Audit stato + 5 flow E2E deep + CI verde.**
   Audit completo del codebase: resi espliciti i gap (M14, M08 recensioni,
   M08b email assistenza, connettori M1, scheduler cron M09). Fix CI GitHub

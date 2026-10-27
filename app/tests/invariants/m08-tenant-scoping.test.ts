@@ -45,10 +45,7 @@ describe("RN-87 · M08 tenant scoping", () => {
       createdIds.push((r as { id: string }).id);
 
       const fakeOrgId = "ffffffff-ffff-ffff-ffff-ffffffffffff";
-      const { data } = await admin
-        .from("reviews")
-        .select("id")
-        .eq("organization_id", fakeOrgId);
+      const { data } = await admin.from("reviews").select("id").eq("organization_id", fakeOrgId);
       expect((data ?? []).length).toBe(0);
     } else {
       expect(orgB).toBeDefined();

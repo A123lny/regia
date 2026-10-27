@@ -81,9 +81,7 @@ describe("RS-3 · M08 reviews dedup fetcher", () => {
       .single();
     createdIds.push((a as { id: string }).id);
 
-    const { error: b } = await admin
-      .from("reviews")
-      .insert({ ...base, brand_id: brandB!.id });
+    const { error: b } = await admin.from("reviews").insert({ ...base, brand_id: brandB!.id });
     expect(b).not.toBeNull();
     expect(b?.code).toBe("23505");
   });

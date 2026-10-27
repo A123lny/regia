@@ -2,7 +2,11 @@
 // Uso: ALLOW_FETCH=1 npm run reviews:fetch
 
 import "dotenv/config";
-import { fetchAllBrandsReviews, GooglePlacesAdapter, MockGooglePlacesAdapter } from "../src/modules/m08-reviews/server";
+import {
+  fetchAllBrandsReviews,
+  GooglePlacesAdapter,
+  MockGooglePlacesAdapter,
+} from "../src/modules/m08-reviews/server";
 import { getAdminClient } from "../src/lib/db/admin";
 
 async function main() {
@@ -11,9 +15,7 @@ async function main() {
     process.exit(1);
   }
   const apiKey = process.env["GOOGLE_PLACES_API_KEY"];
-  const adapter = apiKey
-    ? new GooglePlacesAdapter(apiKey)
-    : new MockGooglePlacesAdapter();
+  const adapter = apiKey ? new GooglePlacesAdapter(apiKey) : new MockGooglePlacesAdapter();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;

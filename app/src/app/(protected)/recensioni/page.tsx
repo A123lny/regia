@@ -26,11 +26,7 @@ export default async function RecensioniPage({
 
   const sp = await searchParams;
 
-  const brandFilter = Array.isArray(sp.brand)
-    ? sp.brand
-    : sp.brand
-      ? [sp.brand]
-      : undefined;
+  const brandFilter = Array.isArray(sp.brand) ? sp.brand : sp.brand ? [sp.brand] : undefined;
 
   const reviewFilters = {
     ...(brandFilter ? { brandIds: brandFilter } : {}),
@@ -100,10 +96,7 @@ function KpiCard({
       }`}
     >
       <div className="text-xs text-slate-500">{label}</div>
-      <div
-        className="mt-1 text-3xl font-semibold"
-        style={{ fontFamily: "var(--font-bricolage)" }}
-      >
+      <div className="mt-1 text-3xl font-semibold" style={{ fontFamily: "var(--font-bricolage)" }}>
         {value}
       </div>
       <div className="mt-1 text-xs text-slate-500">{hint}</div>

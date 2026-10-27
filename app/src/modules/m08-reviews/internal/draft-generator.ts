@@ -98,7 +98,8 @@ export async function generateDraftForReview(
           target: `review:${reviewId}`,
           details: {
             message: e instanceof Error ? e.message : String(e),
-            kind: isTransientAiError || isFatalConfig ? (e as { kind?: string }).kind : "unexpected",
+            kind:
+              isTransientAiError || isFatalConfig ? (e as { kind?: string }).kind : "unexpected",
           },
         });
         await updateReviewDraft(organizationId, reviewId, null, "pending");

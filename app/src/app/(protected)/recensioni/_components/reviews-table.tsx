@@ -81,10 +81,7 @@ export function ReviewsTable({
                 <td className="pr-3 text-xs text-slate-600">{STATUS_LABELS[r.status]}</td>
                 <td className={`pr-3 ${age.color}`}>{age.text}</td>
                 <td>
-                  <button
-                    className="text-slate-600 underline"
-                    onClick={() => setOpenId(r.id)}
-                  >
+                  <button className="text-slate-600 underline" onClick={() => setOpenId(r.id)}>
                     Apri
                   </button>
                 </td>

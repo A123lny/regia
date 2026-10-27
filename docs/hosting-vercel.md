@@ -23,6 +23,7 @@
 Il file `app/vercel.json` è già presente e contiene:
 - Region `fra1` (Francoforte, vicino a Supabase)
 - Cron `/api/publisher/tick` ogni 5 minuti (M05 publisher batch)
+- Cron `/api/reviews/fetch` ogni giorno alle 06:00 (M08 fetcher Google Places)
 
 ## Environment Variables da impostare
 
@@ -57,6 +58,16 @@ Nel pannello Vercel → Settings → Environment Variables, aggiungi:
 | `TWILIO_ACCOUNT_SID` | https://console.twilio.com |
 | `TWILIO_AUTH_TOKEN` | https://console.twilio.com |
 | `TWILIO_WHATSAPP_FROM` | Numero WA sandbox (es. `whatsapp:+14155238886`) |
+
+### Google Places (M08 Recensioni) — da attivare per fetcher reale
+
+| Nome | Da dove |
+|---|---|
+| `GOOGLE_PLACES_API_KEY` | https://console.cloud.google.com → APIs & Services → Places API enabled → Credentials |
+
+Il cron `/api/reviews/fetch` ogni 06:00 cicla brand con `google_place_id` valorizzato
+(settabile in `/marchi` → Modifica → Google Place ID). Senza chiave il cron ritorna 500.
+Senza Place ID su un brand, il brand viene saltato (OK per Lenny food).
 
 ### Auth guard CRON (consigliato)
 

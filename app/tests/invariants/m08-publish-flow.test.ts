@@ -3,11 +3,8 @@
 // markReviewPublished richiede status=approved).
 
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import {
-  approveReview,
-  markReviewPublished,
-} from "@/modules/m08-reviews/internal/reviews-repo";
+import { createClient } from "@supabase/supabase-js";
+import { approveReview, markReviewPublished } from "@/modules/m08-reviews/internal/reviews-repo";
 
 const url = process.env["NEXT_PUBLIC_SUPABASE_URL"] ?? "http://127.0.0.1:54520";
 const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"]!;
@@ -78,7 +75,9 @@ describe("RF-8.5 · M08 publish flow", () => {
       .eq("id", id)
       .maybeSingle();
     expect((p as { status: string }).status).toBe("published_externally");
-    expect((p as { published_externally_at: string | null }).published_externally_at).not.toBeNull();
+    expect(
+      (p as { published_externally_at: string | null }).published_externally_at,
+    ).not.toBeNull();
   });
 
   it("approve su status != draft_ready → nessun update (silent no-op)", async () => {
