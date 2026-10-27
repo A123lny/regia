@@ -7,6 +7,10 @@
     {
       "path": "/api/publisher/tick",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/reviews/fetch",
+      "schedule": "0 6 * * *"
     }
   ]
 }

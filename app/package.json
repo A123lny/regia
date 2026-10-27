@@ -18,6 +18,7 @@
     "test": "dotenv -e .env.local -- vitest run",
     "boundaries": "depcruise src --config .dependency-cruiser.cjs",
     "seed:demo": "dotenv -e .env.staging -- tsx scripts/seed-demo.ts",
+    "reviews:fetch": "dotenv -e .env.staging -- tsx scripts/reviews-fetch.ts",
     "test:e2e": "dotenv -e .env.staging -- playwright test",
     "test:e2e:ui": "dotenv -e .env.staging -- playwright test --ui",
     "test:e2e:report": "playwright show-report ./tests/e2e/.report",
