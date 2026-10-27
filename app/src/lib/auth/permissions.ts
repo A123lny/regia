@@ -119,6 +119,9 @@ export type Capability =
   // Provider media esterna RF-4.3 (registrazione ToS/diritti)
   | "media_providers.read"
   | "media_providers.manage"
+  // M08 Reviews (RF-8.1..8.9) — gestione reputazione
+  | "reviews.read"
+  | "reviews.respond"
   // RF-12.1 Operational tasks (todo manuali assegnabili tra utenti)
   | "tasks.read"
   | "tasks.crud";
@@ -216,6 +219,9 @@ const CAPABILITIES: Record<Capability, Role[]> = {
   // RF-4.3 provider media esterna: lettura e gestione entrambe Owner (compliance ToS/diritti)
   "media_providers.read": ["owner"],
   "media_providers.manage": ["owner"],
+  // M08 Reviews RF-8.1..8.9
+  "reviews.read": ["owner", "editor"],
+  "reviews.respond": ["owner"],
   // RF-12.1 operational tasks: entrambi i ruoli (operativo quotidiano)
   "tasks.read": ["owner", "editor"],
   "tasks.crud": ["owner", "editor"],
@@ -329,6 +335,8 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   "delivery_zones.blackout.toggle": "Attivare/chiudere blackout zone (emergenza)",
   "media_providers.read": "Vedere provider di generazione media esterna (RF-4.3)",
   "media_providers.manage": "Registrare/modificare provider media (ToS, diritti, usi)",
+  "reviews.read": "Leggere recensioni e bozze di risposta",
+  "reviews.respond": "Approvare e pubblicare risposte alle recensioni",
   "tasks.read": "Vedere operational tasks del team",
   "tasks.crud": "Creare/assegnare/completare operational tasks",
 };

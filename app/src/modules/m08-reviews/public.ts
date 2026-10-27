@@ -17,3 +17,11 @@ export {
   countByStatus,
 } from "./internal/reviews-repo";
 export type { ListReviewsFilters, StatusCounts } from "./internal/reviews-repo";
+
+export {
+  approveReviewAction,
+  markReviewPublishedAction,
+  resolveSeriousAction,
+  reopenSeriousForDraftAction,
+  regenerateDraftAction,
+} from "./internal/actions";
