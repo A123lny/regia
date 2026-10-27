@@ -67,7 +67,11 @@ export function ReviewDrawer({
 
   async function copyToClipboard() {
     const text = review!.approvedReply ?? "";
-    await navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      setErr("Impossibile copiare negli appunti (controlla permessi browser).");
+    }
   }
 
   const googleUrl = brand.googlePlaceId

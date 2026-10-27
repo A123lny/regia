@@ -101,6 +101,7 @@ export function ReviewsTable({
         </tbody>
       </table>
       <ReviewDrawer
+        key={open?.id ?? "closed"}
         review={open}
         brand={openBrand}
         onClose={() => setOpenId(null)}
