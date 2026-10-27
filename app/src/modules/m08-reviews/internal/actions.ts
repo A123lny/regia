@@ -112,6 +112,14 @@ export async function regenerateDraftAction(input: {
     const session = await requireAuth("reviews.respond");
     await updateReviewDraft(session.organizationId, input.reviewId, null, "pending");
     await generateDraftForReview(session.organizationId, input.reviewId);
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "reviews.draft_regenerated",
+      target: `review:${input.reviewId}`,
+      details: {},
+    });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
