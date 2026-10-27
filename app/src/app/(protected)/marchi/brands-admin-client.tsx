@@ -288,6 +288,7 @@ function BrandFormDialog({
     brand?.emailFromDisplayName ?? "",
   );
   const [emailReplyTo, setEmailReplyTo] = useState(brand?.emailReplyTo ?? "");
+  const [googlePlaceId, setGooglePlaceId] = useState(brand?.googlePlaceId ?? "");
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [submitting, setSubmitting] = useState(false);
   // File logo selezionato in mode=create (upload avviene DOPO la creazione del brand)
@@ -347,6 +348,7 @@ function BrandFormDialog({
           emailFromAddress: emailFromAddress.trim() || null,
           emailFromDisplayName: emailFromDisplayName.trim() || null,
           emailReplyTo: emailReplyTo.trim() || null,
+          googlePlaceId: googlePlaceId.trim() || null,
         });
       }
       onSuccess();
@@ -513,6 +515,43 @@ function BrandFormDialog({
                   />
                 </label>
               </div>
+            </div>
+          )}
+
+          {/* RF-8.1 Google Place ID per M08 recensioni (solo mode edit) */}
+          {mode === "edit" && brand && (
+            <div className="rounded-md border border-border bg-surface-muted/40 p-3">
+              <div className="mb-2">
+                <span className="text-xs font-medium text-text">
+                  Google Place ID (RF-8.1, opzionale)
+                </span>
+                <p className="text-[10px] text-text-muted">
+                  Serve per il fetcher recensioni M08. Lascia vuoto se il marchio non ha scheda
+                  Google.
+                </p>
+              </div>
+              <label className="block">
+                <span className="text-[10px] font-medium text-text-muted">Place ID</span>
+                <input
+                  type="text"
+                  value={googlePlaceId}
+                  onChange={(e) => setGooglePlaceId(e.target.value)}
+                  placeholder="es. ChIJN1t_tDeuEmsRUsoyG83frY4"
+                  className="mt-0.5 w-full rounded-md border border-border bg-bg px-2 py-1.5 font-mono text-sm text-text focus:border-primary focus:outline-none"
+                />
+                <p className="mt-1 text-[10px] text-text-muted">
+                  Trovalo su{" "}
+                  <a
+                    className="underline"
+                    href="https://developers.google.com/maps/documentation/places/web-service/place-id"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    developers.google.com
+                  </a>
+                  .
+                </p>
+              </label>
             </div>
           )}
           {mode === "create" && (

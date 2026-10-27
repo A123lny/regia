@@ -117,6 +117,7 @@ export async function updateBrand(
     emailFromAddress?: string | null;
     emailFromDisplayName?: string | null;
     emailReplyTo?: string | null;
+    googlePlaceId?: string | null;
   },
 ): Promise<Brand> {
   const session = await requireBrandCrud();
@@ -133,6 +134,7 @@ export async function updateBrand(
     emailFromAddress?: string | null;
     emailFromDisplayName?: string | null;
     emailReplyTo?: string | null;
+    googlePlaceId?: string | null;
   } = {};
   if (patch.displayName !== undefined) {
     const dn = patch.displayName.trim();
@@ -174,6 +176,14 @@ export async function updateBrand(
       throw new Error("Indirizzo email reply-to non valido (formato).");
     }
     if (v !== current.emailReplyTo) dbPatch.emailReplyTo = v;
+  }
+  if (patch.googlePlaceId !== undefined) {
+    const v = patch.googlePlaceId?.trim() || null;
+    // Google Place IDs iniziano con "ChIJ" e sono alfanumerici+_- di solito 27+ chars
+    if (v !== null && (v.length < 10 || v.length > 255)) {
+      throw new Error("Google Place ID non valido (lunghezza 10-255 caratteri).");
+    }
+    if (v !== current.googlePlaceId) dbPatch.googlePlaceId = v;
   }
 
   if (Object.keys(dbPatch).length === 0) return current;

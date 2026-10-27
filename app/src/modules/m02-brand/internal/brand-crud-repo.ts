@@ -16,6 +16,7 @@ export type Brand = {
   emailFromAddress: string | null;
   emailFromDisplayName: string | null;
   emailReplyTo: string | null;
+  googlePlaceId: string | null;
   isArchived: boolean;
   createdAt: string;
 };
@@ -49,13 +50,14 @@ function rowToBrand(row: any): Brand {
     emailFromAddress: row.email_from_address ?? null,
     emailFromDisplayName: row.email_from_display_name ?? null,
     emailReplyTo: row.email_reply_to ?? null,
+    googlePlaceId: row.google_place_id ?? null,
     isArchived: row.is_archived,
     createdAt: row.created_at,
   };
 }
 
 const SELECT_COLS =
-  "id, organization_id, slug, display_name, color, logo_url, font_family, email_from_address, email_from_display_name, email_reply_to, is_archived, created_at";
+  "id, organization_id, slug, display_name, color, logo_url, font_family, email_from_address, email_from_display_name, email_reply_to, google_place_id, is_archived, created_at";
 
 /**
  * Tenant-scoped list marchi. Filtri mutuamente esclusivi:
@@ -160,6 +162,7 @@ export type UpdateBrandPatch = {
   emailFromAddress?: string | null;
   emailFromDisplayName?: string | null;
   emailReplyTo?: string | null;
+  googlePlaceId?: string | null;
 };
 
 /**
@@ -179,6 +182,7 @@ export async function updateBrandRow(
   if (patch.emailFromDisplayName !== undefined)
     dbPatch["email_from_display_name"] = patch.emailFromDisplayName;
   if (patch.emailReplyTo !== undefined) dbPatch["email_reply_to"] = patch.emailReplyTo;
+  if (patch.googlePlaceId !== undefined) dbPatch["google_place_id"] = patch.googlePlaceId;
   if (Object.keys(dbPatch).length === 0) {
     // nulla da aggiornare: ritorno lo stato attuale
     return getBrandById(organizationId, brandId);
