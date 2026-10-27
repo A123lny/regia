@@ -42,6 +42,7 @@ import {
   BellRing,
   Truck,
   UserX,
+  Star,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -84,6 +85,12 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Anti-abbandono",
         icon: UserX,
         requiresCapability: "abandonment.read",
+      },
+      {
+        href: "/recensioni",
+        label: "Recensioni",
+        icon: Star,
+        requiresCapability: "reviews.read",
       },
     ],
   },
