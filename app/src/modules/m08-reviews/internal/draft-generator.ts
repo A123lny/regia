@@ -84,13 +84,12 @@ export async function generateDraftForReview(
         return;
       }
     } catch (e) {
-      // Distinguish categorized AI errors from unexpected throws.
-      const isAiError =
-        e instanceof AiTimeoutError ||
-        e instanceof AiRateLimitError ||
-        e instanceof AiApiError ||
-        e instanceof AiConfigError;
-      if (attempt > MAX_RETRIES || !isAiError) {
+      // AiConfigError = fatale (API key assente). Non ritentare: fail fast.
+      // Altri AiError = transient (timeout/rate/api) → ritenta fino a MAX_RETRIES.
+      const isTransientAiError =
+        e instanceof AiTimeoutError || e instanceof AiRateLimitError || e instanceof AiApiError;
+      const isFatalConfig = e instanceof AiConfigError;
+      if (attempt > MAX_RETRIES || !isTransientAiError || isFatalConfig) {
         await logAuditEvent({
           organizationId,
           actorUserId: null,
@@ -99,7 +98,7 @@ export async function generateDraftForReview(
           target: `review:${reviewId}`,
           details: {
             message: e instanceof Error ? e.message : String(e),
-            kind: isAiError ? (e as { kind?: string }).kind : "unexpected",
+            kind: isTransientAiError || isFatalConfig ? (e as { kind?: string }).kind : "unexpected",
           },
         });
         await updateReviewDraft(organizationId, reviewId, null, "pending");
