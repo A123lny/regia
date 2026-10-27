@@ -46,10 +46,19 @@ describe("RF-8.5 · M08 publish flow", () => {
 
   beforeAll(async () => {
     const { data, error } = await admin.auth.admin.listUsers({ perPage: 1 });
-    if (error || !data?.users[0]) {
-      throw new Error("Nessun utente auth trovato nel DB. Test non può eseguirsi.");
+    if (error) throw new Error(`listUsers: ${error.message}`);
+    if (data?.users[0]) {
+      userId = data.users[0]!.id;
+      return;
     }
-    userId = data.users[0]!.id;
+    // CI parte da DB vergine (supabase db reset): nessun auth user. Creane uno.
+    const { data: created, error: cErr } = await admin.auth.admin.createUser({
+      email: `test-m08-${Date.now()}@test.local`,
+      email_confirm: true,
+      password: "test-password-m08-ci",
+    });
+    if (cErr || !created?.user) throw new Error(`createUser: ${cErr?.message}`);
+    userId = created.user.id;
   });
 
   afterAll(async () => {
