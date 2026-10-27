@@ -71,14 +71,17 @@ Senza Place ID su un brand, il brand viene saltato (OK per Lenny food).
 
 ### Auth guard CRON (consigliato)
 
-Per evitare che `/api/publisher/tick` sia chiamabile da chiunque:
+Per evitare che gli endpoint cron siano chiamabili da chiunque, servono DUE
+secret separati (uno per modulo):
 
-| Nome | Da dove |
-|---|---|
-| `CRON_SECRET` | Genera random: `openssl rand -base64 32` |
+| Nome | Protegge | Da dove |
+|---|---|---|
+| `M05_CRON_SECRET` | `/api/publisher/tick` (M05 publisher batch) | `openssl rand -hex 32` |
+| `CRON_SECRET` | `/api/reviews/fetch` (M08 recensioni) | `openssl rand -hex 32` |
 
-Il worker verifica l'header `Authorization: Bearer <CRON_SECRET>`. Vercel Cron
-lo passa automaticamente se setti il secret nel pannello.
+Entrambi gli endpoint verificano l'header `Authorization: Bearer <secret>`.
+Vercel Cron lo passa automaticamente se setti i secret nel pannello.
+Puoi usare lo stesso valore per entrambe le variabili se vuoi semplificare.
 
 ## Primo deploy
 
