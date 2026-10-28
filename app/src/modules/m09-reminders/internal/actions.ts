@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { requireCapability, type Capability } from "@/lib/auth/permissions";
 import { logAuditEvent } from "@/lib/audit/log";
-import { getReminder, markReminderSent, dismissReminder } from "./reminders-repo";
+import { getReminder, markReminderSent, dismissReminder, scheduleReminder } from "./reminders-repo";
 import { refreshAllReminders } from "./compute-engine";
 import { detectAllAbandonmentSignals } from "./abandonment-detector";
 import { resolveAbandonmentSignal } from "./abandonment-repo";
@@ -169,6 +169,7 @@ export async function detectAbandonmentAction(): Promise<
 export async function resolveAbandonmentSignalAction(input: {
   signalId: string;
   reason: string;
+  askForReview?: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await requireAuth("abandonment.resolve");
   if (!input.reason || input.reason.trim().length < 3) {
@@ -188,6 +189,44 @@ export async function resolveAbandonmentSignalAction(input: {
     target: `signal:${input.signalId}`,
     details: { kind: updated.kind, reason: input.reason.trim() },
   });
+  // RF-8.8: dopo la risoluzione, se Owner ha indicato "chiedi recensione", schedula
+  // un reminder review_request. Il reminder resta pending finché il canale M05 non è
+  // configurato o finché Owner lo invia manualmente.
+  if (input.askForReview && updated.contactId) {
+    try {
+      const r = await scheduleReminder({
+        organizationId: session.organizationId,
+        brandId: updated.brandId,
+        contactId: updated.contactId,
+        kind: "review_request",
+        referenceType: "abandonment_signal",
+        referenceId: input.signalId,
+      });
+      await logAuditEvent({
+        organizationId: session.organizationId,
+        actorUserId: session.userId,
+        actorKind: "user",
+        action: "abandonment.review_requested",
+        target: `signal:${input.signalId}`,
+        details: {
+          reminderId: r.reminderId,
+          created: r.created,
+        },
+      });
+      revalidatePath("/promemoria");
+    } catch (e) {
+      // RF-8.8 soft-fail: la risoluzione è già avvenuta e audit scritto. Un fallimento
+      // nello schedule reminder non deve rollbackare il resolve principale.
+      await logAuditEvent({
+        organizationId: session.organizationId,
+        actorUserId: session.userId,
+        actorKind: "user",
+        action: "abandonment.review_request_failed",
+        target: `signal:${input.signalId}`,
+        details: { message: e instanceof Error ? e.message : String(e) },
+      });
+    }
+  }
   revalidatePath("/anti-abbandono");
   return { ok: true };
 }

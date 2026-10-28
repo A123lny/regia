@@ -11,7 +11,8 @@ export type ReminderKind =
 
 export type ReminderChannelHint = "email" | "sms" | "whatsapp" | "misto";
 export type ReminderStatus = "pending" | "sent" | "dismissed" | "expired";
-export type ReminderReferenceType = "voucher" | "order" | "vehicle" | "counter" | "signup";
+export type ReminderReferenceType =
+  "voucher" | "order" | "vehicle" | "counter" | "signup" | "abandonment_signal";
 
 export type Reminder = {
   id: string;

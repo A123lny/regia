@@ -5,6 +5,10 @@
 
 ## Adesso
 
+- **RF-8.8 M09→M08 bridge chiuso.** Deferred da F0 M08 ora implementato:
+  checkbox "Chiedi recensione" nel resolve dialog anti-abbandono schedula
+  reminder `review_request` idempotente. 2 nuovi invariant test. Zero migration
+  (kind + template già esistenti).
 - **M08 Recensioni e reputazione — F0 core completato** (14 task, 16 commit da
   `b99bbe1` a `4f82381`). Nuovo modulo `m08-reviews` con fetcher Google Places
   giornaliero (`/api/reviews/fetch` cron 06:00), classifier euristico (rating +
@@ -58,6 +62,18 @@
 
 ## Fatto
 
+- **28 ott 2026 — RF-8.8 M09→M08 bridge: richiesta recensione post-risoluzione abbandono.**
+  Hook deferred dal F0 di M08 ora chiuso. ResolveDialog anti-abbandono: nuovo
+  checkbox "Chiedi recensione a questo cliente" nel modal. `resolveAbandonmentSignalAction`
+  esteso con param `askForReview?: boolean` → se true, chiama `scheduleReminder({
+  kind:'review_request', referenceType:'abandonment_signal', referenceId:signalId })`
+  (idempotente via UNIQUE constraint esistente). Audit event `abandonment.review_requested`
+  + soft-fail su `abandonment.review_request_failed` se lo schedule non riesce
+  (resolve principale resta committed). Zero migration — `review_request` kind
+  già esistente nell'enum da 24 set + template email già implementato in
+  send-reminder.ts. Esteso `ReminderReferenceType` con `abandonment_signal`.
+  2 nuovi test invariante (crea + idempotenza). Il reminder resta pending in
+  /promemoria finché Owner lo invia manualmente o canale M05 configurato.
 - **27 ott 2026 — M08 Recensioni e reputazione (RF-8.1..8.9) — F0 core 14 task.**
   Nuovo modulo `m08-reviews` end-to-end. Spec+plan in `docs/superpowers/{specs,plans}/`.
   Esecuzione subagent-driven: 14 task bite-sized, ciascuno dispatcato come fresh

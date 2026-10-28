@@ -88,6 +88,7 @@ function SignalRow({ signal, canResolve }: { signal: AbandonmentSignalRow; canRe
   const [pending, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [askForReview, setAskForReview] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -127,6 +128,7 @@ function SignalRow({ signal, canResolve }: { signal: AbandonmentSignalRow; canRe
               size="sm"
               onClick={() => {
                 setReason("");
+                setAskForReview(false);
                 setError(null);
                 setDialogOpen(true);
               }}
@@ -152,6 +154,8 @@ function SignalRow({ signal, canResolve }: { signal: AbandonmentSignalRow; canRe
           signal={signal}
           reason={reason}
           setReason={setReason}
+          askForReview={askForReview}
+          setAskForReview={setAskForReview}
           error={error}
           pending={pending}
           onClose={() => setDialogOpen(false)}
@@ -165,6 +169,7 @@ function SignalRow({ signal, canResolve }: { signal: AbandonmentSignalRow; canRe
               const r = await resolveAbandonmentSignalAction({
                 signalId: signal.id,
                 reason: reason.trim(),
+                askForReview,
               });
               if (!r.ok) {
                 setError(r.error);
@@ -183,6 +188,8 @@ function ResolveDialog({
   signal,
   reason,
   setReason,
+  askForReview,
+  setAskForReview,
   error,
   pending,
   onClose,
@@ -191,6 +198,8 @@ function ResolveDialog({
   signal: AbandonmentSignalRow;
   reason: string;
   setReason: (s: string) => void;
+  askForReview: boolean;
+  setAskForReview: (v: boolean) => void;
   error: string | null;
   pending: boolean;
   onClose: () => void;
@@ -267,6 +276,23 @@ function ResolveDialog({
                   <span>Verra&apos; salvato in resolved_reason + visibile nello storico</span>
                   <span>{reason.length}/1000</span>
                 </div>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border bg-surface-muted/40 p-3 text-xs">
+                <input
+                  type="checkbox"
+                  checked={askForReview}
+                  onChange={(e) => setAskForReview(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span className="flex-1">
+                  <span className="block font-medium text-text">
+                    Chiedi recensione a questo cliente (RF-8.8)
+                  </span>
+                  <span className="mt-0.5 block text-text-muted">
+                    Schedula un reminder <code>review_request</code> che potrai inviare da{" "}
+                    <code>/promemoria</code> quando il canale sarà configurato.
+                  </span>
+                </span>
               </label>
               {error && (
                 <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
