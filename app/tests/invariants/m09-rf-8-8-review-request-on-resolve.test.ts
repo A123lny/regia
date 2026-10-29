@@ -27,7 +27,7 @@ async function getLennyBrandId(): Promise<string> {
   return (data as { id: string }).id;
 }
 
-async function getFirstContactId(): Promise<string> {
+async function getOrCreateContactId(brandId: string): Promise<{ id: string; created: boolean }> {
   const { data } = await admin
     .from("contacts")
     .select("id")
@@ -36,7 +36,22 @@ async function getFirstContactId(): Promise<string> {
     .is("is_duplicate_of", null)
     .limit(1)
     .maybeSingle();
-  return (data as { id: string }).id;
+  if (data) return { id: (data as { id: string }).id, created: false };
+  // CI parte da DB vergine (supabase db reset): nessun contact. Crea un test contact.
+  const { data: created, error } = await admin
+    .from("contacts")
+    .insert({
+      organization_id: ORG_ID,
+      brand_id: brandId,
+      first_name: "RF88",
+      last_name: "Test",
+      email: `rf88-test-${Date.now()}@test.local`,
+      source: "manuale",
+    })
+    .select("id")
+    .single();
+  if (error || !created) throw new Error(`Insert test contact: ${error?.message}`);
+  return { id: (created as { id: string }).id, created: true };
 }
 
 describe("RF-8.8 · M09→M08 review_request on abandonment resolve", () => {
@@ -44,10 +59,13 @@ describe("RF-8.8 · M09→M08 review_request on abandonment resolve", () => {
   const createdReminderIds: string[] = [];
   let brandId: string;
   let contactId: string;
+  let contactWasCreated = false;
 
   beforeAll(async () => {
     brandId = await getLennyBrandId();
-    contactId = await getFirstContactId();
+    const c = await getOrCreateContactId(brandId);
+    contactId = c.id;
+    contactWasCreated = c.created;
   });
 
   afterAll(async () => {
@@ -56,6 +74,10 @@ describe("RF-8.8 · M09→M08 review_request on abandonment resolve", () => {
     }
     for (const sid of createdSignalIds) {
       await admin.from("abandonment_signals").delete().eq("id", sid);
+    }
+    // Pulizia test contact creato ad-hoc (solo se abbiamo creato noi, non toccare seed)
+    if (contactWasCreated && contactId) {
+      await admin.from("contacts").delete().eq("id", contactId);
     }
   });
 
