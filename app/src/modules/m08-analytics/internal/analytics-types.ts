@@ -74,6 +74,35 @@ export type PartnersAnalytics = {
   totalActive: number;
 };
 
+// ---- RF-6.9 Cross-brand flow ("paga chi riceve") ----
+// Un voucher emesso dal brand A (issuer) e speso presso il brand B (spendable)
+// rappresenta un cliente che il brand A ha "regalato" al brand B. Il costo dello
+// sconto grava sullo spendable (chi riceve il nuovo cliente paga la ricompensa).
+export type CrossBrandFlow = {
+  issuerBrandId: string;
+  issuerBrandName: string;
+  spendableBrandId: string;
+  spendableBrandName: string;
+  vouchersIssued: number;
+  vouchersRedeemed: number;
+  vouchersExpired: number;
+  // Costo stimato in centesimi a carico dello spendable (chi paga).
+  // Calcolato come:
+  //  - reward_kind='valore_fisso' → reward_value_cents direct per redeemed
+  //  - reward_kind='percentuale'  → stima su order.total_cents del redeem (join via redeemed_by_order_id)
+  //  - reward_kind='servizio_gratis' → non quantificato (contribuisce solo al count)
+  estimatedCostCentsRedeemed: number;
+  distinctContactsRedeemed: number;
+};
+
+export type CrossBrandAnalytics = {
+  flows: CrossBrandFlow[];
+  // Flussi solo cross-brand (issuer != spendable). Same-brand escluso.
+  totalIssuedCrossBrand: number;
+  totalRedeemedCrossBrand: number;
+  totalEstimatedCostCents: number;
+};
+
 // ---- Signup landing ----
 export type SignupAnalytics = {
   totalEventsInPeriod: number;

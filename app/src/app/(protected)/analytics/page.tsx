@@ -23,6 +23,7 @@ import {
   getPartnersAnalytics,
   getSignupAnalytics,
   getAttributionByDraft,
+  getCrossBrandFlow,
   PERIOD_LABELS,
 } from "@/modules/m08-analytics/public";
 import type { AnalyticsPeriod } from "@/modules/m08-analytics/public";
@@ -89,15 +90,19 @@ export default async function AnalyticsPage({
   const params = await searchParams;
   const period: AnalyticsPeriod = isPeriod(params.period) ? params.period : "30d";
 
-  const [contacts, orders, loyalty, outreach, partners, signup, attribution] = await Promise.all([
-    getContactsAnalytics(session.organizationId, period),
-    getOrdersAnalytics(session.organizationId, period),
-    getLoyaltyAnalytics(session.organizationId),
-    getOutreachAnalytics(session.organizationId),
-    getPartnersAnalytics(session.organizationId),
-    getSignupAnalytics(session.organizationId, period),
-    getAttributionByDraft(session.organizationId, { limit: 20 }),
-  ]);
+  const [contacts, orders, loyalty, outreach, partners, signup, attribution, crossBrand] =
+    await Promise.all([
+      getContactsAnalytics(session.organizationId, period),
+      getOrdersAnalytics(session.organizationId, period),
+      getLoyaltyAnalytics(session.organizationId),
+      getOutreachAnalytics(session.organizationId),
+      getPartnersAnalytics(session.organizationId),
+      getSignupAnalytics(session.organizationId, period),
+      getAttributionByDraft(session.organizationId, { limit: 20 }),
+      // RF-6.9: commercial-only (RU-1a) ma lo chiamiamo sempre per semplicità;
+      // mostriamo la sezione solo se canCommercial. Costo trascurabile (poche righe voucher).
+      getCrossBrandFlow(session.organizationId, period),
+    ]);
 
   // Massimo per bar chart CSS
   const maxOrderChannel = Math.max(1, ...orders.byChannel.map((c) => c.totalCents));
@@ -683,6 +688,102 @@ export default async function AnalyticsPage({
           </div>
         )}
       </section>
+
+      {/* ============ RF-6.9 CROSS-BRAND FLOW ("PAGA CHI RICEVE") ============ */}
+      {canCommercial && crossBrand.flows.length > 0 && (
+        <section className="rounded-2xl border border-border bg-surface p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <Gift className="h-5 w-5 text-primary" />
+            <h2
+              className="text-lg font-bold text-text"
+              style={{ fontFamily: "var(--font-bricolage)" }}
+            >
+              Flusso cross-brand (RF-6.9)
+            </h2>
+          </div>
+          <p className="mb-4 text-sm text-text-muted">
+            Il valore scorre tra marchi: paga chi riceve il nuovo cliente. Per ogni coppia emittente
+            → spendibile, mostriamo quanti voucher sono stati emessi, riscattati, e il costo stimato
+            in euro a carico dello spendibile.
+          </p>
+
+          <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+            <div className="rounded-lg bg-bg p-3">
+              <div className="text-[10px] uppercase tracking-wider text-text-muted">
+                Emessi cross-brand
+              </div>
+              <div
+                className="mt-1 text-2xl font-bold text-text"
+                style={{ fontFamily: "var(--font-bricolage)" }}
+              >
+                {crossBrand.totalIssuedCrossBrand}
+              </div>
+            </div>
+            <div className="rounded-lg bg-bg p-3">
+              <div className="text-[10px] uppercase tracking-wider text-text-muted">
+                Riscattati cross-brand
+              </div>
+              <div
+                className="mt-1 text-2xl font-bold text-success"
+                style={{ fontFamily: "var(--font-bricolage)" }}
+              >
+                {crossBrand.totalRedeemedCrossBrand}
+              </div>
+            </div>
+            <div className="rounded-lg bg-bg p-3">
+              <div className="text-[10px] uppercase tracking-wider text-text-muted">
+                Costo stimato totale
+              </div>
+              <div
+                className="mt-1 text-2xl font-bold text-text"
+                style={{ fontFamily: "var(--font-bricolage)" }}
+              >
+                {formatCents(crossBrand.totalEstimatedCostCents)}
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-text-muted">
+                  <th className="py-2 pr-3">Emittente</th>
+                  <th className="pr-3">→</th>
+                  <th className="pr-3">Spendibile (paga)</th>
+                  <th className="pr-3 text-right">Emessi</th>
+                  <th className="pr-3 text-right">Riscattati</th>
+                  <th className="pr-3 text-right">Scaduti</th>
+                  <th className="pr-3 text-right">Clienti unici</th>
+                  <th className="pr-3 text-right">Costo stimato</th>
+                </tr>
+              </thead>
+              <tbody>
+                {crossBrand.flows.map((f) => (
+                  <tr
+                    key={`${f.issuerBrandId}:${f.spendableBrandId}`}
+                    className="border-b border-border/60 last:border-0"
+                  >
+                    <td className="py-2 pr-3 font-medium text-text">{f.issuerBrandName}</td>
+                    <td className="pr-3 text-text-muted">→</td>
+                    <td className="pr-3 font-medium text-text">{f.spendableBrandName}</td>
+                    <td className="pr-3 text-right">{f.vouchersIssued}</td>
+                    <td className="pr-3 text-right text-success">{f.vouchersRedeemed}</td>
+                    <td className="pr-3 text-right text-text-muted">{f.vouchersExpired}</td>
+                    <td className="pr-3 text-right">{f.distinctContactsRedeemed}</td>
+                    <td className="pr-3 text-right font-medium">
+                      {formatCents(f.estimatedCostCentsRedeemed)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs italic text-text-muted">
+            Nota: i voucher &ldquo;servizio gratis&rdquo; non entrano nel costo stimato; i voucher
+            percentuali sono stimati sul totale dell&apos;ordine di riscatto quando disponibile.
+          </p>
+        </section>
+      )}
 
       {/* ============ RF-9.3 ATTRIBUZIONE CONTENUTO -> VENDITA ============ */}
       <section className="rounded-2xl border border-border bg-surface p-5">

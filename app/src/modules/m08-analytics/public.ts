@@ -22,3 +22,7 @@ export { getSignupAnalytics } from "./internal/signup-analytics";
 // RF-9.3 attribuzione contenuto -> vendita
 export { getAttributionByDraft } from "./internal/attribution-repo";
 export type { DraftAttribution, AttributionSummary } from "./internal/attribution-repo";
+
+// RF-6.9 cross-brand flow ("paga chi riceve")
+export { getCrossBrandFlow } from "./internal/cross-brand-flow";
+export type { CrossBrandFlow, CrossBrandAnalytics } from "./internal/analytics-types";
