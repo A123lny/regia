@@ -8,6 +8,14 @@ export type {
   BrandSensitiveTopic,
   BrandKitWithLists,
   SensitiveTopicKind,
+  ToneExample,
+} from "./internal/brand-kit-types";
+
+export {
+  MAX_TONE_EXAMPLES,
+  TONE_EXAMPLE_TEXT_MAX,
+  TONE_EXAMPLE_NOTE_MAX,
+  isValidToneExamples,
 } from "./internal/brand-kit-types";
 
 // Query (server components)
@@ -34,6 +42,7 @@ export type { OpeningHours, OpeningSlot, Weekday } from "./internal/opening-hour
 // Server actions (form submit)
 export {
   updateBrandKitTone,
+  updateBrandKitToneExamples,
   updateBrandKitContext,
   addBrandPillar,
   removeBrandPillar,

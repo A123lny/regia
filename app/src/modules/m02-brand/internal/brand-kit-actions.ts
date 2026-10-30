@@ -14,7 +14,13 @@ import { getSessionOrRedirect } from "@/lib/auth/session";
 import { requireCapability } from "@/lib/auth/permissions";
 import { logAuditEvent } from "@/lib/audit/log";
 import { revalidatePath } from "next/cache";
-import type { SensitiveTopicKind } from "./brand-kit-types";
+import type { SensitiveTopicKind, ToneExample } from "./brand-kit-types";
+import {
+  isValidToneExamples,
+  MAX_TONE_EXAMPLES,
+  TONE_EXAMPLE_TEXT_MAX,
+  TONE_EXAMPLE_NOTE_MAX,
+} from "./brand-kit-types";
 
 async function requireOwner() {
   const session = await getSessionOrRedirect();
@@ -73,6 +79,46 @@ export async function updateBrandKitTone(brandId: string, toneOfVoice: string): 
     action: "brand_kit.tone_updated",
     target: `brand:${brand.slug}`,
     details: { length: toneOfVoice.length },
+  });
+  revalidateBrandPage(brand.slug);
+}
+
+// ─── ESEMPI DI TONO (RN-70) ────────────────────────────────────────────────────
+
+/**
+ * RN-70: aggiorna la lista di esempi di tono (massimo 10 post passati con nota).
+ * Alimenta il prompt M3 come few-shot per calibrare lo stile su esempi reali.
+ */
+export async function updateBrandKitToneExamples(
+  brandId: string,
+  examples: ToneExample[],
+): Promise<void> {
+  const { session, brand } = await requireOwnedBrand(brandId);
+  if (!isValidToneExamples(examples)) {
+    throw new Error(
+      `Esempi di tono non validi (max ${MAX_TONE_EXAMPLES}, testo 1-${TONE_EXAMPLE_TEXT_MAX} char, nota max ${TONE_EXAMPLE_NOTE_MAX} char)`,
+    );
+  }
+  // Normalizza: trim entrambi i campi.
+  const normalized: ToneExample[] = examples.map((e) => ({
+    text: e.text.trim(),
+    note: e.note.trim(),
+  }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { error } = await admin
+    .from("brand_kits")
+    .update({ tone_examples: normalized, updated_at: new Date().toISOString() })
+    .eq("brand_id", brandId);
+  if (error) throw new Error(`Errore salvataggio esempi: ${error.message}`);
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "brand_kit.tone_examples_updated",
+    target: `brand:${brand.slug}`,
+    details: { count: normalized.length },
   });
   revalidateBrandPage(brand.slug);
 }

@@ -9,6 +9,7 @@ import type {
   BrandSensitiveTopic,
   BrandKitWithLists,
   SensitiveTopicKind,
+  ToneExample,
 } from "./brand-kit-types";
 
 type BrandKitRow = {
@@ -17,6 +18,7 @@ type BrandKitRow = {
   strategic_purpose: string;
   strategic_year_goal: string;
   strategic_direction: string;
+  tone_examples: ToneExample[];
   updated_at: string;
 };
 
@@ -52,6 +54,7 @@ function mapKit(row: BrandKitRow): BrandKit {
     strategicPurpose: row.strategic_purpose,
     strategicYearGoal: row.strategic_year_goal,
     strategicDirection: row.strategic_direction,
+    toneExamples: Array.isArray(row.tone_examples) ? row.tone_examples : [],
     updatedAt: row.updated_at,
   };
 }
@@ -141,6 +144,18 @@ export async function formatBrandContextForAI(brandId: string): Promise<string> 
   lines.push("## Tono di voce");
   lines.push(bundle.kit.toneOfVoice || "_Non impostato._");
   lines.push("");
+  if (bundle.kit.toneExamples.length > 0) {
+    // RN-70: iniezione few-shot. Il modello calibra lo stile su esempi reali
+    // scelti dall'owner, con nota su cosa funzionava di ciascuno.
+    lines.push("## Esempi di tono (post passati scelti dall'owner — RN-70)");
+    for (const ex of bundle.kit.toneExamples) {
+      lines.push(`- "${ex.text.replace(/\n+/g, " ").trim()}"`);
+      if (ex.note.trim().length > 0) {
+        lines.push(`  _Perché funziona:_ ${ex.note.trim()}`);
+      }
+    }
+    lines.push("");
+  }
   lines.push("## Contesto strategico");
   lines.push(`- **Scopo e pubblico:** ${bundle.kit.strategicPurpose || "_Non impostato._"}`);
   lines.push(`- **Obiettivo dell'anno:** ${bundle.kit.strategicYearGoal || "_Non impostato._"}`);

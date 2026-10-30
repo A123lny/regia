@@ -39,6 +39,7 @@ import {
   addBrandSensitiveTopic,
   removeBrandSensitiveTopic,
 } from "@/modules/m02-brand/public";
+import { ToneExamplesEditor } from "./tone-examples-editor";
 import { HelpButton } from "@/components/help/help-button";
 
 function formatDate(iso: string): string {
@@ -132,6 +133,20 @@ export default async function BrandKitPage({ params }: { params: Promise<{ slug:
               </Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Card 1b: Esempi di tono (RN-70) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-serif">Esempi di tono</CardTitle>
+          <CardDescription>
+            RN-70: il tono si imposta da esempi reali, non dal foglio bianco. Fino a 10 post passati
+            che l&apos;owner trova riusciti, con nota su cosa funzionava.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ToneExamplesEditor brandId={brandId} initialExamples={kit?.toneExamples ?? []} />
         </CardContent>
       </Card>
 
