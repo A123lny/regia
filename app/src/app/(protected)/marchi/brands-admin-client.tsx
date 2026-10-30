@@ -289,6 +289,9 @@ function BrandFormDialog({
   );
   const [emailReplyTo, setEmailReplyTo] = useState(brand?.emailReplyTo ?? "");
   const [googlePlaceId, setGooglePlaceId] = useState(brand?.googlePlaceId ?? "");
+  const [openingHours, setOpeningHours] = useState<
+    import("@/modules/m02-brand/public").OpeningHours | null
+  >(brand?.openingHours ?? null);
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [submitting, setSubmitting] = useState(false);
   // File logo selezionato in mode=create (upload avviene DOPO la creazione del brand)
@@ -349,6 +352,7 @@ function BrandFormDialog({
           emailFromDisplayName: emailFromDisplayName.trim() || null,
           emailReplyTo: emailReplyTo.trim() || null,
           googlePlaceId: googlePlaceId.trim() || null,
+          openingHours,
         });
       }
       onSuccess();
@@ -552,6 +556,7 @@ function BrandFormDialog({
                   .
                 </p>
               </label>
+              <OpeningHoursEditor value={openingHours} onChange={setOpeningHours} />
             </div>
           )}
           {mode === "create" && (
@@ -713,6 +718,136 @@ function BrandLogoUploader({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// RN-76 Editor orari apertura settimanali. UI compatta: toggle per giorno + 1
+// fascia principale (open/close). Fasce multiple (es. pranzo+cena) non editabili
+// qui per semplicità UI; se già presenti vengono preservate ma non visualizzate
+// come tali — in futuro upgrade a editor avanzato.
+function OpeningHoursEditor({
+  value,
+  onChange,
+}: {
+  value: import("@/modules/m02-brand/public").OpeningHours | null;
+  onChange: (v: import("@/modules/m02-brand/public").OpeningHours | null) => void;
+}) {
+  const WEEKDAY_SHORT: Record<string, string> = {
+    monday: "Lun",
+    tuesday: "Mar",
+    wednesday: "Mer",
+    thursday: "Gio",
+    friday: "Ven",
+    saturday: "Sab",
+    sunday: "Dom",
+  };
+  const days = [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+  ] as const;
+  const enabled = value !== null;
+
+  function updateDay(day: (typeof days)[number], open: string, close: string) {
+    const current = value ?? {
+      monday: [],
+      tuesday: [],
+      wednesday: [],
+      thursday: [],
+      friday: [],
+      saturday: [],
+      sunday: [],
+    };
+    const next = { ...current, [day]: open && close ? [{ open, close }] : [] };
+    onChange(next);
+  }
+
+  function toggleDay(day: (typeof days)[number], isOpen: boolean) {
+    if (isOpen) {
+      updateDay(day, "07:30", "19:30");
+    } else {
+      updateDay(day, "", "");
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-md border border-border bg-surface p-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-medium text-text">Orari apertura (RN-76)</div>
+          <p className="text-[10px] text-text-muted">
+            Un solo posto nel sistema. Alimentano scheda Google, risposte automatiche, contenuti.
+          </p>
+        </div>
+        <label className="inline-flex items-center gap-1.5 text-xs">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => {
+              if (!e.target.checked) onChange(null);
+              else {
+                onChange({
+                  monday: [{ open: "07:30", close: "19:30" }],
+                  tuesday: [{ open: "07:30", close: "19:30" }],
+                  wednesday: [{ open: "07:30", close: "19:30" }],
+                  thursday: [{ open: "07:30", close: "19:30" }],
+                  friday: [{ open: "07:30", close: "19:30" }],
+                  saturday: [{ open: "07:30", close: "19:30" }],
+                  sunday: [],
+                });
+              }
+            }}
+          />
+          <span className="text-text-muted">Configura</span>
+        </label>
+      </div>
+      {enabled && value && (
+        <div className="space-y-1.5">
+          {days.map((d) => {
+            const slot = value[d][0];
+            const isOpen = Boolean(slot);
+            return (
+              <div key={d} className="flex items-center gap-2 text-xs">
+                <span className="w-10 font-medium text-text">{WEEKDAY_SHORT[d]}</span>
+                <input
+                  type="checkbox"
+                  checked={isOpen}
+                  onChange={(e) => toggleDay(d, e.target.checked)}
+                />
+                {isOpen ? (
+                  <>
+                    <input
+                      type="time"
+                      value={slot?.open ?? ""}
+                      onChange={(e) => updateDay(d, e.target.value, slot?.close ?? "19:30")}
+                      className="rounded border border-border bg-bg px-1.5 py-0.5"
+                    />
+                    <span className="text-text-muted">–</span>
+                    <input
+                      type="time"
+                      value={slot?.close ?? ""}
+                      onChange={(e) => updateDay(d, slot?.open ?? "07:30", e.target.value)}
+                      className="rounded border border-border bg-bg px-1.5 py-0.5"
+                    />
+                  </>
+                ) : (
+                  <span className="text-text-muted">chiuso</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {!enabled && (
+        <p className="text-[11px] italic text-text-muted">
+          Nessun orario configurato (marchio sempre &ldquo;aperto&rdquo;, es. piattaforma digitale).
+        </p>
+      )}
     </div>
   );
 }

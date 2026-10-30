@@ -20,6 +20,17 @@ export {
 } from "./internal/brand-crud-repo";
 export type { Brand, BrandListFilter, BrandFontFamily } from "./internal/brand-crud-repo";
 
+// RN-76 Orari apertura centralizzati per brand (single source of truth)
+export {
+  WEEKDAYS,
+  WEEKDAY_LABELS,
+  isValidOpeningHours,
+  emptyOpeningHours,
+  isBrandOpenAt,
+  formatOpeningHoursSummary,
+} from "./internal/opening-hours";
+export type { OpeningHours, OpeningSlot, Weekday } from "./internal/opening-hours";
+
 // Server actions (form submit)
 export {
   updateBrandKitTone,

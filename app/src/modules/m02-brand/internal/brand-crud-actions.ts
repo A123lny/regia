@@ -118,6 +118,7 @@ export async function updateBrand(
     emailFromDisplayName?: string | null;
     emailReplyTo?: string | null;
     googlePlaceId?: string | null;
+    openingHours?: import("./opening-hours").OpeningHours | null;
   },
 ): Promise<Brand> {
   const session = await requireBrandCrud();
@@ -135,6 +136,7 @@ export async function updateBrand(
     emailFromDisplayName?: string | null;
     emailReplyTo?: string | null;
     googlePlaceId?: string | null;
+    openingHours?: import("./opening-hours").OpeningHours | null;
   } = {};
   if (patch.displayName !== undefined) {
     const dn = patch.displayName.trim();
@@ -184,6 +186,20 @@ export async function updateBrand(
       throw new Error("Google Place ID non valido (lunghezza 10-255 caratteri).");
     }
     if (v !== current.googlePlaceId) dbPatch.googlePlaceId = v;
+  }
+  // RN-76 Orari apertura: validazione shape runtime oltre al constraint DB.
+  if (patch.openingHours !== undefined) {
+    const v = patch.openingHours;
+    if (v !== null) {
+      const { isValidOpeningHours } = await import("./opening-hours");
+      if (!isValidOpeningHours(v)) {
+        throw new Error("Orari apertura: formato non valido (atteso HH:mm con close > open).");
+      }
+    }
+    // Confronto JSON per evitare update rumoroso: Supabase accetta jsonb così com'è
+    const prev = current.openingHours;
+    const changed = JSON.stringify(prev) !== JSON.stringify(v);
+    if (changed) dbPatch.openingHours = v;
   }
 
   if (Object.keys(dbPatch).length === 0) return current;

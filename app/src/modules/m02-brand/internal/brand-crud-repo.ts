@@ -4,6 +4,7 @@
 // (constraint brands_color_format).
 
 import { getAdminClient } from "@/lib/db/admin";
+import type { OpeningHours } from "./opening-hours";
 
 export type Brand = {
   id: string;
@@ -17,6 +18,7 @@ export type Brand = {
   emailFromDisplayName: string | null;
   emailReplyTo: string | null;
   googlePlaceId: string | null;
+  openingHours: OpeningHours | null;
   isArchived: boolean;
   createdAt: string;
 };
@@ -51,13 +53,14 @@ function rowToBrand(row: any): Brand {
     emailFromDisplayName: row.email_from_display_name ?? null,
     emailReplyTo: row.email_reply_to ?? null,
     googlePlaceId: row.google_place_id ?? null,
+    openingHours: (row.opening_hours as OpeningHours | null) ?? null,
     isArchived: row.is_archived,
     createdAt: row.created_at,
   };
 }
 
 const SELECT_COLS =
-  "id, organization_id, slug, display_name, color, logo_url, font_family, email_from_address, email_from_display_name, email_reply_to, google_place_id, is_archived, created_at";
+  "id, organization_id, slug, display_name, color, logo_url, font_family, email_from_address, email_from_display_name, email_reply_to, google_place_id, opening_hours, is_archived, created_at";
 
 /**
  * Tenant-scoped list marchi. Filtri mutuamente esclusivi:
@@ -163,6 +166,7 @@ export type UpdateBrandPatch = {
   emailFromDisplayName?: string | null;
   emailReplyTo?: string | null;
   googlePlaceId?: string | null;
+  openingHours?: OpeningHours | null;
 };
 
 /**
@@ -183,6 +187,10 @@ export async function updateBrandRow(
     dbPatch["email_from_display_name"] = patch.emailFromDisplayName;
   if (patch.emailReplyTo !== undefined) dbPatch["email_reply_to"] = patch.emailReplyTo;
   if (patch.googlePlaceId !== undefined) dbPatch["google_place_id"] = patch.googlePlaceId;
+  if (patch.openingHours !== undefined) {
+    // jsonb può essere null o un oggetto strutturato
+    (dbPatch as Record<string, unknown>)["opening_hours"] = patch.openingHours;
+  }
   if (Object.keys(dbPatch).length === 0) {
     // nulla da aggiornare: ritorno lo stato attuale
     return getBrandById(organizationId, brandId);
