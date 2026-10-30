@@ -34,6 +34,9 @@ export type {
   TemplateFormat,
 } from "./internal/templates/template-types";
 
+// RF-4.2 suggestion + autofill (deterministico, no AI)
+export { suggestTemplateForDraft, autofillTemplateFields } from "./internal/templates/suggest";
+
 // RF-4.3 provider media esterna (ToS/diritti verificati)
 export {
   listMediaProviders,

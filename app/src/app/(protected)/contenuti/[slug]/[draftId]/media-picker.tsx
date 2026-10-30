@@ -6,13 +6,29 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ImageIcon, X, Check, Loader2, Sparkles, LayoutTemplate, Download } from "lucide-react";
+import {
+  ImageIcon,
+  X,
+  Check,
+  Loader2,
+  Sparkles,
+  LayoutTemplate,
+  Download,
+  Wand2,
+} from "lucide-react";
 import type { MediaAsset, TemplateDefinition } from "@/modules/m04-media/public";
 import {
   attachMediaAssetToDraft,
   detachMediaAssetFromDraft,
   generateFromTemplate,
+  suggestTemplateForDraft,
+  autofillTemplateFields,
 } from "@/modules/m04-media/public";
+
+type DraftContext = {
+  topicLabel: string | null;
+  generatedText: string;
+};
 
 type Props = {
   draftId: string;
@@ -20,6 +36,8 @@ type Props = {
   currentAsset: MediaAsset | null;
   availableAssets: MediaAsset[];
   availableTemplates: TemplateDefinition[];
+  /** RF-4.2 draft context per suggest + autofill template (opzionale per retro-compat). */
+  draftContext?: DraftContext;
 };
 
 type PickerMode = "library" | "template";
@@ -30,6 +48,7 @@ export function DraftMediaPicker({
   currentAsset,
   availableAssets,
   availableTemplates,
+  draftContext,
 }: Props) {
   const router = useRouter();
   const [pickerOpen, setPickerOpen] = useState<PickerMode | null>(null);
@@ -37,6 +56,16 @@ export function DraftMediaPicker({
   const [templateFields, setTemplateFields] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, startTransition] = useTransition();
+
+  // RF-4.2: template suggerito deterministicamente dal topic del draft.
+  const suggestedTemplate = draftContext
+    ? suggestTemplateForDraft(draftContext, availableTemplates)
+    : null;
+
+  function handleAutofillFromDraft() {
+    if (!selectedTemplate || !draftContext) return;
+    setTemplateFields(autofillTemplateFields(draftContext, selectedTemplate));
+  }
 
   function handleAttach(assetId: string) {
     setError(null);
@@ -318,32 +347,88 @@ export function DraftMediaPicker({
                     Nessun template disponibile per questo marchio.
                   </p>
                 ) : (
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {availableTemplates.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => handleTemplatePick(t)}
-                        className="rounded-lg border border-border bg-surface p-3 text-left hover:border-primary/50"
-                      >
-                        <div className="text-sm font-medium text-text">{t.name}</div>
-                        <div className="mt-0.5 text-[11px] text-text-muted">{t.description}</div>
-                        <div className="mt-1 text-[10px] text-text-muted/70">
-                          {t.fields.length} campi · formato {t.format}
+                  <>
+                    {suggestedTemplate && (
+                      <div className="mb-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+                        <div className="flex items-start gap-2">
+                          <Wand2 className="mt-0.5 h-4 w-4 text-primary" />
+                          <div className="flex-1 text-xs">
+                            <div className="font-medium text-text">
+                              Suggerito: {suggestedTemplate.name} (RF-4.2)
+                            </div>
+                            <p className="mt-0.5 text-text-muted">
+                              Scelto automaticamente dal topic del draft. Puoi comunque scegliere un
+                              altro template dalla lista.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleTemplatePick(suggestedTemplate);
+                                if (draftContext) {
+                                  setTemplateFields(
+                                    autofillTemplateFields(draftContext, suggestedTemplate),
+                                  );
+                                }
+                              }}
+                              className="mt-2 inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-white hover:bg-primary-hover"
+                            >
+                              <Wand2 className="h-3 w-3" />
+                              Usa suggerito + compila dal draft
+                            </button>
+                          </div>
                         </div>
-                      </button>
-                    ))}
-                  </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {availableTemplates.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => handleTemplatePick(t)}
+                          className={`rounded-lg border p-3 text-left hover:border-primary/50 ${
+                            t.id === suggestedTemplate?.id
+                              ? "border-primary/60 bg-primary/5"
+                              : "border-border bg-surface"
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-medium text-text">{t.name}</span>
+                            {t.id === suggestedTemplate?.id && (
+                              <span className="rounded-full bg-primary/20 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-primary">
+                                Suggerito
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-text-muted">{t.description}</div>
+                          <div className="mt-1 text-[10px] text-text-muted/70">
+                            {t.fields.length} campi · formato {t.format}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )
               ) : (
                 <form onSubmit={handleGenerateTemplate} className="space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTemplate(null)}
-                    className="text-xs text-text-muted underline hover:text-primary"
-                  >
-                    ← scegli altro template
-                  </button>
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTemplate(null)}
+                      className="text-xs text-text-muted underline hover:text-primary"
+                    >
+                      ← scegli altro template
+                    </button>
+                    {draftContext && (
+                      <button
+                        type="button"
+                        onClick={handleAutofillFromDraft}
+                        className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+                      >
+                        <Wand2 className="h-3 w-3" />
+                        Compila dal draft
+                      </button>
+                    )}
+                  </div>
                   {selectedTemplate.fields.map((f) => (
                     <label key={f.key} className="block">
                       <span className="text-xs font-medium text-text">

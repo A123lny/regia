@@ -141,6 +141,10 @@ export default async function DraftDetailPage({
           currentAsset={currentAsset}
           availableAssets={availableAssets}
           availableTemplates={availableTemplates}
+          draftContext={{
+            topicLabel: draft.topicLabel,
+            generatedText: draft.generatedText,
+          }}
         />
       )}
 
