@@ -15,6 +15,7 @@ import {
   Car,
   Plus,
   Trash2,
+  FileText,
   X,
 } from "lucide-react";
 import { BrandChip } from "@/components/brand/brand-chip";
@@ -36,6 +37,7 @@ import {
   CONTACT_SOURCE_LABELS,
   TIRE_TYPE_LABELS,
 } from "@/modules/m01-data-hub/public";
+import { scheduleQuoteFollowupAction } from "@/modules/m09-reminders/public";
 import type {
   Contact,
   ContactConsent,
@@ -474,6 +476,15 @@ function ContactDetailDrawer({
           </div>
         )}
 
+        {/* RN-74: Follow-up preventivo officina (manuale) */}
+        {canCrud && !contact.archivedAt && (
+          <QuoteFollowupButton
+            contactId={contact.id}
+            brandId={contact.brandId}
+            disabled={pending}
+          />
+        )}
+
         {/* Azioni */}
         {canCrud && (
           <div className="flex flex-wrap gap-2 border-t border-border pt-4">
@@ -730,5 +741,114 @@ function VehicleRow({
         </button>
       )}
     </li>
+  );
+}
+
+// RN-74 Follow-up preventivo officina.
+// Owner schedula manualmente un reminder quote_followup dopo aver mandato un
+// preventivo (default 5gg). Il reminder va in /promemoria dove è modificabile.
+function QuoteFollowupButton({
+  contactId,
+  brandId,
+  disabled,
+}: {
+  contactId: string;
+  brandId: string;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [days, setDays] = useState(5);
+  const [note, setNote] = useState("");
+  const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function handleSubmit() {
+    setStatus(null);
+    startTransition(async () => {
+      const trimmedNote = note.trim();
+      const r = await scheduleQuoteFollowupAction({
+        contactId,
+        brandId,
+        daysAhead: days,
+        ...(trimmedNote.length > 0 ? { note: trimmedNote } : {}),
+      });
+      if (r.ok) {
+        setStatus({ ok: true, message: `Follow-up pianificato tra ${days} giorni.` });
+        setOpen(false);
+        setNote("");
+      } else {
+        setStatus({ ok: false, message: r.error });
+      }
+    });
+  }
+
+  return (
+    <div className="rounded-md border border-border bg-surface-muted/30 p-3">
+      <div className="flex items-start gap-2">
+        <FileText className="mt-0.5 h-4 w-4 text-warning" />
+        <div className="flex-1">
+          <div className="text-xs font-medium text-text">Follow-up preventivo (RN-74)</div>
+          <p className="mt-0.5 text-[11px] text-text-muted">
+            Promemoria officina non riscontrato: schedula un reminder gentile tra qualche giorno.
+          </p>
+          {!open ? (
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              disabled={disabled}
+              className="mt-2 rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text hover:border-primary/40 disabled:opacity-50"
+            >
+              Schedula follow-up
+            </button>
+          ) : (
+            <div className="mt-2 space-y-2">
+              <label className="flex items-center gap-2 text-xs">
+                <span className="text-text-muted">Tra</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={days}
+                  onChange={(e) => setDays(Math.max(1, Math.min(60, Number(e.target.value) || 5)))}
+                  className="w-16 rounded border border-border bg-bg px-1.5 py-0.5"
+                />
+                <span className="text-text-muted">giorni</span>
+              </label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={2}
+                maxLength={300}
+                placeholder="Nota opzionale (es. cambio frizione €1200)"
+                className="w-full rounded-md border border-border bg-bg px-2 py-1 text-xs"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={pending || disabled}
+                  className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-white hover:bg-primary-hover disabled:opacity-50"
+                >
+                  {pending ? "Salvo..." : "Conferma"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  disabled={pending}
+                  className="rounded-md border border-border px-2.5 py-1 text-xs text-text-muted hover:border-primary/40"
+                >
+                  Annulla
+                </button>
+              </div>
+            </div>
+          )}
+          {status && (
+            <p className={`mt-2 text-[11px] ${status.ok ? "text-success" : "text-danger"}`}>
+              {status.message}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

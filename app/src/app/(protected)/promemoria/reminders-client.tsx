@@ -14,6 +14,7 @@ import {
   Target,
   UserX,
   Star,
+  FileText,
   Send,
 } from "lucide-react";
 import { BrandChip } from "@/components/brand/brand-chip";
@@ -44,6 +45,7 @@ const KIND_ICONS: Record<ReminderKind, typeof Sparkles> = {
   counter_close: Target,
   dormant_reactivation: UserX,
   review_request: Star,
+  quote_followup: FileText,
 };
 
 const KIND_COLORS: Record<ReminderKind, string> = {
@@ -54,6 +56,7 @@ const KIND_COLORS: Record<ReminderKind, string> = {
   counter_close: "text-primary",
   dormant_reactivation: "text-text-muted",
   review_request: "text-warning",
+  quote_followup: "text-warning",
 };
 
 function formatDate(iso: string): string {

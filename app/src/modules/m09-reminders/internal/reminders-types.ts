@@ -7,7 +7,8 @@ export type ReminderKind =
   | "voucher_expiring"
   | "counter_close"
   | "dormant_reactivation"
-  | "review_request";
+  | "review_request"
+  | "quote_followup";
 
 export type ReminderChannelHint = "email" | "sms" | "whatsapp" | "misto";
 export type ReminderStatus = "pending" | "sent" | "dismissed" | "expired";
@@ -42,6 +43,7 @@ export const REMINDER_KIND_LABELS: Record<ReminderKind, string> = {
   counter_close: "Vicino alla soglia",
   dormant_reactivation: "Cliente dormiente",
   review_request: "Richiesta recensione",
+  quote_followup: "Follow-up preventivo",
 };
 
 export const REMINDER_KIND_ICONS: Record<ReminderKind, string> = {
@@ -52,6 +54,7 @@ export const REMINDER_KIND_ICONS: Record<ReminderKind, string> = {
   counter_close: "target",
   dormant_reactivation: "user-x",
   review_request: "star",
+  quote_followup: "file-text",
 };
 
 export const REMINDER_STATUS_LABELS: Record<ReminderStatus, string> = {

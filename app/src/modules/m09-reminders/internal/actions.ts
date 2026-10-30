@@ -230,3 +230,42 @@ export async function resolveAbandonmentSignalAction(input: {
   revalidatePath("/anti-abbandono");
   return { ok: true };
 }
+
+// RN-74 Recupero preventivi officina non riscontrati.
+// Owner schedula manualmente dalla scheda contatto quando invia un preventivo
+// (default: 5 giorni). Il reminder resta pending in /promemoria finché l'owner
+// lo invia o lo marca sent via sendReminderNowAction / markReminderSentAction.
+
+export async function scheduleQuoteFollowupAction(input: {
+  contactId: string;
+  brandId: string;
+  daysAhead?: number;
+  note?: string;
+}): Promise<{ ok: true; reminderId: string | null } | { ok: false; error: string }> {
+  const session = await requireAuth("reminders.crud");
+  const days = Math.max(1, Math.min(60, input.daysAhead ?? 5));
+  const scheduledAt = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
+  try {
+    const r = await scheduleReminder({
+      organizationId: session.organizationId,
+      brandId: input.brandId,
+      contactId: input.contactId,
+      kind: "quote_followup",
+      scheduledAtIso: scheduledAt,
+      messageHint: input.note?.trim() || null,
+    });
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "reminders.quote_followup_scheduled",
+      target: `contact:${input.contactId}`,
+      details: { daysAhead: days, reminderId: r.reminderId, created: r.created },
+    });
+    revalidatePath("/promemoria");
+    revalidatePath(`/contatti/${input.contactId}`);
+    return { ok: true, reminderId: r.reminderId };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}

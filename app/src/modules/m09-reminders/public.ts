@@ -43,5 +43,9 @@ export {
   getAbandonmentStats,
 } from "./internal/abandonment-repo";
 export type { SignalRow as AbandonmentSignalRow } from "./internal/abandonment-repo";
-export { detectAbandonmentAction, resolveAbandonmentSignalAction } from "./internal/actions";
+export {
+  detectAbandonmentAction,
+  resolveAbandonmentSignalAction,
+  scheduleQuoteFollowupAction,
+} from "./internal/actions";
 export type { DetectAbandonmentResult } from "./internal/actions";

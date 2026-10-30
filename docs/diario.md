@@ -1,10 +1,17 @@
 # Diario di bordo — Regìa
 
-> Aggiornato: 27 ottobre 2026 · Una pagina al massimo. Le voci vecchie si potano:
+> Aggiornato: 30 ottobre 2026 · Una pagina al massimo. Le voci vecchie si potano:
 > la storia completa sta in git. Regole d'uso: vedi CLAUDE.md, sezione "Rito di sessione".
 
 ## Adesso
 
+- **Allineamento capitolato — 5 gap MEDIA chiusi** (RF-6.9, RN-76, RN-70,
+  RF-4.2, RN-74). Da audit profondo 29 ott con 4 agent paralleli emersi 9 gap
+  MEDIA/BASSA + 1 ALTA ricalibrata (§8.2 enforcement = aspirazionale per
+  contenuti semantici, non actionable). Fatti i 5 autonomi ad alto valore,
+  resta RN-45 (stagionale Lenny estate ~4-6h), RN-53/54 (eventi locali
+  ~3-5h), RN-4.4 (raccolta foto strutturata 50 locali ~5-7h), RF-3.1/3.2
+  (cross-marchio aggregato ~4-6h) + deferred noti (M14/M8b/connettori).
 - **RF-8.8 M09→M08 bridge chiuso.** Deferred da F0 M08 ora implementato:
   checkbox "Chiedi recensione" nel resolve dialog anti-abbandono schedula
   reminder `review_request` idempotente. 2 nuovi invariant test. Zero migration
@@ -62,6 +69,29 @@
 
 ## Fatto
 
+- **30 ott 2026 — Allineamento capitolato: 5 gap MEDIA chiusi** (`a3b8a10`..`c7bd4e5` + RN-74).
+  Audit sistematico 29 ott (4 agent paralleli su M1-M14 + RS/RA/RNF/RQ) ha
+  mappato scostamenti reali post-M08. Implementati:
+  - **RF-6.9 M06+M08 cross-brand flow** (`a3b8a10`): aggregator "paga chi
+    riceve" per coppia (issuer,spendable) con costo stimato. Nuova sezione
+    `/analytics` gated su analytics.commercial.read. 3 invarianti verdi.
+  - **RN-76 M02 orari apertura centralizzati** (`e4b9f5e`): brands.opening_hours
+    jsonb + helper isValidOpeningHours/isBrandOpenAt + UI OpeningHoursEditor
+    inline con toggle per giorno + time pickers. 14 unit test. Wiring M05
+    (RN-77 quiet hours) + M03 prompt (RN-78 orario continuato officina)
+    deferred come follow-up.
+  - **RN-70 M02 tono da esempi reali** (`0504f56`): max 10 post passati con
+    nota, iniettati nel prompt M3 come few-shot. UI ToneExamplesEditor sulla
+    pagina brand kit. 10 invariant test + CHECK DB max 10.
+  - **RF-4.2 M04 auto-suggest template + autofill** (`c7bd4e5`): mapping
+    topic→template deterministico (promozione→promo-announce, avviso→
+    service-notice, consegna→restaurant-of-week, etc), autofill prima riga
+    →title/headline, resto→description/details. UI banner "Suggerito" nel
+    media-picker + bottone "Compila dal draft". 13 unit test.
+  - **RN-74 M09 quote_followup reminder officina**: nuovo kind enum +
+    template email + action manuale scheduleQuoteFollowupAction + UI
+    QuoteFollowupButton nel drawer contatto. Owner schedula follow-up
+    gentile dopo preventivo (default 5gg). 2 invariant test.
 - **28 ott 2026 — RF-8.8 M09→M08 bridge: richiesta recensione post-risoluzione abbandono.**
   Hook deferred dal F0 di M08 ora chiuso. ResolveDialog anti-abbandono: nuovo
   checkbox "Chiedi recensione a questo cliente" nel modal. `resolveAbandonmentSignalAction`

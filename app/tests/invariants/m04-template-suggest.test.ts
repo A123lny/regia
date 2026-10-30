@@ -116,7 +116,7 @@ describe("RF-4.2 · autofillTemplateFields", () => {
   it("campi sconosciuti → stringa vuota", () => {
     const fakeTemplate: TemplateDefinition = {
       id: "test",
-      brand: "lenny",
+      brandSlugs: ["lenny"],
       name: "Test",
       description: "",
       format: "square",

@@ -22,6 +22,7 @@ const KIND_CHANNEL_MAP: Record<ReminderKind, ChannelConfig> = {
   counter_close: { channel: "whatsapp", isPromotional: false },
   dormant_reactivation: { channel: "email", isPromotional: true },
   review_request: { channel: "email", isPromotional: false },
+  quote_followup: { channel: "email", isPromotional: false },
 };
 
 export function getChannelForReminderKind(kind: ReminderKind): ChannelConfig {
@@ -98,6 +99,11 @@ function buildEmailPayload(
     case "review_request":
       subject = "Com'e' andata? Lasciaci due righe";
       html = `<p>Ciao ${firstName},</p><p>se ti e' piaciuta la nostra ospitalita', ci farebbe piacere una recensione.</p>${reminder.messageHint ? `<p>${reminder.messageHint}</p>` : ""}`;
+      break;
+    case "quote_followup":
+      // RN-74: recupero preventivi officina non riscontrati.
+      subject = "Il tuo preventivo e' ancora valido";
+      html = `<p>Ciao ${firstName},</p><p>ti avevamo preparato un preventivo e non abbiamo avuto notizie. E' ancora valido: se hai dubbi o vuoi fissare l'intervento, rispondi a questa email o chiamaci.</p>${reminder.messageHint ? `<p><em>${reminder.messageHint}</em></p>` : ""}`;
       break;
     default:
       // fallback generico (non dovrebbe capitare in v1 — gli altri kind vanno su WA)
