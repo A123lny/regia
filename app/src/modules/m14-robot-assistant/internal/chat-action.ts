@@ -9,7 +9,7 @@ import { streamWithTools, type StreamToolsEvent } from "@/lib/ai/anthropic";
 import type { Session } from "@/lib/auth/session";
 import type { RobotPageContext, RobotMessage } from "./types";
 import { buildSystemPrompt } from "./prompt-builder";
-import { startConversation, touchConversation } from "./conversation-repo";
+import { startConversation, touchConversation, getConversation } from "./conversation-repo";
 
 export type ChatSseEvent =
   | { type: "conversation_started"; id: string }
@@ -34,9 +34,20 @@ export type RunChatInput = {
  *  4. touchConversation alla fine
  */
 export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent> {
-  // 1. Conversation
+  // 1. Conversation - verifica ownership se il client passa un conversationId
   let convId = input.conversationId;
-  if (!convId) {
+  if (convId) {
+    // IDOR guard: la conv deve esistere, essere della stessa org e dello stesso user
+    const existing = await getConversation(convId, input.session.organizationId);
+    if (!existing || existing.userId !== input.session.userId) {
+      yield {
+        type: "error",
+        code: "conversation_forbidden",
+        message: "Conversazione non trovata o non autorizzata",
+      };
+      return;
+    }
+  } else {
     convId = await startConversation({
       userId: input.session.userId,
       organizationId: input.session.organizationId,

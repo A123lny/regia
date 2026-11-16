@@ -129,9 +129,20 @@ export async function generateText(input: GenerateTextInput): Promise<GenerateTe
 // Usato dal modulo m14-robot-assistant per il chat interattivo.
 // =============================================================================
 
+// Anthropic content block types (semplificati per il nostro uso).
+export type AnthropicContentBlock =
+  | { type: "text"; text: string }
+  | { type: "tool_use"; id: string; name: string; input: unknown }
+  | { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean };
+
+export type StreamMessage = {
+  role: "user" | "assistant";
+  content: string | AnthropicContentBlock[];
+};
+
 export type StreamToolsInput = {
   systemPrompt: string;
-  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  messages: StreamMessage[];
   tools: Array<{ name: string; description: string; input_schema: object }>;
   model?: string;
   maxTokens?: number;

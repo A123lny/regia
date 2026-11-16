@@ -20,20 +20,23 @@ const RequestSchema = z.object({
     .array(
       z.object({
         role: z.enum(["user", "assistant"]),
-        content: z.string(),
-        timestamp: z.string(),
+        content: z.string().max(4000, "singolo messaggio history troppo lungo"),
+        timestamp: z.string().max(40),
       }),
     )
     .max(50, "storia troppo lunga (max 50 messaggi)")
     .optional()
     .default([]),
   pageContext: z.object({
-    pagePath: z.string(),
-    pageTitle: z.string(),
+    pagePath: z.string().max(200),
+    pageTitle: z.string().max(100),
     brandId: z.string().uuid().nullable(),
-    visibleEntityIds: z.array(z.string()).optional(),
+    visibleEntityIds: z.array(z.string().max(100)).max(50).optional(),
   }),
 });
+
+// Cap totale cumulato sui priorMessages per prevenire payload gonfi (DoS).
+const MAX_HISTORY_TOTAL_CHARS = 60_000;
 
 async function resolveSession(): Promise<Session | null> {
   const supabase = await getServerClient();
@@ -78,6 +81,12 @@ export async function POST(req: Request) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : "invalid body";
     return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  // Cap cumulato della history per prevenire payload abusivi
+  const totalChars = body.priorMessages.reduce((acc, m) => acc + m.content.length, 0);
+  if (totalChars > MAX_HISTORY_TOTAL_CHARS) {
+    return NextResponse.json({ error: "history_too_large" }, { status: 413 });
   }
 
   const encoder = new TextEncoder();
