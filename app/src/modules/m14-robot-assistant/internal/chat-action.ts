@@ -126,6 +126,9 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
   // implementato il confirm flow con conferma esplicita utente (mitigazione
   // indirect prompt injection via tool_result data). Deliberate choice.
   const availableTools = getToolsForRole(input.session.role, ["read"]);
+  // Allowlist enforced a execution-time (defense-in-depth: anche se il modello
+  // prova a invocare un tool fuori lista, lo rifiutiamo qui).
+  const allowedNames = new Set(availableTools.map((t) => t.name));
 
   // 3. System prompt
   const systemPrompt = buildSystemPrompt({
@@ -233,6 +236,18 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
     const toolResultBlocks: AnthropicContentBlock[] = [];
     for (const tc of pendingToolCalls) {
       totalToolCalls++;
+      // Allowlist enforcement: anche se il modello invoca un tool fuori
+      // dalla lista esposta (es. createContact mentre siamo in read-only),
+      // rifiutiamo qui.
+      if (!allowedNames.has(tc.name)) {
+        toolResultBlocks.push({
+          type: "tool_result",
+          tool_use_id: tc.id,
+          content: JSON.stringify({ error: "tool_not_allowed", name: tc.name }),
+          is_error: true,
+        });
+        continue;
+      }
       const tool: RobotTool | undefined = ROBOT_TOOLS[tc.name];
       if (!tool) {
         toolResultBlocks.push({
