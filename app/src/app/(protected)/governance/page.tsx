@@ -8,7 +8,7 @@ import {
   listAutonomyRules,
   listAllProductsWithDiscountFlag,
 } from "@/modules/m13-governance/public";
-import { listRobotAccess } from "@/modules/m14-robot-assistant/public";
+import { listRobotAccess } from "@/modules/m14-robot-assistant/server";
 import { HelpButton } from "@/components/help/help-button";
 import { GovernanceClient } from "./governance-client";
 import { RobotAccessSection } from "./robot-access-section";

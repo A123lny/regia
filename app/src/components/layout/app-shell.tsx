@@ -7,7 +7,7 @@ import { DesktopSidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import type { Role } from "@/lib/auth/permissions";
 import { getAiSafetyStatus, getPlatformBranding } from "@/modules/m11-admin/public";
-import { RobotWidget } from "@/modules/m14-robot-assistant/public";
+import { RobotWidget } from "@/modules/m14-robot-assistant/server";
 
 export async function AppShell({
   children,

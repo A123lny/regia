@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getServerClient } from "@/lib/db/server";
 import { getAdminClient } from "@/lib/db/admin";
 import type { Session } from "@/lib/auth/session";
-import { runChat, type ChatSseEvent } from "@/modules/m14-robot-assistant/public";
+import { runChat, type ChatSseEvent } from "@/modules/m14-robot-assistant/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

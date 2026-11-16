@@ -1,10 +1,11 @@
-// M14 robot-assistant — interfaccia pubblica (RS-1).
-// Tutto cio che non e' esportato qui e' privato: non importarlo da fuori.
+// M14 robot-assistant — barrel CLIENT-SAFE (RS-1).
+// Puo' essere importato da client component senza trascinare next/headers o
+// SDK server-only. Per API server-only vedere server.ts.
 //
 // Design: docs/superpowers/specs/2026-11-16-robottino-ai-regia-design.md
 // Plan:   docs/superpowers/plans/2026-11-16-robottino-ai-regia.md
 
-// Types
+// Types (solo dichiarazioni, nessun runtime import server)
 export type {
   RobotMessage,
   RobotToolCall,
@@ -12,14 +13,8 @@ export type {
   RobotPageContext,
 } from "./internal/types";
 
-// UI
-export { RobotWidget } from "./internal/widget";
-
-// Role access (toggle governance)
-export { listRobotAccess, getRobotAccess } from "./internal/role-access-repo";
 export type { RobotAccessRow } from "./internal/role-access-repo";
-export { setRobotAccessAction } from "./internal/role-access-action";
 
-// Chat runtime (per la rotta API SSE)
-export { runChat } from "./internal/chat-action";
-export type { ChatSseEvent, RunChatInput } from "./internal/chat-action";
+// Server Actions ("use server" al top del file): Next le converte in RPC,
+// chiamabili da client component senza bundle del codice server.
+export { setRobotAccessAction } from "./internal/role-access-action";
