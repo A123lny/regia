@@ -19,3 +19,7 @@ export { RobotWidget } from "./internal/widget";
 export { listRobotAccess, getRobotAccess } from "./internal/role-access-repo";
 export type { RobotAccessRow } from "./internal/role-access-repo";
 export { setRobotAccessAction } from "./internal/role-access-action";
+
+// Chat runtime (per la rotta API SSE)
+export { runChat } from "./internal/chat-action";
+export type { ChatSseEvent, RunChatInput } from "./internal/chat-action";

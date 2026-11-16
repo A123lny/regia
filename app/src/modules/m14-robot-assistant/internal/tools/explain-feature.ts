@@ -3,7 +3,7 @@
 // Per ora ritorna un messaggio chiaro al modello che la knowledge base e'
 // in costruzione — il modello risponde con quello che sa dal system prompt.
 
-import type { RobotTool } from "./registry";
+import type { RobotTool } from "./tool-types";
 
 export const explainFeatureTool: RobotTool = {
   name: "explainFeature",

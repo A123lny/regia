@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { updateContactAction } from "@/modules/m01-data-hub/public";
-import type { RobotTool } from "./registry";
+import type { RobotTool } from "./tool-types";
 
 const InputSchema = z.object({
   contactId: z.string().uuid(),

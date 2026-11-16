@@ -3,7 +3,7 @@
 
 import { z } from "zod";
 import { listContacts, type ListContactsInput } from "@/modules/m01-data-hub/public";
-import type { RobotTool } from "./registry";
+import type { RobotTool } from "./tool-types";
 
 const InputSchema = z.object({
   limit: z.number().int().min(1).max(50).optional().default(20),

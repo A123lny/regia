@@ -1,23 +1,13 @@
 // RN-robot T6: registry centrale dei tool del robottino.
 
 import type { Session } from "@/lib/auth/session";
-import type { RobotPageContext } from "../types";
+import type {
+  RobotTool,
+  RobotToolKind,
+  RobotToolContext,
+} from "./tool-types";
 
-export type RobotToolKind = "read" | "write" | "destructive";
-
-export type RobotToolContext = {
-  session: Session;
-  pageContext: RobotPageContext;
-};
-
-export type RobotTool = {
-  name: string;
-  description: string;
-  input_schema: object; // JSON Schema (tool use di Anthropic)
-  requiredCapability: string | null;
-  kind: RobotToolKind;
-  execute: (input: unknown, ctx: RobotToolContext) => Promise<unknown>;
-};
+export type { RobotTool, RobotToolKind, RobotToolContext } from "./tool-types";
 
 import { describePageTool } from "./describe-page";
 import { explainFeatureTool } from "./explain-feature";

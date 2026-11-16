@@ -1,7 +1,7 @@
 // RN-robot T6: tool describePage — descrizione hardcoded della pagina corrente.
 // Non richiede query al DB ne' chiamate AI: lookup su dizionario statico.
 
-import type { RobotTool } from "./registry";
+import type { RobotTool } from "./tool-types";
 
 const PAGE_DESCRIPTIONS: Record<string, string> = {
   "/": "Cruscotto: panoramica sintetica dell'organizzazione (contatti totali, contenuti pianificati, reminder in scadenza).",
