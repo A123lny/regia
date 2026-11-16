@@ -93,12 +93,20 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        const pageContext = {
+          pagePath: body.pageContext.pagePath,
+          pageTitle: body.pageContext.pageTitle,
+          brandId: body.pageContext.brandId,
+          ...(body.pageContext.visibleEntityIds && {
+            visibleEntityIds: body.pageContext.visibleEntityIds,
+          }),
+        };
         for await (const event of runChat({
           session,
           conversationId: body.conversationId,
           userMessage: body.message,
           priorMessages: body.priorMessages,
-          pageContext: body.pageContext,
+          pageContext,
         })) {
           controller.enqueue(encoder.encode(encodeSse(event)));
         }

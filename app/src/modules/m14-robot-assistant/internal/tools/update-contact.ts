@@ -49,9 +49,20 @@ export const updateContactTool: RobotTool = {
       return { error: "input_invalido", details: parsed.error.message };
     }
 
+    const p = parsed.data.patch;
+    const cleanPatch: NonNullable<
+      Parameters<typeof updateContactAction>[0]["patch"]
+    > = {
+      ...(p.firstName !== undefined && { firstName: p.firstName }),
+      ...(p.lastName !== undefined && { lastName: p.lastName }),
+      ...(p.email !== undefined && { email: p.email }),
+      ...(p.phone !== undefined && { phone: p.phone }),
+      ...(p.whatsapp !== undefined && { whatsapp: p.whatsapp }),
+      ...(p.notes !== undefined && { notes: p.notes }),
+    };
     const result = await updateContactAction({
       contactId: parsed.data.contactId,
-      patch: parsed.data.patch,
+      patch: cleanPatch,
     });
     if (!result.ok) {
       return { error: "aggiornamento_fallito", message: result.error };

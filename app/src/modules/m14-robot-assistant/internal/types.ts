@@ -40,5 +40,5 @@ export type RobotPageContext = {
   pagePath: string;
   pageTitle: string;
   brandId: string | null;
-  visibleEntityIds?: string[];
+  visibleEntityIds?: string[] | undefined;
 };

@@ -23,6 +23,7 @@ import {
 } from "./conversation-repo";
 import { ROBOT_TOOLS, getToolsForRole, toAnthropicTools, type RobotTool } from "./tools/registry";
 import { checkRateLimit } from "./rate-limiter";
+import { getRobotAccess } from "./role-access-repo";
 
 export type ChatSseEvent =
   | { type: "conversation_started"; id: string }
@@ -52,6 +53,17 @@ const MAX_TOOL_TURNS = 3;
  *  4. touchConversation alla fine
  */
 export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent> {
+  // 0z. Server-side gate per ruolo (defense-in-depth oltre al gate UI del widget)
+  const allowed = await getRobotAccess(input.session.role);
+  if (!allowed) {
+    yield {
+      type: "error",
+      code: "role_not_allowed",
+      message: "Il robottino non è abilitato per il tuo ruolo.",
+    };
+    return;
+  }
+
   // 0a. Rate limit (20 msg/min/user)
   const rl = checkRateLimit(input.session.userId);
   if (!rl.ok) {
@@ -165,7 +177,7 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
           try {
             await logSpend({
               organizationId: input.session.organizationId,
-              brandId: input.pageContext.brandId ?? undefined,
+              ...(input.pageContext.brandId ? { brandId: input.pageContext.brandId } : {}),
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               category: "anthropic-robot" as any,
               action: "robot.chat",
@@ -271,7 +283,6 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
             actorUserId: input.session.userId,
             actorKind: "agent",
             action: `robot.${tc.name}`,
-            target: null,
             details: {
               source: "robot-assistant",
               conversation_id: convId,

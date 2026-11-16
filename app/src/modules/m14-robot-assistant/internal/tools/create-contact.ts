@@ -55,12 +55,12 @@ export const createContactTool: RobotTool = {
 
     const result = await createContactAction({
       brandId: ctx.pageContext.brandId,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      email: input.email,
-      phone: input.phone,
-      whatsapp: input.whatsapp,
-      notes: input.notes,
+      ...(input.firstName !== undefined && { firstName: input.firstName }),
+      ...(input.lastName !== undefined && { lastName: input.lastName }),
+      ...(input.email !== undefined && { email: input.email }),
+      ...(input.phone !== undefined && { phone: input.phone }),
+      ...(input.whatsapp !== undefined && { whatsapp: input.whatsapp }),
+      ...(input.notes !== undefined && { notes: input.notes }),
       source: "manuale",
     });
 

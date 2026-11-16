@@ -8,7 +8,7 @@ import type { RobotTool } from "./registry";
 const InputSchema = z.object({
   limit: z.number().int().min(1).max(50).optional().default(20),
   consentChannel: z.enum(["email", "sms", "whatsapp"]).optional(),
-  consentStatus: z.enum(["granted", "revoked", "pending"]).optional(),
+  consentStatus: z.enum(["granted", "revoked", "never"]).optional(),
   includeArchived: z.boolean().optional().default(false),
 });
 
@@ -32,7 +32,7 @@ export const listContactsTool: RobotTool = {
       },
       consentStatus: {
         type: "string",
-        enum: ["granted", "revoked", "pending"],
+        enum: ["granted", "revoked", "never"],
         description: "Filtra per stato del consenso (usa con consentChannel).",
       },
       includeArchived: {

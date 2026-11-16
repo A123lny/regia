@@ -35,7 +35,13 @@ export async function setRobotAccessAction(input: {
       actorKind: "user",
       action: "robot.access.updated",
       target: `role:${input.role}`,
-      details: { enabled: input.enabled, source: "robot-assistant" },
+      details: {
+        enabled: input.enabled,
+        source: "robot-assistant",
+        // KNOWN LIMITATION: robot_role_access non ha organization_id, modifica
+        // globale per tutte le org. OK per staging single-tenant, fix pre-prod.
+        warning_global_config: true,
+      },
     });
     revalidatePath("/governance");
     return { ok: true };
