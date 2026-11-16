@@ -8,6 +8,12 @@ import {
 } from "@/lib/ai/anthropic";
 import type { Session } from "@/lib/auth/session";
 import { hasCapability, type Capability } from "@/lib/auth/permissions";
+import { logAuditEvent } from "@/lib/audit/log";
+import {
+  assertBudgetOk,
+  logSpend,
+  AiBudgetExceededError,
+} from "@/modules/m11-admin/public";
 import type { RobotPageContext, RobotMessage } from "./types";
 import { buildSystemPrompt } from "./prompt-builder";
 import {
@@ -16,6 +22,7 @@ import {
   getConversation,
 } from "./conversation-repo";
 import { ROBOT_TOOLS, getToolsForRole, toAnthropicTools, type RobotTool } from "./tools/registry";
+import { checkRateLimit } from "./rate-limiter";
 
 export type ChatSseEvent =
   | { type: "conversation_started"; id: string }
@@ -45,6 +52,34 @@ const MAX_TOOL_TURNS = 3;
  *  4. touchConversation alla fine
  */
 export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent> {
+  // 0a. Rate limit (20 msg/min/user)
+  const rl = checkRateLimit(input.session.userId);
+  if (!rl.ok) {
+    yield {
+      type: "error",
+      code: "rate_limited",
+      message: `Troppi messaggi, riprova tra ${Math.ceil(rl.retryAfterMs / 1000)}s.`,
+    };
+    return;
+  }
+
+  // 0b. Budget gate
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await assertBudgetOk(input.session.organizationId, "anthropic-robot" as any);
+  } catch (err) {
+    if (err instanceof AiBudgetExceededError) {
+      yield {
+        type: "error",
+        code: "budget_exceeded",
+        message: "Budget mensile AI del robottino esaurito. Contatta un owner.",
+      };
+      return;
+    }
+    // Budget check fallito per altro motivo: logghiamo ma proseguiamo
+    console.warn("[robot] budget check error (procedo):", err);
+  }
+
   // 1. Conversation
   let convId = input.conversationId;
   if (convId) {
@@ -66,9 +101,12 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
     yield { type: "conversation_started", id: convId };
   }
 
-  // 2. Tool set per ruolo (read sempre, write se il ruolo ha capability di scrittura
-  // su qualche dominio — il guard capability per-tool comunque applica in execute).
-  const availableTools = getToolsForRole(input.session.role, ["read", "write"]);
+  // 2. Tool set per ruolo.
+  // In questa release esponiamo SOLO read. I tool write (createContact/updateContact)
+  // esistono nel registry ma vengono esposti al modello solo quando T8 avra'
+  // implementato il confirm flow con conferma esplicita utente (mitigazione
+  // indirect prompt injection via tool_result data). Deliberate choice.
+  const availableTools = getToolsForRole(input.session.role, ["read"]);
 
   // 3. System prompt
   const systemPrompt = buildSystemPrompt({
@@ -116,6 +154,24 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
           pendingToolCalls.push({ id: event.id, name: event.name, input: event.input });
           yield event;
         } else if (event.type === "done") {
+          // Log spesa Anthropic (cost tracking per budget)
+          try {
+            await logSpend({
+              organizationId: input.session.organizationId,
+              brandId: input.pageContext.brandId ?? undefined,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              category: "anthropic-robot" as any,
+              action: "robot.chat",
+              costUsd: event.costUsd,
+              tokensIn: event.tokensIn,
+              tokensOut: event.tokensOut,
+              targetType: "robot_conversation",
+              targetId: convId,
+            });
+          } catch (e) {
+            console.warn("[robot] logSpend failed:", e);
+          }
+
           // Fine turno: decidiamo se continuare in loop o chiudere
           if (pendingToolCalls.length === 0) {
             yield event;
@@ -191,6 +247,27 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
           tool_use_id: tc.id,
           content: JSON.stringify(output),
         });
+        // Audit: ogni tool-call del robottino va in audit_events (RA-8.12)
+        try {
+          await logAuditEvent({
+            organizationId: input.session.organizationId,
+            actorUserId: input.session.userId,
+            actorKind: "agent",
+            action: `robot.${tc.name}`,
+            target: null,
+            details: {
+              source: "robot-assistant",
+              conversation_id: convId,
+              tool_input: tc.input,
+              tool_output_summary: typeof output === "object" ? Object.keys(output as object) : null,
+              page_path: input.pageContext.pagePath,
+              brand_id: input.pageContext.brandId,
+              user_message_excerpt: input.userMessage.slice(0, 200),
+            },
+          });
+        } catch (auditErr) {
+          console.warn("[robot] audit log failed:", auditErr);
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "errore esecuzione tool";
         toolResultBlocks.push({
