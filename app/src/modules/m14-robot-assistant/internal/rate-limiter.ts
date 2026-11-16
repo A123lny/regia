@@ -1,7 +1,10 @@
 // RN-robot T9: rate limit in-memory per utente.
-// Limite: MAX_MESSAGES_PER_MINUTE messaggi per user.
-// In-memory è accettabile per un solo processo Vercel (single instance).
-// Se passeremo a multi-instance, migrare a Redis/Upstash.
+//
+// KNOWN LIMITATION: in-memory è accettabile SOLO su Hobby Vercel plan a single
+// instance (staging demo). Su production multi-instance questo rate limit è
+// inefficace (ogni instance ha il proprio Map). Migrare a Upstash/Redis o a
+// una Postgres table con atomic increment prima di passare a Pro/Enterprise.
+// Tracciato in roadmap: vedere ledger .superpowers/sdd/ e issue follow-up.
 
 const MAX_MESSAGES_PER_MINUTE = 20;
 const WINDOW_MS = 60_000;

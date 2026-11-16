@@ -63,7 +63,8 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
     return;
   }
 
-  // 0b. Budget gate
+  // 0b. Budget gate — fail CLOSED su qualsiasi errore (anche non-AiBudgetExceeded):
+  // se non sappiamo se il budget regge, non invochiamo Claude.
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await assertBudgetOk(input.session.organizationId, "anthropic-robot" as any);
@@ -76,8 +77,14 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
       };
       return;
     }
-    // Budget check fallito per altro motivo: logghiamo ma proseguiamo
-    console.warn("[robot] budget check error (procedo):", err);
+    // Errore inatteso: fail closed
+    yield {
+      type: "error",
+      code: "budget_check_failed",
+      message: "Controllo budget fallito, riprova piu' tardi.",
+    };
+    console.error("[robot] budget check error:", err);
+    return;
   }
 
   // 1. Conversation
@@ -249,6 +256,16 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
         });
         // Audit: ogni tool-call del robottino va in audit_events (RA-8.12)
         try {
+          // Audit con data minimization: solo metadata, NO contenuti utente o
+          // dati di contatti (potrebbero contenere PII — RF-11.3 + GDPR).
+          const inputKeys =
+            typeof tc.input === "object" && tc.input !== null
+              ? Object.keys(tc.input as object)
+              : [];
+          const outputKeys =
+            typeof output === "object" && output !== null
+              ? Object.keys(output as object)
+              : [];
           await logAuditEvent({
             organizationId: input.session.organizationId,
             actorUserId: input.session.userId,
@@ -258,11 +275,11 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
             details: {
               source: "robot-assistant",
               conversation_id: convId,
-              tool_input: tc.input,
-              tool_output_summary: typeof output === "object" ? Object.keys(output as object) : null,
+              tool_input_keys: inputKeys,
+              tool_output_keys: outputKeys,
               page_path: input.pageContext.pagePath,
               brand_id: input.pageContext.brandId,
-              user_message_excerpt: input.userMessage.slice(0, 200),
+              user_message_length: input.userMessage.length,
             },
           });
         } catch (auditErr) {

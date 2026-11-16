@@ -14,3 +14,8 @@ export type {
 
 // UI
 export { RobotWidget } from "./internal/widget";
+
+// Role access (toggle governance)
+export { listRobotAccess, getRobotAccess } from "./internal/role-access-repo";
+export type { RobotAccessRow } from "./internal/role-access-repo";
+export { setRobotAccessAction } from "./internal/role-access-action";
