@@ -1,9 +1,15 @@
-"use client";
+// RN-robot T4: gate server-side + render client component.
+// Il gate reale per ruolo (lettura di robot_role_access) arriva in T10.
+// Fino ad allora, hardcoded: visibile solo a owner.
 
-// RN-robot T2: placeholder iniziale del widget.
-// La UI reale (pallina fluttuante + Sheet chat) arriva in T4.
-// Il gate reale per ruolo arriva in T10.
+import { getSessionOrRedirect } from "@/lib/auth/session";
+import { RobotWidgetClient } from "./widget-client";
 
-export function RobotWidget() {
-  return null;
+export async function RobotWidget() {
+  const session = await getSessionOrRedirect();
+
+  // T4 gate: solo owner. T10 sostituira' con getRobotAccess(role).
+  if (session.role !== "owner") return null;
+
+  return <RobotWidgetClient userId={session.userId} role={session.role} />;
 }
