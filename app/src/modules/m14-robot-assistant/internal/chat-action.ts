@@ -1,11 +1,13 @@
 // RN-robot T6: logica del chat con tool loop completo.
 
 import {
-  streamWithTools,
   type StreamToolsEvent,
   type StreamMessage,
   type AnthropicContentBlock,
 } from "@/lib/ai/anthropic";
+// RN-robot: usiamo Gemini (free tier) per il robottino. Il motore editoriale
+// M03 continua a usare Anthropic Claude via @/lib/ai/anthropic.
+import { streamWithTools } from "@/lib/ai/gemini";
 import type { Session } from "@/lib/auth/session";
 import { hasCapability, type Capability } from "@/lib/auth/permissions";
 import { logAuditEvent } from "@/lib/audit/log";
@@ -183,7 +185,7 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
               ...(input.pageContext.brandId ? { brandId: input.pageContext.brandId } : {}),
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               category: "anthropic-robot" as any,
-              action: "robot.chat",
+              action: "robot.chat.gemini",
               costUsd: event.costUsd,
               tokensIn: event.tokensIn,
               tokensOut: event.tokensOut,
