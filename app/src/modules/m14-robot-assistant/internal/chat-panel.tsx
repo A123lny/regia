@@ -1,6 +1,6 @@
 "use client";
 
-// RN-robot T4: panel chat statico (no backend). T5 lo connette a /api/robot/chat.
+// RN-robot T5: panel chat connesso a /api/robot/chat via SSE streaming.
 
 import * as React from "react";
 import type { Role } from "@/lib/auth/permissions";
@@ -25,33 +25,126 @@ export function RobotChatPanel({
     },
   ]);
   const [input, setInput] = React.useState("");
+  const [streaming, setStreaming] = React.useState(false);
+  const [convId, setConvId] = React.useState<string | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages]);
 
-  function handleSend() {
+  async function handleSend() {
     const text = input.trim();
-    if (!text) return;
-    // T4: nessuna chiamata backend. Aggiungiamo solo il messaggio utente ed
-    // una risposta placeholder. T5 sostituira' con streaming reale.
+    if (!text || streaming) return;
+    setInput("");
+    setStreaming(true);
+
+    const userMsg: RobotMessage = {
+      role: "user",
+      content: text,
+      timestamp: new Date().toISOString(),
+    };
+    // Mostro subito l'utente + un assistant vuoto da popolare in streaming
     setMessages((m) => [
       ...m,
-      { role: "user", content: text, timestamp: new Date().toISOString() },
-      {
-        role: "assistant",
-        content: "(connessione al cervello non ancora attiva — T5)",
-        timestamp: new Date().toISOString(),
-      },
+      userMsg,
+      { role: "assistant", content: "", timestamp: new Date().toISOString() },
     ]);
-    setInput("");
+
+    try {
+      const res = await fetch("/api/robot/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          conversationId: convId,
+          priorMessages: messages, // storia prima dell'append corrente
+          pageContext: {
+            pagePath,
+            pageTitle,
+            brandId: null, // T4-T5: brand corrente non ancora disponibile client-side; T10 lo passa
+          },
+        }),
+      });
+
+      if (!res.ok || !res.body) {
+        const errText = await res.text().catch(() => "errore rete");
+        appendToLastAssistant(`[errore ${res.status}] ${errText}`);
+        setStreaming(false);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // Parse eventi SSE: linee "data: {...}\n\n"
+        let idx;
+        while ((idx = buffer.indexOf("\n\n")) !== -1) {
+          const chunk = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          const line = chunk.replace(/^data:\s*/, "").trim();
+          if (!line) continue;
+          try {
+            const event = JSON.parse(line);
+            handleEvent(event);
+          } catch {
+            // ignora frammento mal formato
+          }
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "errore sconosciuto";
+      appendToLastAssistant(`[errore client] ${msg}`);
+    } finally {
+      setStreaming(false);
+    }
   }
 
-  // Suppress unused warnings for props reserved for T5.
+  function handleEvent(event: {
+    type: string;
+    text?: string;
+    id?: string;
+    name?: string;
+    code?: string;
+    message?: string;
+  }) {
+    switch (event.type) {
+      case "conversation_started":
+        if (event.id) setConvId(event.id);
+        break;
+      case "text_delta":
+        if (event.text) appendToLastAssistant(event.text);
+        break;
+      case "tool_use":
+        appendToLastAssistant(`\n\n_[tool: ${event.name ?? "?"}]_`);
+        break;
+      case "done":
+        // niente da fare lato UI
+        break;
+      case "error":
+        appendToLastAssistant(`\n\n[errore: ${event.message ?? event.code ?? "?"}]`);
+        break;
+    }
+  }
+
+  function appendToLastAssistant(chunk: string) {
+    setMessages((m) => {
+      const copy = [...m];
+      const last = copy[copy.length - 1];
+      if (last && last.role === "assistant") {
+        copy[copy.length - 1] = { ...last, content: last.content + chunk };
+      }
+      return copy;
+    });
+  }
+
+  // Suppress unused warnings for props reserved for next tasks.
   void userId;
   void role;
-  void pagePath;
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -92,11 +185,11 @@ export function RobotChatPanel({
           <button
             type="button"
             onClick={handleSend}
-            disabled={!input.trim()}
+            disabled={!input.trim() || streaming}
             className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
             data-testid="robot-send"
           >
-            Invia
+            {streaming ? "..." : "Invia"}
           </button>
         </div>
       </div>
