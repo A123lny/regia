@@ -24,6 +24,8 @@ import { explainFeatureTool } from "./explain-feature";
 import { listContactsTool } from "./list-contacts";
 import { getContactTool } from "./get-contact";
 import { searchContactsTool } from "./search-contacts";
+import { createContactTool } from "./create-contact";
+import { updateContactTool } from "./update-contact";
 
 export const ROBOT_TOOLS: Record<string, RobotTool> = {
   describePage: describePageTool,
@@ -31,6 +33,8 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   listContacts: listContactsTool,
   getContact: getContactTool,
   searchContacts: searchContactsTool,
+  createContact: createContactTool,
+  updateContact: updateContactTool,
 };
 
 export function getToolsForRole(

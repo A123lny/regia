@@ -66,8 +66,9 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
     yield { type: "conversation_started", id: convId };
   }
 
-  // 2. Tool set per ruolo
-  const availableTools = getToolsForRole(input.session.role, ["read"]);
+  // 2. Tool set per ruolo (read sempre, write se il ruolo ha capability di scrittura
+  // su qualche dominio — il guard capability per-tool comunque applica in execute).
+  const availableTools = getToolsForRole(input.session.role, ["read", "write"]);
 
   // 3. System prompt
   const systemPrompt = buildSystemPrompt({
