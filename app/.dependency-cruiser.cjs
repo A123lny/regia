@@ -67,6 +67,7 @@ module.exports = {
           "^src/modules/m11-admin/internal/",
           "^src/modules/m12-daily-use/internal/",
           "^src/modules/m13-governance/internal/",
+          "^src/modules/m14-robot-assistant/internal/",
         ],
       },
     },

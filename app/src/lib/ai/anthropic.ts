@@ -123,3 +123,124 @@ export async function generateText(input: GenerateTextInput): Promise<GenerateTe
 
   return { text: textBlock.text, model, tokensIn, tokensOut, costUsd, latencyMs };
 }
+
+// =============================================================================
+// RN-robot T5: streaming + tool_use + prompt caching.
+// Usato dal modulo m14-robot-assistant per il chat interattivo.
+// =============================================================================
+
+// Anthropic content block types (semplificati per il nostro uso).
+export type AnthropicContentBlock =
+  | { type: "text"; text: string }
+  | { type: "tool_use"; id: string; name: string; input: unknown }
+  | { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean };
+
+export type StreamMessage = {
+  role: "user" | "assistant";
+  content: string | AnthropicContentBlock[];
+};
+
+export type StreamToolsInput = {
+  systemPrompt: string;
+  messages: StreamMessage[];
+  tools: Array<{ name: string; description: string; input_schema: object }>;
+  model?: string;
+  maxTokens?: number;
+};
+
+export type StreamToolsEvent =
+  | { type: "text_delta"; text: string }
+  | { type: "tool_use"; id: string; name: string; input: unknown }
+  | {
+      type: "done";
+      stopReason: string;
+      tokensIn: number;
+      tokensOut: number;
+      costUsd: number;
+    };
+
+/**
+ * Streaming generator: emette text_delta in corso, tool_use al termine del
+ * turno (solo blocchi completi), done con usage finale. Prompt caching sul
+ * system prompt (ephemeral) per ridurre costi dei turn ripetuti con system
+ * stabile.
+ */
+export async function* streamWithTools(
+  input: StreamToolsInput,
+): AsyncGenerator<StreamToolsEvent> {
+  const client = getClient();
+  const model = input.model ?? "claude-sonnet-4-6";
+
+  try {
+    const stream = client.messages.stream({
+      model,
+      max_tokens: input.maxTokens ?? 1024,
+      // Array-of-blocks con cache_control ephemeral: il system prompt viene
+      // cacheato (TTL ~5min) e i turn successivi pagano ~0.1x sugli input token
+      // che combaciano col prefix cacheato.
+      system: [
+        {
+          type: "text",
+          text: input.systemPrompt,
+          cache_control: { type: "ephemeral" },
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ] as any,
+      messages: input.messages,
+      tools:
+        input.tools.length > 0
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (input.tools as any)
+          : undefined,
+    });
+
+    // Fase 1: text_delta in streaming
+    for await (const event of stream) {
+      if (
+        event.type === "content_block_delta" &&
+        event.delta.type === "text_delta"
+      ) {
+        yield { type: "text_delta", text: event.delta.text };
+      }
+    }
+
+    // Fase 2: alla fine del turn, emetto i tool_use completi e il done con usage
+    const final = await stream.finalMessage();
+    for (const block of final.content) {
+      if (block.type === "tool_use") {
+        yield {
+          type: "tool_use",
+          id: block.id,
+          name: block.name,
+          input: block.input,
+        };
+      }
+    }
+
+    const tokensIn = final.usage.input_tokens;
+    const tokensOut = final.usage.output_tokens;
+    const costUsd =
+      (tokensIn * PRICE_INPUT_PER_M_USD + tokensOut * PRICE_OUTPUT_PER_M_USD) /
+      1_000_000;
+
+    yield {
+      type: "done",
+      stopReason: final.stop_reason ?? "end_turn",
+      tokensIn,
+      tokensOut,
+      costUsd,
+    };
+  } catch (err) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const e = err as any;
+    if (e?.status === 429) {
+      const retryHeader = e?.headers?.["retry-after"];
+      const retry = retryHeader ? Number(retryHeader) : null;
+      throw new AiRateLimitError(Number.isFinite(retry) ? retry : null);
+    }
+    if (e?.name === "AbortError") {
+      throw new AiTimeoutError("Anthropic stream aborted");
+    }
+    throw new AiApiError(e?.status ?? 500, e?.message ?? "Anthropic streaming error");
+  }
+}

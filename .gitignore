@@ -19,5 +19,11 @@ data/
 # Config locale Claude Code (per-macchina)
 .claude/
 
+# File temporanei del tool visual brainstorming
+.superpowers/brainstorm/
+
+# Scratch space del tool subagent-driven-development (ledger, briefs, review package)
+.superpowers/sdd/
+
 # Node dependencies (root cache + workspace app/)
 node_modules/

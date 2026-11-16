@@ -7,6 +7,7 @@ import { DesktopSidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import type { Role } from "@/lib/auth/permissions";
 import { getAiSafetyStatus, getPlatformBranding } from "@/modules/m11-admin/public";
+import { RobotWidget } from "@/modules/m14-robot-assistant/server";
 
 export async function AppShell({
   children,
@@ -59,6 +60,8 @@ export async function AppShell({
         <DesktopSidebar role={role} />
         <main className="flex-1 px-4 py-6 md:px-6 lg:mx-auto lg:max-w-6xl lg:px-8">{children}</main>
       </div>
+      {/* RN-robot: assistente AI fluttuante (gated per ruolo). */}
+      <RobotWidget />
     </div>
   );
 }

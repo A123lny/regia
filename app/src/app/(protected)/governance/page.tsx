@@ -8,16 +8,19 @@ import {
   listAutonomyRules,
   listAllProductsWithDiscountFlag,
 } from "@/modules/m13-governance/public";
+import { listRobotAccess } from "@/modules/m14-robot-assistant/server";
 import { HelpButton } from "@/components/help/help-button";
 import { GovernanceClient } from "./governance-client";
+import { RobotAccessSection } from "./robot-access-section";
 
 export default async function GovernancePage() {
   const session = await getSessionOrRedirect();
   if (!hasCapability(session.role, "governance.read")) notFound();
 
-  const [rules, products] = await Promise.all([
+  const [rules, products, robotAccess] = await Promise.all([
     listAutonomyRules(session.organizationId),
     listAllProductsWithDiscountFlag(session.organizationId),
+    listRobotAccess(),
   ]);
 
   const canCrud = hasCapability(session.role, "governance.crud");
@@ -96,6 +99,8 @@ export default async function GovernancePage() {
       </div>
 
       <GovernanceClient rules={rules} products={products} canCrud={canCrud} />
+
+      <RobotAccessSection rows={robotAccess} canCrud={canCrud} />
     </div>
   );
 }
