@@ -32,6 +32,11 @@ export function RobotChatPanel({
     toolName: string;
     summary: string;
   } | null>(null);
+  const [pendingBrandPicker, setPendingBrandPicker] = React.useState<{
+    actionId: string;
+    toolName: string;
+    brands: Array<{ id: string; displayName: string; slug: string }>;
+  } | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -119,6 +124,7 @@ export function RobotChatPanel({
     actionId?: string;
     toolName?: string;
     summary?: string;
+    brands?: Array<{ id: string; displayName: string; slug: string }>;
   }) {
     switch (event.type) {
       case "conversation_started":
@@ -139,12 +145,48 @@ export function RobotChatPanel({
           });
         }
         break;
+      case "brand_picker_required":
+        if (event.actionId && event.toolName && event.brands) {
+          setPendingBrandPicker({
+            actionId: event.actionId,
+            toolName: event.toolName,
+            brands: event.brands,
+          });
+        }
+        break;
       case "done":
         // niente da fare lato UI
         break;
       case "error":
         appendToLastAssistant(`\n\n[errore: ${event.message ?? event.code ?? "?"}]`);
         break;
+    }
+  }
+
+  async function handleBrandSelect(brandId: string, brandName: string) {
+    if (!pendingBrandPicker) return;
+    const { actionId } = pendingBrandPicker;
+    setPendingBrandPicker(null);
+    try {
+      const res = await fetch("/api/robot/resolve-brand", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actionId, brandId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        appendNewAssistant(`[errore selezione brand ${res.status}] ${data?.error ?? "?"}`);
+        return;
+      }
+      // Ora mostro il confirm dialog con il nuovo actionId
+      setPendingConfirm({
+        actionId: data.newActionId,
+        toolName: data.toolName,
+        summary: `${data.summary} (brand: ${brandName})`,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "errore rete";
+      appendNewAssistant(`[errore rete picker] ${msg}`);
     }
   }
 
@@ -224,6 +266,37 @@ export function RobotChatPanel({
             {m.content}
           </div>
         ))}
+        {pendingBrandPicker && (
+          <div
+            className="rounded-lg border-2 border-primary bg-primary/5 p-3 text-sm"
+            data-testid="robot-brand-picker"
+          >
+            <div className="mb-2 font-semibold">🏷️ Scegli il brand</div>
+            <div className="mb-3 text-text-muted">
+              Clicca il marchio su cui procedere con l'azione.
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {pendingBrandPicker.brands.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => handleBrandSelect(b.id, b.displayName)}
+                  className="rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-primary hover:text-primary-foreground"
+                  data-testid={`robot-brand-pick-${b.slug}`}
+                >
+                  {b.displayName}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setPendingBrandPicker(null)}
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-text-muted"
+              >
+                Annulla
+              </button>
+            </div>
+          </div>
+        )}
         {pendingConfirm && (
           <div
             className="rounded-lg border-2 border-warning bg-warning/10 p-3 text-sm"

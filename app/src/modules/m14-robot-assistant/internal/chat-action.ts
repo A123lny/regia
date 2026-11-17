@@ -23,6 +23,7 @@ import {
   touchConversation,
   getConversation,
 } from "./conversation-repo";
+import { listBrands } from "@/modules/m02-brand/public";
 import { ROBOT_TOOLS, getToolsForRole, toAnthropicTools, type RobotTool } from "./tools/registry";
 import { checkRateLimit } from "./rate-limiter";
 import { getRobotAccess } from "./role-access-repo";
@@ -38,6 +39,12 @@ export type ChatSseEvent =
       summary: string;
       toolInput: unknown;
     }
+  | {
+      type: "brand_picker_required";
+      actionId: string;
+      toolName: string;
+      brands: Array<{ id: string; displayName: string; slug: string }>;
+    }
   | { type: "error"; code: string; message: string };
 
 export type RunChatInput = {
@@ -48,41 +55,9 @@ export type RunChatInput = {
   pageContext: RobotPageContext;
 };
 
-const MAX_TOOL_TURNS = 3;
+import { buildActionSummary } from "./build-action-summary";
 
-/**
- * Genera un riassunto leggibile dell'azione pending per la UI di conferma.
- * Teniamo i dettagli minimi per non esporre PII nei log client.
- */
-function buildActionSummary(toolName: string, input: unknown): string {
-  const inp = (input ?? {}) as Record<string, unknown>;
-  switch (toolName) {
-    case "createContact": {
-      const first = String(inp["firstName"] ?? "").trim();
-      const last = String(inp["lastName"] ?? "").trim();
-      const name = [first, last].filter(Boolean).join(" ") || "(senza nome)";
-      const contact = inp["email"] || inp["phone"] || inp["whatsapp"] || "(senza recapito)";
-      return `Creo un nuovo contatto: ${name} — ${contact}`;
-    }
-    case "updateContact": {
-      const patch = (inp["patch"] ?? {}) as Record<string, unknown>;
-      // Mostra chiave=nuovo_valore per OGNI campo in modifica (l'utente deve
-      // poter vedere i valori prima di confermare — mitigazione contro
-      // prompt injection che altererebbe silenziosamente email/phone).
-      const changes = Object.entries(patch)
-        .map(([k, v]) => `${k}=${v === null ? "(vuoto)" : JSON.stringify(v)}`)
-        .join(", ");
-      return `Modifico il contatto ${inp["contactId"]}. Nuovi valori: ${
-        changes || "nessuno"
-      }`;
-    }
-    case "deleteContact": {
-      return `Archivio (soft-delete) il contatto ${inp["contactId"]}`;
-    }
-    default:
-      return `Eseguo ${toolName}`;
-  }
-}
+const MAX_TOOL_TURNS = 3;
 
 /**
  * Esegue un turn chat del robottino con tool loop.
@@ -321,10 +296,43 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
       }
 
       // Confirm flow (T8): tool write/destructive NON eseguiti subito. Salviamo
-      // come pending, emettiamo confirmation_required, chiudiamo il turn. La
-      // execute reale avviene su POST /api/robot/confirm dopo che l'utente
-      // clicca "Conferma" nella UI.
+      // come pending, emettiamo confirmation_required, chiudiamo il turn.
       if (tool.kind === "write" || tool.kind === "destructive") {
+        // Brand picker: se createContact non ha brandId (ne' in input ne' in
+        // pageContext), mostriamo picker invece del confirm. L'utente
+        // seleziona il brand -> /api/robot/resolve-brand merge brandId ->
+        // nuovo pending normale -> confirm standard.
+        const toolInp = (tc.input ?? {}) as Record<string, unknown>;
+        const needsBrand =
+          tc.name === "createContact" &&
+          !toolInp["brandId"] &&
+          !input.pageContext.brandId;
+
+        if (needsBrand) {
+          const brands = await listBrands(input.session.organizationId, "active");
+          const pending = savePending({
+            conversationId: convId,
+            session: input.session,
+            pageContext: input.pageContext,
+            toolName: tc.name,
+            toolInput: tc.input,
+            toolUseId: tc.id,
+            needsBrandSelection: true,
+          });
+          yield {
+            type: "brand_picker_required",
+            actionId: pending.id,
+            toolName: tc.name,
+            brands: brands.map((b) => ({
+              id: b.id,
+              displayName: b.displayName,
+              slug: b.slug,
+            })),
+          };
+          await touchConversation(convId, { incrementToolCalls: true });
+          return;
+        }
+
         const pending = savePending({
           conversationId: convId,
           session: input.session,
@@ -342,7 +350,7 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
           toolInput: tc.input,
         };
         await touchConversation(convId, { incrementToolCalls: true });
-        return; // chiudo il turn, aspetta conferma utente
+        return;
       }
       try {
         const output = await tool.execute(tc.input, ctx);

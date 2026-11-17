@@ -19,6 +19,9 @@ export type PendingAction = {
   toolInput: unknown;
   toolUseId: string;
   createdAt: number;
+  // true se la pending aspetta la selezione del brand dall'utente (brand_picker)
+  // prima di diventare una confirm standard. Risolta via /api/robot/resolve-brand.
+  needsBrandSelection?: boolean;
 };
 
 const TTL_MS = 5 * 60 * 1000; // 5 minuti

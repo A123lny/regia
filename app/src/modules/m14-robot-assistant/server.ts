@@ -11,3 +11,6 @@ export type { ChatSseEvent, RunChatInput } from "./internal/chat-action";
 
 export { confirmPendingAction } from "./internal/confirm-action";
 export type { ConfirmResult } from "./internal/confirm-action";
+
+export { resolveBrandSelection } from "./internal/resolve-brand-action";
+export type { ResolveBrandResult } from "./internal/resolve-brand-action";
