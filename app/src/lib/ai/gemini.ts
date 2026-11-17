@@ -24,7 +24,8 @@ function getClient(): GoogleGenAI {
   if (!apiKey) {
     throw new AiConfigError("GEMINI_API_KEY non impostata (server-only).");
   }
-  cached = new GoogleGenAI({ apiKey });
+  // Function Calling richiede apiVersion v1beta (v1 default la rifiuta — err 400).
+  cached = new GoogleGenAI({ apiKey, apiVersion: "v1beta" });
   return cached;
 }
 
