@@ -15,6 +15,8 @@ import { updateContactTool } from "./update-contact";
 import { deleteContactTool } from "./delete-contact";
 import { listBrandsTool } from "./list-brands";
 import { listRemindersTool } from "./list-reminders";
+import { listScheduledContentTool } from "./list-scheduled-content";
+import { listCampaignsTool } from "./list-campaigns";
 
 export const ROBOT_TOOLS: Record<string, RobotTool> = {
   describePage: describePageTool,
@@ -27,6 +29,8 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   deleteContact: deleteContactTool,
   listBrands: listBrandsTool,
   listReminders: listRemindersTool,
+  listScheduledContent: listScheduledContentTool,
+  listCampaigns: listCampaignsTool,
 };
 
 export function getToolsForRole(
