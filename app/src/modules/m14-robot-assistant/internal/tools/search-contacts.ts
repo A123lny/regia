@@ -7,13 +7,14 @@ import type { RobotTool } from "./tool-types";
 
 const InputSchema = z.object({
   query: z.string().min(1).max(200),
+  brandId: z.string().uuid().optional(),
   limit: z.number().int().min(1).max(50).optional().default(10),
 });
 
 export const searchContactsTool: RobotTool = {
   name: "searchContacts",
   description:
-    "Cerca contatti per testo libero (nome, email, telefono) nel brand selezionato. Max 50 risultati. Usalo quando l'utente chiede 'cerca Mario', 'contatti con dominio gmail', ecc.",
+    "Cerca contatti per testo libero (nome, email, telefono). Se brandId e' specificato filtra per quel brand, altrimenti cross-brand. Max 50 risultati.",
   input_schema: {
     type: "object",
     properties: {
@@ -21,6 +22,10 @@ export const searchContactsTool: RobotTool = {
         type: "string",
         description:
           "Testo da cercare in nome/cognome/email/telefono (match parziale case-insensitive).",
+      },
+      brandId: {
+        type: "string",
+        description: "UUID del brand (opzionale). Usa listBrands per trovarlo.",
       },
       limit: {
         type: "integer",
@@ -40,16 +45,11 @@ export const searchContactsTool: RobotTool = {
       return { error: "input_invalido", details: parsed.error.message };
     }
 
-    if (!ctx.pageContext.brandId) {
-      return {
-        error: "brand_non_selezionato",
-        message: "Seleziona prima un brand per cercare contatti.",
-      };
-    }
+    const brandId = parsed.data.brandId ?? ctx.pageContext.brandId ?? undefined;
 
     const result = await listContacts({
       organizationId: ctx.session.organizationId,
-      brandId: ctx.pageContext.brandId,
+      ...(brandId && { brandId }),
       query: parsed.data.query,
       limit: parsed.data.limit,
     });

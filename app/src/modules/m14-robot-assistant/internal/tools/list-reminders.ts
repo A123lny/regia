@@ -5,6 +5,7 @@ import { listReminders } from "@/modules/m09-reminders/public";
 import type { RobotTool } from "./tool-types";
 
 const InputSchema = z.object({
+  brandId: z.string().uuid().optional(),
   status: z.enum(["pending", "sent", "dismissed", "expired"]).optional(),
   scheduledBeforeIso: z.string().datetime().optional(),
   limit: z.number().int().min(1).max(50).optional().default(10),
@@ -13,13 +14,17 @@ const InputSchema = z.object({
 export const listRemindersTool: RobotTool = {
   name: "listReminders",
   description:
-    "Lista i reminder (promemoria operativi) del brand attualmente selezionato. Filtri opzionali: status (pending/done/dismissed/cancelled) e scheduledBeforeIso (ISO datetime, es. '2026-11-20T23:59:59Z' per vedere cosa scade entro quel giorno). Usalo quando l'utente chiede 'cosa ho da fare?', 'reminder in scadenza', 'promemoria di oggi'. Brand-scoped.",
+    "Lista i reminder (promemoria operativi). Se brandId specificato filtra per quel brand, altrimenti cross-brand. Filtri opzionali: status (pending/sent/dismissed/expired) e scheduledBeforeIso. Usalo quando l'utente chiede 'cosa ho da fare?', 'reminder in scadenza', 'promemoria di oggi'.",
   input_schema: {
     type: "object",
     properties: {
+      brandId: {
+        type: "string",
+        description: "UUID del brand (opzionale). Usa listBrands per trovarlo.",
+      },
       status: {
         type: "string",
-        enum: ["pending", "done", "dismissed", "cancelled"],
+        enum: ["pending", "sent", "dismissed", "expired"],
         description: "Filtra per stato",
       },
       scheduledBeforeIso: {
@@ -42,17 +47,12 @@ export const listRemindersTool: RobotTool = {
       return { error: "input_invalido", details: parsed.error.message };
     }
 
-    if (!ctx.pageContext.brandId) {
-      return {
-        error: "brand_non_selezionato",
-        message: "Seleziona prima un brand per vedere i reminder.",
-      };
-    }
-
     const input = parsed.data;
+    const brandId = input.brandId ?? ctx.pageContext.brandId ?? undefined;
+
     const rows = await listReminders({
       organizationId: ctx.session.organizationId,
-      brandId: ctx.pageContext.brandId,
+      ...(brandId && { brandId }),
       ...(input.status && { status: input.status }),
       ...(input.scheduledBeforeIso && { scheduledBeforeIso: input.scheduledBeforeIso }),
       limit: input.limit,

@@ -6,6 +6,7 @@ import { listContacts, type ListContactsInput } from "@/modules/m01-data-hub/pub
 import type { RobotTool } from "./tool-types";
 
 const InputSchema = z.object({
+  brandId: z.string().uuid().optional(),
   limit: z.number().int().min(1).max(50).optional().default(20),
   consentChannel: z.enum(["email", "sms", "whatsapp"]).optional(),
   consentStatus: z.enum(["granted", "revoked", "never"]).optional(),
@@ -15,10 +16,15 @@ const InputSchema = z.object({
 export const listContactsTool: RobotTool = {
   name: "listContacts",
   description:
-    "Lista i contatti del brand attualmente selezionato. Filtri opzionali: consentChannel (email/sms/whatsapp), consentStatus (granted/revoked/pending), includeArchived. Max 50 risultati. Richiede un brand selezionato in sessione.",
+    "Lista i contatti dell'organizzazione. Se brandId e' specificato filtra per quel brand; se omesso ritorna i contatti cross-brand (tutti i marchi). Per restringere a un brand specifico, chiama prima listBrands per ottenere l'id. Max 50 risultati.",
   input_schema: {
     type: "object",
     properties: {
+      brandId: {
+        type: "string",
+        description:
+          "UUID del brand per filtrare (opzionale). Se omesso, ritorna contatti cross-brand. Usa listBrands per trovare l'id da un nome.",
+      },
       limit: {
         type: "integer",
         minimum: 1,
@@ -51,21 +57,16 @@ export const listContactsTool: RobotTool = {
     }
     const input = parsed.data;
 
-    // Brand-scoped (design §15): il brand corrente arriva dal pageContext.
-    if (!ctx.pageContext.brandId) {
-      return {
-        error: "brand_non_selezionato",
-        message:
-          "L'utente non ha selezionato un brand. Chiedigli su quale brand operare prima di ritentare.",
-      };
-    }
+    // brandId: priorita' a input (il modello puo' passarlo dopo listBrands);
+    // fallback al pageContext (brand selezionato in UI); altrimenti cross-brand.
+    const brandId = input.brandId ?? ctx.pageContext.brandId ?? undefined;
 
     const query: ListContactsInput = {
       organizationId: ctx.session.organizationId,
-      brandId: ctx.pageContext.brandId,
       limit: input.limit,
       includeArchived: input.includeArchived,
     };
+    if (brandId) query.brandId = brandId;
     if (input.consentChannel) query.consentChannel = input.consentChannel;
     if (input.consentStatus) query.consentStatus = input.consentStatus;
 
