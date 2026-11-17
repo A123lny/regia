@@ -3,7 +3,8 @@
 -- Gemini text-embedding-004 (768 dimensioni, free tier).
 --
 -- Tabella: manuale_chunks — una riga per ogni sezione/sottosezione del
--- manuale-piattaforma.md. Non RLS (dati pubblici del manuale, nessun PII).
+-- manuale-piattaforma.md. Protetta da RLS (solo service_role legge/scrive,
+-- per prevenire RAG poisoning).
 -- Indice ivfflat su embedding per similarity search veloce con cosine distance.
 
 create extension if not exists vector;
@@ -30,8 +31,12 @@ create index if not exists manuale_chunks_section_idx
 comment on table public.manuale_chunks is
   'RN-robot RAG: chunks del docs/manuale-piattaforma.md con embeddings Gemini 768d.';
 
--- Nessuna RLS: dati pubblici del manuale, nessun PII, nessun organization_id.
--- Service role accede, l'app usa service role per il tool explainFeature.
+-- Hardening: RLS + denial-by-default.
+-- Anche se i dati non sono PII, un anon/authenticated con scrittura potrebbe
+-- fare RAG poisoning (inserire chunk falsi che il modello poi cita). L'accesso
+-- avviene SOLO via service_role nel backend (lib/db/admin.ts) che bypassa RLS.
+alter table public.manuale_chunks enable row level security;
+revoke all on table public.manuale_chunks from anon, authenticated;
 
 -- RPC per similarity search: ritorna i top N chunk piu' simili alla query.
 -- Distanza coseno (0 = identico, 2 = opposto). Similarity = 1 - distance.
@@ -60,3 +65,9 @@ $$;
 
 comment on function public.match_manuale_chunks(vector, int) is
   'RN-robot RAG: ritorna i top N chunk del manuale per similarity cosine.';
+
+-- Hardening: solo service_role puo' eseguire la ricerca. L'app chiama via
+-- getAdminClient() nel tool explainFeature, nessun client puo' bypassare.
+revoke execute on function public.match_manuale_chunks(vector, int)
+  from anon, authenticated, public;
+grant execute on function public.match_manuale_chunks(vector, int) to service_role;
