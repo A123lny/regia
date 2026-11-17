@@ -3,6 +3,7 @@
 // RN-robot T5: panel chat connesso a /api/robot/chat via SSE streaming.
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import type { Role } from "@/lib/auth/permissions";
 import type { RobotMessage } from "./types";
 
@@ -83,6 +84,7 @@ export function RobotChatPanel({
   const [input, setInput] = React.useState("");
   const [streaming, setStreaming] = React.useState(false);
   const [convId, setConvId] = React.useState<string | null>(persisted.current?.convId ?? null);
+  const router = useRouter();
 
   // Persist on changes
   React.useEffect(() => {
@@ -279,6 +281,9 @@ export function RobotChatPanel({
         appendNewAssistant(`❌ ${toolName} fallito: ${out.error}`);
       } else {
         appendNewAssistant(`✅ ${out?.message ?? `${toolName} eseguito.`}`);
+        // Ri-fetch dei server component per vedere subito il contatto nuovo /
+        // modifica / archiviazione senza che l'utente debba ricaricare la pagina.
+        router.refresh();
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "errore rete";
