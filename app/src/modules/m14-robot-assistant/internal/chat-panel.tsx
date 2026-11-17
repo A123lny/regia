@@ -8,24 +8,48 @@ import type { RobotMessage } from "./types";
 
 // Persistenza intra-sessione (sopravvive a close Sheet + refresh pagina,
 // NON tra tab/browser diversi — design §3 non-goal cross-session memory).
-const STORAGE_KEY = "regia-robot-chat-v1";
+// Scope per userId per non leakare chat tra utenti diversi sullo stesso browser.
 type PersistedState = { messages: RobotMessage[]; convId: string | null };
 
-function loadPersisted(): PersistedState | null {
+function storageKey(userId: string): string {
+  return `regia-robot-chat-v1:${userId}`;
+}
+
+function isValidMessage(m: unknown): m is RobotMessage {
+  if (!m || typeof m !== "object") return false;
+  const x = m as Record<string, unknown>;
+  return (
+    (x["role"] === "user" || x["role"] === "assistant") &&
+    typeof x["content"] === "string" &&
+    typeof x["timestamp"] === "string"
+  );
+}
+
+function loadPersisted(userId: string): PersistedState | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    const raw = window.sessionStorage.getItem(storageKey(userId));
     if (!raw) return null;
-    return JSON.parse(raw) as PersistedState;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return null;
+    const obj = parsed as Record<string, unknown>;
+    const msgs = Array.isArray(obj["messages"])
+      ? (obj["messages"] as unknown[]).filter(isValidMessage)
+      : [];
+    const convId =
+      typeof obj["convId"] === "string" || obj["convId"] === null
+        ? (obj["convId"] as string | null)
+        : null;
+    return { messages: msgs, convId };
   } catch {
     return null;
   }
 }
 
-function savePersisted(state: PersistedState): void {
+function savePersisted(userId: string, state: PersistedState): void {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.sessionStorage.setItem(storageKey(userId), JSON.stringify(state));
   } catch {
     // quota exceeded o altro: ignora
   }
@@ -43,7 +67,7 @@ export function RobotChatPanel({
   pagePath: string;
 }) {
   const persisted = React.useRef<PersistedState | null>(null);
-  if (persisted.current === null) persisted.current = loadPersisted();
+  if (persisted.current === null) persisted.current = loadPersisted(userId);
 
   const [messages, setMessages] = React.useState<RobotMessage[]>(
     persisted.current?.messages && persisted.current.messages.length > 0
@@ -62,8 +86,8 @@ export function RobotChatPanel({
 
   // Persist on changes
   React.useEffect(() => {
-    savePersisted({ messages, convId });
-  }, [messages, convId]);
+    savePersisted(userId, { messages, convId });
+  }, [userId, messages, convId]);
   const [pendingConfirm, setPendingConfirm] = React.useState<{
     actionId: string;
     toolName: string;
