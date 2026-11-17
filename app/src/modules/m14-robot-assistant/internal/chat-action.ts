@@ -65,8 +65,16 @@ function buildActionSummary(toolName: string, input: unknown): string {
       return `Creo un nuovo contatto: ${name} — ${contact}`;
     }
     case "updateContact": {
-      const fields = Object.keys((inp["patch"] ?? {}) as object).join(", ");
-      return `Modifico il contatto ${inp["contactId"]} (campi: ${fields || "nessuno"})`;
+      const patch = (inp["patch"] ?? {}) as Record<string, unknown>;
+      // Mostra chiave=nuovo_valore per OGNI campo in modifica (l'utente deve
+      // poter vedere i valori prima di confermare — mitigazione contro
+      // prompt injection che altererebbe silenziosamente email/phone).
+      const changes = Object.entries(patch)
+        .map(([k, v]) => `${k}=${v === null ? "(vuoto)" : JSON.stringify(v)}`)
+        .join(", ");
+      return `Modifico il contatto ${inp["contactId"]}. Nuovi valori: ${
+        changes || "nessuno"
+      }`;
     }
     case "deleteContact": {
       return `Archivio (soft-delete) il contatto ${inp["contactId"]}`;
