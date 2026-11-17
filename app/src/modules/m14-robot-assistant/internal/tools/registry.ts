@@ -1,11 +1,7 @@
 // RN-robot T6: registry centrale dei tool del robottino.
 
 import type { Session } from "@/lib/auth/session";
-import type {
-  RobotTool,
-  RobotToolKind,
-  RobotToolContext,
-} from "./tool-types";
+import type { RobotTool, RobotToolKind } from "./tool-types";
 
 export type { RobotTool, RobotToolKind, RobotToolContext } from "./tool-types";
 
@@ -16,6 +12,7 @@ import { getContactTool } from "./get-contact";
 import { searchContactsTool } from "./search-contacts";
 import { createContactTool } from "./create-contact";
 import { updateContactTool } from "./update-contact";
+import { deleteContactTool } from "./delete-contact";
 
 export const ROBOT_TOOLS: Record<string, RobotTool> = {
   describePage: describePageTool,
@@ -25,6 +22,7 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   searchContacts: searchContactsTool,
   createContact: createContactTool,
   updateContact: updateContactTool,
+  deleteContact: deleteContactTool,
 };
 
 export function getToolsForRole(

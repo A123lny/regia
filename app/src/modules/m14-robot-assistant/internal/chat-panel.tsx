@@ -27,6 +27,11 @@ export function RobotChatPanel({
   const [input, setInput] = React.useState("");
   const [streaming, setStreaming] = React.useState(false);
   const [convId, setConvId] = React.useState<string | null>(null);
+  const [pendingConfirm, setPendingConfirm] = React.useState<{
+    actionId: string;
+    toolName: string;
+    summary: string;
+  } | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -111,6 +116,9 @@ export function RobotChatPanel({
     name?: string;
     code?: string;
     message?: string;
+    actionId?: string;
+    toolName?: string;
+    summary?: string;
   }) {
     switch (event.type) {
       case "conversation_started":
@@ -122,6 +130,15 @@ export function RobotChatPanel({
       case "tool_use":
         appendToLastAssistant(`\n\n_[tool: ${event.name ?? "?"}]_`);
         break;
+      case "confirmation_required":
+        if (event.actionId && event.toolName && event.summary) {
+          setPendingConfirm({
+            actionId: event.actionId,
+            toolName: event.toolName,
+            summary: event.summary,
+          });
+        }
+        break;
       case "done":
         // niente da fare lato UI
         break;
@@ -129,6 +146,48 @@ export function RobotChatPanel({
         appendToLastAssistant(`\n\n[errore: ${event.message ?? event.code ?? "?"}]`);
         break;
     }
+  }
+
+  async function handleConfirm(confirmed: boolean) {
+    if (!pendingConfirm) return;
+    const { actionId, toolName, summary } = pendingConfirm;
+    setPendingConfirm(null);
+
+    try {
+      const res = await fetch("/api/robot/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actionId, confirmed }),
+      });
+      const data = await res.json();
+
+      if (!confirmed) {
+        appendNewAssistant(`❌ Azione annullata: ${summary}`);
+        return;
+      }
+
+      if (!res.ok) {
+        appendNewAssistant(`[errore conferma ${res.status}] ${data?.error ?? "?"}`);
+        return;
+      }
+
+      const out = data.output as { message?: string; error?: string } | undefined;
+      if (out?.error) {
+        appendNewAssistant(`❌ ${toolName} fallito: ${out.error}`);
+      } else {
+        appendNewAssistant(`✅ ${out?.message ?? `${toolName} eseguito.`}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "errore rete";
+      appendNewAssistant(`[errore rete conferma] ${msg}`);
+    }
+  }
+
+  function appendNewAssistant(text: string) {
+    setMessages((m) => [
+      ...m,
+      { role: "assistant", content: text, timestamp: new Date().toISOString() },
+    ]);
   }
 
   function appendToLastAssistant(chunk: string) {
@@ -158,13 +217,40 @@ export function RobotChatPanel({
             key={i}
             className={
               m.role === "assistant"
-                ? "rounded-lg bg-muted px-3 py-2 text-sm"
-                : "ml-8 rounded-lg bg-primary/10 px-3 py-2 text-sm"
+                ? "rounded-lg bg-muted px-3 py-2 text-sm whitespace-pre-wrap"
+                : "ml-8 rounded-lg bg-primary/10 px-3 py-2 text-sm whitespace-pre-wrap"
             }
           >
             {m.content}
           </div>
         ))}
+        {pendingConfirm && (
+          <div
+            className="rounded-lg border-2 border-warning bg-warning/10 p-3 text-sm"
+            data-testid="robot-confirm-dialog"
+          >
+            <div className="mb-2 font-semibold">⚠️ Serve la tua conferma</div>
+            <div className="mb-3">{pendingConfirm.summary}</div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleConfirm(true)}
+                className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground"
+                data-testid="robot-confirm-yes"
+              >
+                Sì, conferma
+              </button>
+              <button
+                type="button"
+                onClick={() => handleConfirm(false)}
+                className="rounded-md border border-border px-3 py-1.5 text-sm"
+                data-testid="robot-confirm-no"
+              >
+                Annulla
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <div className="border-t p-3">
         <div className="flex gap-2">

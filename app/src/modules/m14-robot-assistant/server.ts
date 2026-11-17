@@ -8,3 +8,6 @@ export { listRobotAccess, getRobotAccess } from "./internal/role-access-repo";
 
 export { runChat } from "./internal/chat-action";
 export type { ChatSseEvent, RunChatInput } from "./internal/chat-action";
+
+export { confirmPendingAction } from "./internal/confirm-action";
+export type { ConfirmResult } from "./internal/confirm-action";

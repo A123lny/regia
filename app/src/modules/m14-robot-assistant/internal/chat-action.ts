@@ -26,10 +26,18 @@ import {
 import { ROBOT_TOOLS, getToolsForRole, toAnthropicTools, type RobotTool } from "./tools/registry";
 import { checkRateLimit } from "./rate-limiter";
 import { getRobotAccess } from "./role-access-repo";
+import { savePending } from "./pending-actions-store";
 
 export type ChatSseEvent =
   | { type: "conversation_started"; id: string }
   | StreamToolsEvent
+  | {
+      type: "confirmation_required";
+      actionId: string;
+      toolName: string;
+      summary: string;
+      toolInput: unknown;
+    }
   | { type: "error"; code: string; message: string };
 
 export type RunChatInput = {
@@ -41,6 +49,32 @@ export type RunChatInput = {
 };
 
 const MAX_TOOL_TURNS = 3;
+
+/**
+ * Genera un riassunto leggibile dell'azione pending per la UI di conferma.
+ * Teniamo i dettagli minimi per non esporre PII nei log client.
+ */
+function buildActionSummary(toolName: string, input: unknown): string {
+  const inp = (input ?? {}) as Record<string, unknown>;
+  switch (toolName) {
+    case "createContact": {
+      const first = String(inp["firstName"] ?? "").trim();
+      const last = String(inp["lastName"] ?? "").trim();
+      const name = [first, last].filter(Boolean).join(" ") || "(senza nome)";
+      const contact = inp["email"] || inp["phone"] || inp["whatsapp"] || "(senza recapito)";
+      return `Creo un nuovo contatto: ${name} — ${contact}`;
+    }
+    case "updateContact": {
+      const fields = Object.keys((inp["patch"] ?? {}) as object).join(", ");
+      return `Modifico il contatto ${inp["contactId"]} (campi: ${fields || "nessuno"})`;
+    }
+    case "deleteContact": {
+      return `Archivio (soft-delete) il contatto ${inp["contactId"]}`;
+    }
+    default:
+      return `Eseguo ${toolName}`;
+  }
+}
 
 /**
  * Esegue un turn chat del robottino con tool loop.
@@ -122,12 +156,13 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
     yield { type: "conversation_started", id: convId };
   }
 
-  // 2. Tool set per ruolo.
-  // In questa release esponiamo SOLO read. I tool write (createContact/updateContact)
-  // esistono nel registry ma vengono esposti al modello solo quando T8 avra'
-  // implementato il confirm flow con conferma esplicita utente (mitigazione
-  // indirect prompt injection via tool_result data). Deliberate choice.
-  const availableTools = getToolsForRole(input.session.role, ["read"]);
+  // 2. Tool set per ruolo (T8: esponiamo read + write + destructive; i write
+  // e destructive passano dal confirm flow — non vengono eseguiti direttamente).
+  const availableTools = getToolsForRole(input.session.role, [
+    "read",
+    "write",
+    "destructive",
+  ]);
   // Allowlist enforced a execution-time (defense-in-depth: anche se il modello
   // prova a invocare un tool fuori lista, lo rifiutiamo qui).
   const allowedNames = new Set(availableTools.map((t) => t.name));
@@ -275,6 +310,31 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
           is_error: true,
         });
         continue;
+      }
+
+      // Confirm flow (T8): tool write/destructive NON eseguiti subito. Salviamo
+      // come pending, emettiamo confirmation_required, chiudiamo il turn. La
+      // execute reale avviene su POST /api/robot/confirm dopo che l'utente
+      // clicca "Conferma" nella UI.
+      if (tool.kind === "write" || tool.kind === "destructive") {
+        const pending = savePending({
+          conversationId: convId,
+          session: input.session,
+          pageContext: input.pageContext,
+          toolName: tc.name,
+          toolInput: tc.input,
+          toolUseId: tc.id,
+        });
+        const summary = buildActionSummary(tc.name, tc.input);
+        yield {
+          type: "confirmation_required",
+          actionId: pending.id,
+          toolName: tc.name,
+          summary,
+          toolInput: tc.input,
+        };
+        await touchConversation(convId, { incrementToolCalls: true });
+        return; // chiudo il turn, aspetta conferma utente
       }
       try {
         const output = await tool.execute(tc.input, ctx);
