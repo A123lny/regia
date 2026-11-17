@@ -6,6 +6,31 @@ import * as React from "react";
 import type { Role } from "@/lib/auth/permissions";
 import type { RobotMessage } from "./types";
 
+// Persistenza intra-sessione (sopravvive a close Sheet + refresh pagina,
+// NON tra tab/browser diversi — design §3 non-goal cross-session memory).
+const STORAGE_KEY = "regia-robot-chat-v1";
+type PersistedState = { messages: RobotMessage[]; convId: string | null };
+
+function loadPersisted(): PersistedState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedState;
+  } catch {
+    return null;
+  }
+}
+
+function savePersisted(state: PersistedState): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // quota exceeded o altro: ignora
+  }
+}
+
 export function RobotChatPanel({
   userId,
   role,
@@ -17,16 +42,28 @@ export function RobotChatPanel({
   pageTitle: string;
   pagePath: string;
 }) {
-  const [messages, setMessages] = React.useState<RobotMessage[]>([
-    {
-      role: "assistant",
-      content: `Ciao! Sono Regia. In "${pageTitle}" posso aiutarti a capire cosa fare o eseguire azioni al posto tuo. Chiedimi pure.`,
-      timestamp: new Date().toISOString(),
-    },
-  ]);
+  const persisted = React.useRef<PersistedState | null>(null);
+  if (persisted.current === null) persisted.current = loadPersisted();
+
+  const [messages, setMessages] = React.useState<RobotMessage[]>(
+    persisted.current?.messages && persisted.current.messages.length > 0
+      ? persisted.current.messages
+      : [
+          {
+            role: "assistant",
+            content: `Ciao! Sono Regia. In "${pageTitle}" posso aiutarti a capire cosa fare o eseguire azioni al posto tuo. Chiedimi pure.`,
+            timestamp: new Date().toISOString(),
+          },
+        ],
+  );
   const [input, setInput] = React.useState("");
   const [streaming, setStreaming] = React.useState(false);
-  const [convId, setConvId] = React.useState<string | null>(null);
+  const [convId, setConvId] = React.useState<string | null>(persisted.current?.convId ?? null);
+
+  // Persist on changes
+  React.useEffect(() => {
+    savePersisted({ messages, convId });
+  }, [messages, convId]);
   const [pendingConfirm, setPendingConfirm] = React.useState<{
     actionId: string;
     toolName: string;
