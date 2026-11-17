@@ -34,6 +34,13 @@ export async function resolveBrandSelection(
     return { ok: false, status: 400, error: "not_a_brand_picker_pending" };
   }
 
+  // IDOR guard: il brandId scelto DEVE essere tra quelli consentiti al momento
+  // del picker (brand attivi dell'organizzazione). Senza questo check, un
+  // attaccante potrebbe POST con brandId di altra org.
+  if (!pending.allowedBrandIds || !pending.allowedBrandIds.includes(brandId)) {
+    return { ok: false, status: 403, error: "brand_not_allowed" };
+  }
+
   // Merge brandId in toolInput + salva NUOVO pending come write standard
   const updatedInput = {
     ...((pending.toolInput ?? {}) as Record<string, unknown>),

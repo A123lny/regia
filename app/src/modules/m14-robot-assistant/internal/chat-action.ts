@@ -318,6 +318,7 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
             toolInput: tc.input,
             toolUseId: tc.id,
             needsBrandSelection: true,
+            allowedBrandIds: brands.map((b) => b.id),
           });
           yield {
             type: "brand_picker_required",
