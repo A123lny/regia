@@ -13,6 +13,8 @@ import { searchContactsTool } from "./search-contacts";
 import { createContactTool } from "./create-contact";
 import { updateContactTool } from "./update-contact";
 import { deleteContactTool } from "./delete-contact";
+import { listBrandsTool } from "./list-brands";
+import { listRemindersTool } from "./list-reminders";
 
 export const ROBOT_TOOLS: Record<string, RobotTool> = {
   describePage: describePageTool,
@@ -23,6 +25,8 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   createContact: createContactTool,
   updateContact: updateContactTool,
   deleteContact: deleteContactTool,
+  listBrands: listBrandsTool,
+  listReminders: listRemindersTool,
 };
 
 export function getToolsForRole(

@@ -13,7 +13,6 @@ import {
   type StreamToolsInput,
   type StreamToolsEvent,
   type StreamMessage,
-  type AnthropicContentBlock,
 } from "./anthropic";
 
 let cached: GoogleGenAI | undefined;
@@ -35,6 +34,43 @@ const PRICE_INPUT_PER_M_USD = 0.075;
 const PRICE_OUTPUT_PER_M_USD = 0.3;
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
+const EMBEDDING_MODEL = "text-embedding-004"; // 768d, free tier
+
+/**
+ * Embed one or more testi con Gemini text-embedding-004 (768 dimensioni).
+ * Usato per RAG (indicizzazione manuale) e similarity search.
+ */
+export async function embedContent(texts: string[]): Promise<number[][]> {
+  if (texts.length === 0) return [];
+  const client = getClient();
+  const results: number[][] = [];
+  // Il SDK accetta un contents per chiamata; iteriamo in batch di 100
+  // (Gemini API accetta multi-contents nella stessa richiesta via array).
+  const BATCH = 100;
+  for (let i = 0; i < texts.length; i += BATCH) {
+    const batch = texts.slice(i, i + BATCH);
+    try {
+      const response = await client.models.embedContent({
+        model: EMBEDDING_MODEL,
+        contents: batch,
+      });
+      // response.embeddings: array of { values: number[] }
+      const embs = response.embeddings ?? [];
+      for (const e of embs) {
+        if (!e.values) {
+          throw new AiApiError(500, "embedding senza values");
+        }
+        results.push(e.values);
+      }
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const e = err as any;
+      if (e?.status === 429) throw new AiRateLimitError(null);
+      throw new AiApiError(e?.status ?? 500, e?.message ?? "Gemini embed error");
+    }
+  }
+  return results;
+}
 
 /**
  * Converte una StreamMessage (formato Anthropic-like) in un Content di Gemini.
