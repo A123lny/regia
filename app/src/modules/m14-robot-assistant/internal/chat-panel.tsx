@@ -128,7 +128,7 @@ export function RobotChatPanel({
         if (event.text) appendToLastAssistant(event.text);
         break;
       case "tool_use":
-        appendToLastAssistant(`\n\n_[tool: ${event.name ?? "?"}]_`);
+        // Niente label al utente — distrae dal testo di risposta.
         break;
       case "confirmation_required":
         if (event.actionId && event.toolName && event.summary) {
