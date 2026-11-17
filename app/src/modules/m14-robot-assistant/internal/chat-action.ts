@@ -56,7 +56,7 @@ const MAX_TOOL_TURNS = 3;
  */
 export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent> {
   // 0z. Server-side gate per ruolo (defense-in-depth oltre al gate UI del widget)
-  const allowed = await getRobotAccess(input.session.role);
+  const allowed = await getRobotAccess(input.session.organizationId, input.session.role);
   if (!allowed) {
     yield {
       type: "error",

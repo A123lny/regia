@@ -20,7 +20,7 @@ export default async function GovernancePage() {
   const [rules, products, robotAccess] = await Promise.all([
     listAutonomyRules(session.organizationId),
     listAllProductsWithDiscountFlag(session.organizationId),
-    listRobotAccess(),
+    listRobotAccess(session.organizationId),
   ]);
 
   const canCrud = hasCapability(session.role, "governance.crud");

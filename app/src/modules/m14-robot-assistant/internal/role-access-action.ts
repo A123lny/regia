@@ -28,7 +28,7 @@ export async function setRobotAccessAction(input: {
   }
 
   try {
-    await setRobotAccess(input.role, input.enabled, session.userId);
+    await setRobotAccess(session.organizationId, input.role, input.enabled, session.userId);
     await logAuditEvent({
       organizationId: session.organizationId,
       actorUserId: session.userId,
@@ -38,9 +38,6 @@ export async function setRobotAccessAction(input: {
       details: {
         enabled: input.enabled,
         source: "robot-assistant",
-        // KNOWN LIMITATION: robot_role_access non ha organization_id, modifica
-        // globale per tutte le org. OK per staging single-tenant, fix pre-prod.
-        warning_global_config: true,
       },
     });
     revalidatePath("/governance");
