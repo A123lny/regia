@@ -34,7 +34,8 @@ const PRICE_INPUT_PER_M_USD = 0.075;
 const PRICE_OUTPUT_PER_M_USD = 0.3;
 
 const DEFAULT_MODEL = "gemini-2.5-flash";
-const EMBEDDING_MODEL = "text-embedding-004"; // 768d, free tier
+const EMBEDDING_MODEL = "gemini-embedding-2"; // default 3072d, supporta flexible dimensions 128-3072
+const EMBEDDING_DIM = 768; // il nostro schema manuale_chunks e' vector(768)
 
 /**
  * Embed one or more testi con Gemini text-embedding-004 (768 dimensioni).
@@ -44,24 +45,20 @@ export async function embedContent(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return [];
   const client = getClient();
   const results: number[][] = [];
-  // Il SDK accetta un contents per chiamata; iteriamo in batch di 100
-  // (Gemini API accetta multi-contents nella stessa richiesta via array).
-  const BATCH = 100;
-  for (let i = 0; i < texts.length; i += BATCH) {
-    const batch = texts.slice(i, i + BATCH);
+  // Seriale: il SDK @google/genai v3 restituisce 1 embedding per chiamata.
+  // Free tier Gemini: ~15 RPM; 50 chiamate sequenziali durano ~1-2 minuti.
+  for (const text of texts) {
     try {
       const response = await client.models.embedContent({
         model: EMBEDDING_MODEL,
-        contents: batch,
+        contents: text,
+        config: { outputDimensionality: EMBEDDING_DIM },
       });
-      // response.embeddings: array of { values: number[] }
-      const embs = response.embeddings ?? [];
-      for (const e of embs) {
-        if (!e.values) {
-          throw new AiApiError(500, "embedding senza values");
-        }
-        results.push(e.values);
+      const values = response.embeddings?.[0]?.values;
+      if (!values) {
+        throw new AiApiError(500, "embedding senza values");
       }
+      results.push(values);
     } catch (err) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const e = err as any;

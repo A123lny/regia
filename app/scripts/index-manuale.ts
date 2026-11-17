@@ -74,7 +74,9 @@ async function main() {
   const chunks = splitManuale(raw);
   console.log(`[index-manuale] ${chunks.length} chunk estratti`);
 
-  console.log("[index-manuale] richiedo embeddings Gemini (text-embedding-004, 768d)...");
+  console.log(
+    `[index-manuale] richiedo ${chunks.length} embeddings Gemini (gemini-embedding-2, 768d)... (seriale, ~1-2 min)`,
+  );
   const embeddings = await embedContent(chunks.map((c) => c.content));
   console.log(`[index-manuale] ${embeddings.length} embeddings ricevuti`);
 
