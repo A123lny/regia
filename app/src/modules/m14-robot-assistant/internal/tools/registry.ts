@@ -19,6 +19,12 @@ import { listScheduledContentTool } from "./list-scheduled-content";
 import { listCampaignsTool } from "./list-campaigns";
 import { createTaskTool } from "./create-task";
 import { generateContentDraftTool } from "./generate-content";
+import {
+  approveContentDraftTool,
+  rejectContentDraftTool,
+  scheduleContentDraftTool,
+  deleteContentDraftTool,
+} from "./content-workflow";
 
 export const ROBOT_TOOLS: Record<string, RobotTool> = {
   describePage: describePageTool,
@@ -35,6 +41,10 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   listCampaigns: listCampaignsTool,
   createTask: createTaskTool,
   generateContentDraft: generateContentDraftTool,
+  approveContentDraft: approveContentDraftTool,
+  rejectContentDraft: rejectContentDraftTool,
+  scheduleContentDraft: scheduleContentDraftTool,
+  deleteContentDraft: deleteContentDraftTool,
 };
 
 export function getToolsForRole(

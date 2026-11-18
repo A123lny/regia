@@ -32,6 +32,16 @@ export function buildActionSummary(toolName: string, input: unknown): string {
       const excerpt = theme.length > 80 ? theme.slice(0, 80) + "..." : theme;
       return `Genero bozza di contenuto: "${excerpt}" (costo budget AI motore editoriale)`;
     }
+    case "approveContentDraft":
+      return `Approvo la bozza ${inp["draftId"]}`;
+    case "rejectContentDraft":
+      return `Rifiuto la bozza ${inp["draftId"]}: ${String(inp["reason"] ?? "").slice(0, 100)}`;
+    case "scheduleContentDraft": {
+      const sched = inp["scheduledAt"] ? String(inp["scheduledAt"]) : "(senza data)";
+      return `Schedulo la bozza ${inp["draftId"]} per ${sched}`;
+    }
+    case "deleteContentDraft":
+      return `Elimino la bozza ${inp["draftId"]}`;
     default:
       return `Eseguo ${toolName}`;
   }

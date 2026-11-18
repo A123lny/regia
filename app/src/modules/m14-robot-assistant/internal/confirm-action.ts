@@ -16,6 +16,10 @@ const PATHS_BY_TOOL: Record<string, string[]> = {
   deleteContact: ["/contatti"],
   createTask: ["/promemoria", "/", "/dashboard"],
   generateContentDraft: ["/contenuti", "/contenuti/sessione", "/"],
+  approveContentDraft: ["/contenuti", "/contenuti/sessione"],
+  rejectContentDraft: ["/contenuti", "/contenuti/sessione"],
+  scheduleContentDraft: ["/contenuti", "/contenuti/calendario"],
+  deleteContentDraft: ["/contenuti"],
 };
 
 export type ConfirmResult =
