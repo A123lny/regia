@@ -14,6 +14,7 @@ const PATHS_BY_TOOL: Record<string, string[]> = {
   createContact: ["/contatti"],
   updateContact: ["/contatti"],
   deleteContact: ["/contatti"],
+  createTask: ["/promemoria", "/", "/dashboard"],
 };
 
 export type ConfirmResult =

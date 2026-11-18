@@ -17,6 +17,7 @@ import { listBrandsTool } from "./list-brands";
 import { listRemindersTool } from "./list-reminders";
 import { listScheduledContentTool } from "./list-scheduled-content";
 import { listCampaignsTool } from "./list-campaigns";
+import { createTaskTool } from "./create-task";
 
 export const ROBOT_TOOLS: Record<string, RobotTool> = {
   describePage: describePageTool,
@@ -31,6 +32,7 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   listReminders: listRemindersTool,
   listScheduledContent: listScheduledContentTool,
   listCampaigns: listCampaignsTool,
+  createTask: createTaskTool,
 };
 
 export function getToolsForRole(

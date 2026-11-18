@@ -21,6 +21,12 @@ export function buildActionSummary(toolName: string, input: unknown): string {
     case "deleteContact": {
       return `Archivio (soft-delete) il contatto ${inp["contactId"]}`;
     }
+    case "createTask": {
+      const title = String(inp["title"] ?? "(senza titolo)");
+      const due = inp["dueAt"] ? new Date(String(inp["dueAt"])).toLocaleString("it-IT") : null;
+      const priority = String(inp["priority"] ?? "important");
+      return `Creo il task "${title}"${due ? ` per ${due}` : ""} (priorità: ${priority})`;
+    }
     default:
       return `Eseguo ${toolName}`;
   }
