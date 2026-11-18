@@ -9,8 +9,24 @@ const InputSchema = z.object({
   title: z.string().min(2).max(200),
   description: z.string().max(2000).optional(),
   priority: z.enum(["urgent", "important", "opportunity"]).optional().default("important"),
-  dueAt: z.string().datetime().optional(),
+  // Accettiamo sia ISO completo sia date-only (YYYY-MM-DD). Parsing applicativo.
+  dueAt: z.string().max(40).optional(),
 });
+
+function normalizeDueAt(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  // Se gia' ISO con T, lascia stare (ma controlla che Date lo parsi).
+  const d = new Date(trimmed);
+  if (!isNaN(d.getTime())) return d.toISOString();
+  // Fallback YYYY-MM-DD -> appende ore default 09:00 locale italiano
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (dateOnly) {
+    const d2 = new Date(`${trimmed}T09:00:00+01:00`);
+    if (!isNaN(d2.getTime())) return d2.toISOString();
+  }
+  return undefined;
+}
 
 export const createTaskTool: RobotTool = {
   name: "createTask",
@@ -41,7 +57,14 @@ export const createTaskTool: RobotTool = {
     if (!parsed.success) {
       return { error: "input_invalido", details: parsed.error.message };
     }
-    const { title, description, priority, dueAt } = parsed.data;
+    const { title, description, priority, dueAt: dueAtRaw } = parsed.data;
+    const dueAt = normalizeDueAt(dueAtRaw);
+    if (dueAtRaw && !dueAt) {
+      return {
+        error: "data_invalida",
+        message: `Non ho capito la data "${dueAtRaw}". Usa YYYY-MM-DD oppure ISO 8601 completo.`,
+      };
+    }
     const result = await createTaskAction({
       title,
       priority,
