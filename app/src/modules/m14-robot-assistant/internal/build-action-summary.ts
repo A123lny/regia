@@ -42,6 +42,19 @@ export function buildActionSummary(toolName: string, input: unknown): string {
     }
     case "deleteContentDraft":
       return `Elimino la bozza ${inp["draftId"]}`;
+    case "completeTask":
+      return `Segno come fatto il task ${inp["taskId"]}`;
+    case "reopenTask":
+      return `Riapro il task ${inp["taskId"]}`;
+    case "cancelTask":
+      return `Cancello il task ${inp["taskId"]}`;
+    case "updateTask": {
+      const patch = (inp["patch"] ?? {}) as Record<string, unknown>;
+      const changes = Object.entries(patch)
+        .map(([k, v]) => `${k}=${v === null ? "(vuoto)" : JSON.stringify(v)}`)
+        .join(", ");
+      return `Modifico il task ${inp["taskId"]}: ${changes || "nessuna modifica"}`;
+    }
     default:
       return `Eseguo ${toolName}`;
   }

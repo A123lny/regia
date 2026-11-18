@@ -25,6 +25,13 @@ import {
   scheduleContentDraftTool,
   deleteContentDraftTool,
 } from "./content-workflow";
+import {
+  listTasksTool,
+  completeTaskTool,
+  reopenTaskTool,
+  cancelTaskTool,
+  updateTaskTool,
+} from "./tasks-workflow";
 
 export const ROBOT_TOOLS: Record<string, RobotTool> = {
   describePage: describePageTool,
@@ -45,6 +52,11 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   rejectContentDraft: rejectContentDraftTool,
   scheduleContentDraft: scheduleContentDraftTool,
   deleteContentDraft: deleteContentDraftTool,
+  listTasks: listTasksTool,
+  completeTask: completeTaskTool,
+  reopenTask: reopenTaskTool,
+  cancelTask: cancelTaskTool,
+  updateTask: updateTaskTool,
 };
 
 export function getToolsForRole(
