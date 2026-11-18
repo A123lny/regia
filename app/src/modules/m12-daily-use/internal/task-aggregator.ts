@@ -84,25 +84,27 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
     materialRequestsOpen,
     launchingPartners,
   ] = await Promise.all([
-    // Segnali abbandono gravita' alta (urgent)
+    // Segnali abbandono gravita' alta (urgent) + data del piu' recente
     safe(
       admin
         .from("abandonment_signals")
-        .select("id", { count: "exact", head: true })
+        .select("id, signal_at")
         .eq("organization_id", organizationId)
         .eq("severity", "high")
-        .is("resolved_at", null),
-      { count: 0 },
+        .is("resolved_at", null)
+        .order("signal_at", { ascending: false }),
+      { data: [] as Array<{ id: string; signal_at: string }> },
     ),
-    // Segnali abbandono gravita' media (opportunity)
+    // Segnali abbandono gravita' media (opportunity) + data del piu' recente
     safe(
       admin
         .from("abandonment_signals")
-        .select("id", { count: "exact", head: true })
+        .select("id, signal_at")
         .eq("organization_id", organizationId)
         .eq("severity", "medium")
-        .is("resolved_at", null),
-      { count: 0 },
+        .is("resolved_at", null)
+        .order("signal_at", { ascending: false }),
+      { data: [] as Array<{ id: string; signal_at: string }> },
     ),
     // Overrun advertising pending (urgent)
     safe(
@@ -113,14 +115,15 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
         .eq("status", "pending"),
       { count: 0 },
     ),
-    // Bozze da approvare (important)
+    // Bozze da approvare (important) + data piu' vecchia
     safe(
       admin
         .from("content_drafts")
-        .select("id", { count: "exact", head: true })
+        .select("id, created_at")
         .eq("organization_id", organizationId)
-        .eq("status", "draft"),
-      { count: 0 },
+        .eq("status", "draft")
+        .order("created_at", { ascending: true }),
+      { data: [] as Array<{ id: string; created_at: string }> },
     ),
     // Promemoria pending oggi (important)
     safe(
@@ -248,13 +251,22 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
   const important: TaskListItem[] = [];
   const opportunity: TaskListItem[] = [];
 
-  const abandonmentHighCount = (abandonmentHigh as { count?: number }).count ?? 0;
+  const abandonmentHighData =
+    (abandonmentHigh as { data?: Array<{ id: string; signal_at: string }> }).data ?? [];
+  const abandonmentHighCount = abandonmentHighData.length;
   if (abandonmentHighCount > 0) {
+    const latestIso = abandonmentHighData[0]?.signal_at;
+    const latestStr = latestIso
+      ? ` (ultimo ${new Date(latestIso).toLocaleDateString("it-IT", {
+          day: "2-digit",
+          month: "short",
+        })})`
+      : "";
     urgent.push({
       id: "abandonment-high",
       priority: "urgent",
       iconName: "AlertTriangle",
-      label: `${abandonmentHighCount} segnal${abandonmentHighCount === 1 ? "e" : "i"} abbandono alta gravita`,
+      label: `${abandonmentHighCount} segnal${abandonmentHighCount === 1 ? "e" : "i"} abbandono alta gravita${latestStr}`,
       count: abandonmentHighCount,
       href: "/anti-abbandono",
       module: "m09",
@@ -324,11 +336,25 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
           : `${daysAgo} giorn${daysAgo === 1 ? "o" : "i"} dall'ultimo contatto`;
       return detail;
     });
+    // Trova il piu' fermo (last_contact_at null o piu' vecchio)
+    const oldestDaysAgo = coolingRows.reduce<number | null>((max, r) => {
+      if (r.last_contact_at === null) return Infinity;
+      const d = Math.floor(
+        (Date.now() - new Date(r.last_contact_at).getTime()) / (1000 * 60 * 60 * 24),
+      );
+      return max === null || d > max ? d : max;
+    }, null);
+    const coolingSuffix =
+      oldestDaysAgo === Infinity
+        ? " (il piu' vecchio: mai contattato)"
+        : oldestDaysAgo !== null
+          ? ` (il piu' vecchio da ${oldestDaysAgo}gg)`
+          : "";
     urgent.push({
       id: "cooling-partners",
       priority: "urgent",
       iconName: "PhoneOutgoing",
-      label: `${coolingCount} ristorant${coolingCount === 1 ? "e" : "i"} in cooling da contattare`,
+      label: `${coolingCount} ristorant${coolingCount === 1 ? "e" : "i"} in cooling da contattare${coolingSuffix}`,
       instructions:
         "Sono partner in raffreddamento non contattati da 7+ giorni. Chiamali uno a uno: " +
         "quando parli con il referente usa 'Marca come contattato' per loggare la chiamata e " +
@@ -341,13 +367,23 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
     });
   }
 
-  const draftsCount = (draftsPending as { count?: number }).count ?? 0;
+  const draftsData =
+    (draftsPending as { data?: Array<{ id: string; created_at: string }> }).data ?? [];
+  const draftsCount = draftsData.length;
   if (draftsCount > 0) {
+    const oldestIso = draftsData[0]?.created_at;
+    let suffix = "";
+    if (oldestIso) {
+      const days = Math.floor((Date.now() - new Date(oldestIso).getTime()) / (24 * 3600 * 1000));
+      if (days >= 1) {
+        suffix = days === 1 ? " (la piu' vecchia da 1 giorno)" : ` (la piu' vecchia da ${days} giorni)`;
+      }
+    }
     important.push({
       id: "drafts-pending",
       priority: "important",
       iconName: "FileEdit",
-      label: `${draftsCount} bozz${draftsCount === 1 ? "a" : "e"} da approvare`,
+      label: `${draftsCount} bozz${draftsCount === 1 ? "a" : "e"} da approvare${suffix}`,
       count: draftsCount,
       href: "/contenuti/sessione",
       module: "m03",
@@ -401,13 +437,22 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
     });
   }
 
-  const abandonmentMediumCount = (abandonmentMedium as { count?: number }).count ?? 0;
+  const abandonmentMediumData =
+    (abandonmentMedium as { data?: Array<{ id: string; signal_at: string }> }).data ?? [];
+  const abandonmentMediumCount = abandonmentMediumData.length;
   if (abandonmentMediumCount > 0) {
+    const latestIso = abandonmentMediumData[0]?.signal_at;
+    const latestStr = latestIso
+      ? ` (ultimo ${new Date(latestIso).toLocaleDateString("it-IT", {
+          day: "2-digit",
+          month: "short",
+        })})`
+      : "";
     opportunity.push({
       id: "abandonment-medium",
       priority: "opportunity",
       iconName: "AlertTriangle",
-      label: `${abandonmentMediumCount} segnal${abandonmentMediumCount === 1 ? "e" : "i"} abbandono media gravita`,
+      label: `${abandonmentMediumCount} segnal${abandonmentMediumCount === 1 ? "e" : "i"} abbandono media gravita${latestStr}`,
       count: abandonmentMediumCount,
       href: "/anti-abbandono",
       module: "m09",
