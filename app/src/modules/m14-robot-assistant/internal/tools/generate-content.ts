@@ -13,7 +13,14 @@
 import { z } from "zod";
 import { getAdminClient } from "@/lib/db/admin";
 import { generateText } from "@/lib/ai/gemini";
-import { logSpend, assertBudgetOk, AiBudgetExceededError } from "@/modules/m11-admin/public";
+import {
+  logSpend,
+  assertBudgetOk,
+  AiBudgetExceededError,
+  assertAiEnabled,
+  AiKillSwitchError,
+} from "@/modules/m11-admin/public";
+import { logAuditEvent } from "@/lib/audit/log";
 import type { RobotTool } from "./tool-types";
 
 const InputSchema = z.object({
@@ -89,7 +96,20 @@ export const generateContentDraftTool: RobotTool = {
       return { error: "brand_archiviato", message: "Non posso generare per un brand archiviato" };
     }
 
-    // 2. Budget gate
+    // 2a. Kill switch AI globale (RF-11.4)
+    try {
+      await assertAiEnabled(session.organizationId);
+    } catch (err) {
+      if (err instanceof AiKillSwitchError) {
+        return {
+          error: "ai_disabled",
+          message: "Le generazioni AI sono state sospese dall'owner.",
+        };
+      }
+      return { error: "ai_check_fail", message: "Controllo kill switch fallito." };
+    }
+
+    // 2b. Budget gate
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await assertBudgetOk(session.organizationId, "anthropic-robot" as any);
@@ -151,6 +171,31 @@ export const generateContentDraftTool: RobotTool = {
         tokensOut: gen.tokensOut,
         targetType: "content_draft",
         targetId: inserted.id,
+      });
+    } catch {
+      /* non bloccante */
+    }
+
+    // 6. Audit event dedicato (RF-11.3): oltre a quello generico del tool
+    // loop, lasciamo traccia esplicita 'robot.content.generated' con metadata
+    // non PII (brand + draft id + model + tokens + costUsd). Data minimization:
+    // NO theme_input (puo' contenere info sensibili dell'utente).
+    try {
+      await logAuditEvent({
+        organizationId: session.organizationId,
+        actorUserId: session.userId,
+        actorKind: "agent",
+        action: "robot.content.generated",
+        target: `brand:${brandId}`,
+        details: {
+          source: "robot-assistant",
+          draft_id: inserted.id,
+          model: gen.model,
+          tokens_in: gen.tokensIn,
+          tokens_out: gen.tokensOut,
+          cost_usd: gen.costUsd,
+          theme_input_length: themeInput.length,
+        },
       });
     } catch {
       /* non bloccante */
