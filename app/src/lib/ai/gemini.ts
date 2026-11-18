@@ -38,6 +38,62 @@ const EMBEDDING_MODEL = "gemini-embedding-2"; // default 3072d, supporta flexibl
 const EMBEDDING_DIM = 768; // il nostro schema manuale_chunks e' vector(768)
 
 /**
+ * Generazione di testo semplice (non-streaming, no tools).
+ * Usato per generazione bozze contenuti dal robottino (variante Gemini
+ * di generateSocialPost di m03, che usa Anthropic).
+ */
+export async function generateText(input: {
+  systemPrompt: string;
+  userMessage: string;
+  model?: string;
+  maxTokens?: number;
+}): Promise<{
+  text: string;
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+  latencyMs: number;
+}> {
+  const client = getClient();
+  const model = input.model ?? DEFAULT_MODEL;
+  const started = Date.now();
+
+  try {
+    const response = await client.models.generateContent({
+      model,
+      contents: [{ role: "user", parts: [{ text: input.userMessage }] }],
+      config: {
+        systemInstruction: input.systemPrompt,
+        maxOutputTokens: input.maxTokens ?? 1024,
+      },
+    });
+    const latencyMs = Date.now() - started;
+
+    const parts = response.candidates?.[0]?.content?.parts ?? [];
+    const text = parts
+      .map((p) => ("text" in p && p.text ? p.text : ""))
+      .filter(Boolean)
+      .join("");
+    if (!text) throw new AiApiError(500, "Gemini: risposta senza testo");
+
+    const usage = response.usageMetadata;
+    const tokensIn = usage?.promptTokenCount ?? 0;
+    const tokensOut = usage?.candidatesTokenCount ?? 0;
+    const costUsd =
+      (tokensIn * PRICE_INPUT_PER_M_USD + tokensOut * PRICE_OUTPUT_PER_M_USD) / 1_000_000;
+
+    return { text, model, tokensIn, tokensOut, costUsd, latencyMs };
+  } catch (err) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const e = err as any;
+    if (e?.status === 429) throw new AiRateLimitError(null);
+    if (e?.name === "AbortError") throw new AiTimeoutError("Gemini generateText aborted");
+    throw new AiApiError(e?.status ?? 500, e?.message ?? "Gemini generateText error");
+  }
+}
+
+/**
  * Embed one or more testi con Gemini text-embedding-004 (768 dimensioni).
  * Usato per RAG (indicizzazione manuale) e similarity search.
  */
