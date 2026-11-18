@@ -20,14 +20,11 @@ export async function resolveBrandSelection(
   actionId: string,
   brandId: string,
 ): Promise<ResolveBrandResult> {
-  const pending = await takePending(actionId);
+  const pending = await takePending(actionId, session.userId);
   if (!pending) {
     return { ok: false, status: 404, error: "action_not_found_or_expired" };
   }
-  if (
-    pending.session.userId !== session.userId ||
-    pending.session.organizationId !== session.organizationId
-  ) {
+  if (pending.organizationId !== session.organizationId) {
     return { ok: false, status: 403, error: "forbidden" };
   }
   if (!pending.needsBrandSelection) {
@@ -48,7 +45,8 @@ export async function resolveBrandSelection(
   };
   const newPending = await savePending({
     conversationId: pending.conversationId,
-    session: pending.session,
+    userId: pending.userId,
+    organizationId: pending.organizationId,
     pageContext: pending.pageContext,
     toolName: pending.toolName,
     toolInput: updatedInput,

@@ -27,16 +27,13 @@ export async function confirmPendingAction(
   actionId: string,
   confirmed: boolean,
 ): Promise<ConfirmResult> {
-  const pending = await takePending(actionId);
+  const pending = await takePending(actionId, session.userId);
   if (!pending) {
     return { ok: false, status: 404, error: "action_not_found_or_expired" };
   }
 
-  // IDOR guard
-  if (
-    pending.session.userId !== session.userId ||
-    pending.session.organizationId !== session.organizationId
-  ) {
+  // IDOR secondary check (takePending gia' filtra per user_id a livello DB)
+  if (pending.organizationId !== session.organizationId) {
     return { ok: false, status: 403, error: "forbidden" };
   }
 

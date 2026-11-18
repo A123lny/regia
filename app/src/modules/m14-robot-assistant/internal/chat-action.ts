@@ -329,7 +329,8 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
           const brands = await listBrands(input.session.organizationId, "active");
           const pending = await savePending({
             conversationId: convId,
-            session: input.session,
+            userId: input.session.userId,
+            organizationId: input.session.organizationId,
             pageContext: input.pageContext,
             toolName: tc.name,
             toolInput: tc.input,
@@ -353,7 +354,8 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
 
         const pending = await savePending({
           conversationId: convId,
-          session: input.session,
+          userId: input.session.userId,
+          organizationId: input.session.organizationId,
           pageContext: input.pageContext,
           toolName: tc.name,
           toolInput: tc.input,

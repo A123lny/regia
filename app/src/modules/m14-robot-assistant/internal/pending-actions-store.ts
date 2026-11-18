@@ -1,15 +1,21 @@
 // RN-robot T8 v2: pending actions store su DB (robot_pending_actions).
 // Sostituisce il vecchio in-memory Map che si perdeva tra cold start Vercel.
 // TTL 5 minuti via expires_at. IDOR: user_id + organization_id nella tabella.
+//
+// NOTA security: NON persistiamo il role dell'utente perche' sarebbe stale
+// al momento del consume (l'utente potrebbe aver cambiato ruolo nel frattempo
+// o esserci timing-attack su privilege). Il consumer ricostruisce la session
+// corrente dal request e la usa per capability check + execute.
 
 import { getAdminClient } from "@/lib/db/admin";
-import type { Session } from "@/lib/auth/session";
 import type { RobotPageContext } from "./types";
 
 export type PendingAction = {
   id: string;
   conversationId: string;
-  session: Session;
+  // Identita' creator per IDOR guard (comparati con session.userId/orgId del caller).
+  userId: string;
+  organizationId: string;
   pageContext: RobotPageContext;
   toolName: string;
   toolInput: unknown;
@@ -28,8 +34,8 @@ export async function savePending(
     .from("robot_pending_actions")
     .insert({
       conversation_id: action.conversationId,
-      user_id: action.session.userId,
-      organization_id: action.session.organizationId,
+      user_id: action.userId,
+      organization_id: action.organizationId,
       tool_name: action.toolName,
       tool_input: action.toolInput,
       tool_use_id: action.toolUseId,
@@ -49,20 +55,26 @@ export async function savePending(
   };
 }
 
-export async function takePending(id: string): Promise<PendingAction | null> {
+/**
+ * Prende atomicamente (DELETE ... RETURNING) la pending valida (non scaduta).
+ * Scoped sull'utente caller per difesa in profondita' oltre all'IDOR check.
+ */
+export async function takePending(
+  id: string,
+  callerUserId: string,
+): Promise<PendingAction | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  // Prima leggo (anche per verificare scadenza), poi cancello (one-shot).
+  // Atomic: delete + select = row ritornata solo se match (TTL + user).
   const { data, error } = await admin
     .from("robot_pending_actions")
-    .select("*")
+    .delete()
     .eq("id", id)
+    .eq("user_id", callerUserId)
     .gte("expires_at", new Date().toISOString())
+    .select("*")
     .maybeSingle();
   if (error || !data) return null;
-
-  // One-shot: elimino subito così non riuso
-  await admin.from("robot_pending_actions").delete().eq("id", id);
 
   const row = data as {
     id: string;
@@ -78,19 +90,11 @@ export async function takePending(id: string): Promise<PendingAction | null> {
     created_at: string;
   };
 
-  const session: Session = {
-    userId: row.user_id,
-    // role non serve per il check IDOR (basta user+org match); il chiamante
-    // ha la propria session con role corretto. Per compatibilita' struttura:
-    role: "owner" as Session["role"],
-    organizationId: row.organization_id,
-    previousLoginAt: null,
-  };
-
   return {
     id: row.id,
     conversationId: row.conversation_id,
-    session,
+    userId: row.user_id,
+    organizationId: row.organization_id,
     pageContext: row.page_context,
     toolName: row.tool_name,
     toolInput: row.tool_input,
