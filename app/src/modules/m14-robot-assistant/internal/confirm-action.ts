@@ -1,11 +1,20 @@
 // RN-robot T8: logica di conferma/rifiuto di una pending action.
 // Espone un'unica funzione per la rotta /api/robot/confirm.
 
+import { revalidatePath } from "next/cache";
 import type { Session } from "@/lib/auth/session";
 import { hasCapability, type Capability } from "@/lib/auth/permissions";
 import { logAuditEvent } from "@/lib/audit/log";
 import { takePending } from "./pending-actions-store";
 import { ROBOT_TOOLS } from "./tools/registry";
+
+// Mappa tool -> path da ri-renderizzare dopo l'esecuzione. Defense in depth
+// sopra il revalidatePath che i Server Action di dominio fanno gia'.
+const PATHS_BY_TOOL: Record<string, string[]> = {
+  createContact: ["/contatti"],
+  updateContact: ["/contatti"],
+  deleteContact: ["/contatti"],
+};
 
 export type ConfirmResult =
   | { ok: true; rejected: true }
@@ -84,6 +93,12 @@ export async function confirmPendingAction(
         tool_output_keys: outputKeys,
       },
     });
+
+    // Invalida le path server component toccate dal tool: il client fa anche
+    // router.refresh() ma il revalidatePath lato server garantisce fresh data.
+    for (const path of PATHS_BY_TOOL[pending.toolName] ?? []) {
+      revalidatePath(path);
+    }
 
     return { ok: true, rejected: false, output };
   } catch (err) {
