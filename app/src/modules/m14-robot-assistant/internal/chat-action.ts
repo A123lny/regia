@@ -28,6 +28,7 @@ import { ROBOT_TOOLS, getToolsForRole, toAnthropicTools, type RobotTool } from "
 import { checkRateLimit } from "./rate-limiter";
 import { getRobotAccess } from "./role-access-repo";
 import { savePending } from "./pending-actions-store";
+import { saveMessage } from "./message-repo";
 
 export type ChatSseEvent =
   | { type: "conversation_started"; id: string }
@@ -139,6 +140,14 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
     yield { type: "conversation_started", id: convId };
   }
 
+  // Salva il messaggio utente per cronologia (data minimization: lo salviamo
+  // integro perche' e' input dell'utente stesso, non PII di terzi).
+  await saveMessage({
+    conversationId: convId,
+    role: "user",
+    content: input.userMessage,
+  });
+
   // 2. Tool set per ruolo (T8: esponiamo read + write + destructive; i write
   // e destructive passano dal confirm flow — non vengono eseguiti direttamente).
   const availableTools = getToolsForRole(input.session.role, [
@@ -218,6 +227,14 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
           if (pendingToolCalls.length === 0) {
             yield event;
             await touchConversation(convId);
+            // Salva risposta assistant per cronologia (solo testo finale)
+            if (textAccumulated.length > 0) {
+              await saveMessage({
+                conversationId: convId,
+                role: "assistant",
+                content: textAccumulated,
+              });
+            }
             return;
           }
           // Eseguo i tool, aggiungo blocchi a history e continuo loop

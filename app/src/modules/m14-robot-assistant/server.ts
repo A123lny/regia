@@ -14,3 +14,9 @@ export type { ConfirmResult } from "./internal/confirm-action";
 
 export { resolveBrandSelection } from "./internal/resolve-brand-action";
 export type { ResolveBrandResult } from "./internal/resolve-brand-action";
+
+export {
+  listUserConversations,
+  getConversationMessages,
+} from "./internal/message-repo";
+export type { ConversationSummary, RobotMessageRow } from "./internal/message-repo";
