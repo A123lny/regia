@@ -342,16 +342,21 @@ function formatDueLabel(
   const startOfDue = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime();
   const diffDays = Math.round((startOfDue - startOfToday) / (24 * 3600 * 1000));
 
-  if (diffDays === 0) return { text: "oggi", isToday: true, isSoon: true };
-  if (diffDays === 1) return { text: "domani", isToday: false, isSoon: true };
-  if (diffDays === -1) return { text: "ieri (in ritardo)", isToday: false, isSoon: false };
+  const dayMonth = due.toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
+  if (diffDays === 0) return { text: `oggi · ${dayMonth}`, isToday: true, isSoon: true };
+  if (diffDays === 1) return { text: `domani · ${dayMonth}`, isToday: false, isSoon: true };
+  if (diffDays === -1) return { text: `ieri · ${dayMonth} (in ritardo)`, isToday: false, isSoon: false };
   if (diffDays < -1) {
-    return { text: `${Math.abs(diffDays)} giorni fa`, isToday: false, isSoon: false };
+    return {
+      text: `${Math.abs(diffDays)} giorni fa · ${dayMonth}`,
+      isToday: false,
+      isSoon: false,
+    };
   }
   if (diffDays <= 7) {
     const wd = WEEKDAYS_IT[due.getDay()];
     return {
-      text: `${wd} ${due.toLocaleDateString("it-IT", { day: "2-digit", month: "short" })}`,
+      text: `${wd} ${dayMonth}`,
       isToday: false,
       isSoon: true,
     };
