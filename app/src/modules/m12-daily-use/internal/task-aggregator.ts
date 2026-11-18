@@ -356,11 +356,15 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
 
   const remindersCount = (remindersPending as { count?: number }).count ?? 0;
   if (remindersCount > 0) {
+    const todayStr = new Date().toLocaleDateString("it-IT", {
+      day: "2-digit",
+      month: "short",
+    });
     important.push({
       id: "reminders-today",
       priority: "important",
       iconName: "BellRing",
-      label: `${remindersCount} promemoria da gestire oggi`,
+      label: `${remindersCount} promemoria da gestire oggi (${todayStr})`,
       count: remindersCount,
       href: "/promemoria",
       module: "m09",
@@ -369,11 +373,16 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
 
   const vouchersExpiringCount = (vouchersExpiring as { count?: number }).count ?? 0;
   if (vouchersExpiringCount > 0) {
+    const limitDate = new Date(Date.now() + 10 * 24 * 3600 * 1000);
+    const limitStr = limitDate.toLocaleDateString("it-IT", {
+      day: "2-digit",
+      month: "short",
+    });
     important.push({
       id: "vouchers-expiring",
       priority: "important",
       iconName: "Clock",
-      label: `${vouchersExpiringCount} voucher in scadenza nei prossimi 10gg`,
+      label: `${vouchersExpiringCount} voucher in scadenza entro ${limitStr}`,
       count: vouchersExpiringCount,
       href: "/fedelta",
       module: "m06",
