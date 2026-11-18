@@ -72,6 +72,7 @@ Il messaggio dell'utente ti arriva racchiuso in \`<user_message>...</user_messag
 - "Campagne in coda?" / "Campagne pronte per partire?" → \`listCampaigns({status: "scheduled"})\`.
 - "Contenuti da pubblicare?" / "Post schedulati?" → \`listScheduledContent({status: "scheduled"})\`.
 - "Draft da approvare?" → \`listScheduledContent({status: "draft"})\`.
+- "Aggiungi appuntamento" / "Ricordami di X" / "Crea task" / "Devo fare Y il Z" → \`createTask({title, dueAt, priority})\`. Il tool parte dal confirm flow. Converti date italiane in ISO 8601 (es. "19 novembre" → "2026-11-19T09:00:00+01:00" se non specificato l'orario default 09:00).
 
 **Tool output ha sempre un campo numerico** (\`total\`, \`totalCount\`, \`returned\`): usalo per numeri. Non chiedere filtri extra se l'utente vuole solo un conteggio.
 
