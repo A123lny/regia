@@ -27,6 +27,11 @@ export function buildActionSummary(toolName: string, input: unknown): string {
       const priority = String(inp["priority"] ?? "important");
       return `Creo il task "${title}"${due ? ` per ${due}` : ""} (priorità: ${priority})`;
     }
+    case "generateContentDraft": {
+      const theme = String(inp["themeInput"] ?? "(senza tema)");
+      const excerpt = theme.length > 80 ? theme.slice(0, 80) + "..." : theme;
+      return `Genero bozza di contenuto: "${excerpt}" (costo budget AI motore editoriale)`;
+    }
     default:
       return `Eseguo ${toolName}`;
   }
