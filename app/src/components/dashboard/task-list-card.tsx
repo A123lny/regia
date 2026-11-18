@@ -318,6 +318,51 @@ function SignalDetailItemCard({
   );
 }
 
+const WEEKDAYS_IT = [
+  "domenica",
+  "lunedi",
+  "martedi",
+  "mercoledi",
+  "giovedi",
+  "venerdi",
+  "sabato",
+] as const;
+
+/**
+ * Trasforma una data in etichetta umana leggibile.
+ * "oggi" / "domani" / "mercoledi 20 nov" / "27 nov" / "3 giorni fa".
+ */
+function formatDueLabel(
+  due: Date | null,
+  nowTs: number,
+): { text: string; isToday: boolean; isSoon: boolean } | null {
+  if (!due) return null;
+  const now = new Date(nowTs);
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfDue = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime();
+  const diffDays = Math.round((startOfDue - startOfToday) / (24 * 3600 * 1000));
+
+  if (diffDays === 0) return { text: "oggi", isToday: true, isSoon: true };
+  if (diffDays === 1) return { text: "domani", isToday: false, isSoon: true };
+  if (diffDays === -1) return { text: "ieri (in ritardo)", isToday: false, isSoon: false };
+  if (diffDays < -1) {
+    return { text: `${Math.abs(diffDays)} giorni fa`, isToday: false, isSoon: false };
+  }
+  if (diffDays <= 7) {
+    const wd = WEEKDAYS_IT[due.getDay()];
+    return {
+      text: `${wd} ${due.toLocaleDateString("it-IT", { day: "2-digit", month: "short" })}`,
+      isToday: false,
+      isSoon: true,
+    };
+  }
+  return {
+    text: due.toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" }),
+    isToday: false,
+    isSoon: false,
+  };
+}
+
 function CustomTaskRow({
   task,
   users,
@@ -354,10 +399,11 @@ function CustomTaskRow({
 
   const dueDate = task.dueAt ? new Date(task.dueAt) : null;
   const isOverdue = dueDate !== null && !isDone && !isCancelled && dueDate.getTime() < nowTs;
+  const dueLabel = formatDueLabel(dueDate, nowTs);
 
   return (
     <div
-      className={`group flex items-start gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-surface-muted ${
+      className={`group flex items-start gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-surface-muted ${
         isDone ? "opacity-60" : ""
       } ${isCancelled ? "opacity-40 line-through" : ""}`}
     >
@@ -369,10 +415,10 @@ function CustomTaskRow({
         className="mt-0.5 shrink-0"
       >
         {isDone ? (
-          <CheckIcon className="h-4 w-4 rounded-full bg-success p-0.5 text-white" />
+          <CheckIcon className="h-5 w-5 rounded-full bg-success p-0.5 text-white" />
         ) : (
           <Circle
-            className={`h-4 w-4 ${
+            className={`h-5 w-5 ${
               task.priority === "urgent"
                 ? "text-danger"
                 : task.priority === "important"
@@ -383,19 +429,30 @@ function CustomTaskRow({
         )}
       </button>
       <div className="min-w-0 flex-1">
-        <div className={`text-text ${isDone ? "line-through" : ""}`}>{task.title}</div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-text-muted">
-          {assignee && (
-            <span className="inline-flex items-center gap-1">
-              <User className="h-2.5 w-2.5" />
-              {assignee.email.split("@")[0]}
+        <div className={`font-medium text-text ${isDone ? "line-through" : ""}`}>
+          {task.title}
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-text-muted">
+          {dueLabel && (
+            <span
+              className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-semibold ${
+                isOverdue
+                  ? "bg-danger/15 text-danger"
+                  : dueLabel.isToday
+                    ? "bg-warning/15 text-warning"
+                    : dueLabel.isSoon
+                      ? "bg-primary/15 text-primary"
+                      : "bg-muted text-text"
+              }`}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              {dueLabel.text}
             </span>
           )}
-          {dueDate && (
-            <span className={`inline-flex items-center gap-1 ${isOverdue ? "text-danger" : ""}`}>
-              <Calendar className="h-2.5 w-2.5" />
-              {dueDate.toLocaleDateString("it-IT", { day: "2-digit", month: "short" })}
-              {isOverdue && " · in ritardo"}
+          {assignee && (
+            <span className="inline-flex items-center gap-1">
+              <User className="h-3 w-3" />
+              {assignee.email.split("@")[0]}
             </span>
           )}
           {task.createdBy !== currentUserId && !assignee && (
