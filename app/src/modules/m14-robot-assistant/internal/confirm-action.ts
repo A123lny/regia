@@ -27,7 +27,7 @@ export async function confirmPendingAction(
   actionId: string,
   confirmed: boolean,
 ): Promise<ConfirmResult> {
-  const pending = takePending(actionId);
+  const pending = await takePending(actionId);
   if (!pending) {
     return { ok: false, status: 404, error: "action_not_found_or_expired" };
   }

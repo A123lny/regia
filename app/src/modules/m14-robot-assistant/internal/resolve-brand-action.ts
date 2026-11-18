@@ -20,7 +20,7 @@ export async function resolveBrandSelection(
   actionId: string,
   brandId: string,
 ): Promise<ResolveBrandResult> {
-  const pending = takePending(actionId);
+  const pending = await takePending(actionId);
   if (!pending) {
     return { ok: false, status: 404, error: "action_not_found_or_expired" };
   }
@@ -46,7 +46,7 @@ export async function resolveBrandSelection(
     ...((pending.toolInput ?? {}) as Record<string, unknown>),
     brandId,
   };
-  const newPending = savePending({
+  const newPending = await savePending({
     conversationId: pending.conversationId,
     session: pending.session,
     pageContext: pending.pageContext,
