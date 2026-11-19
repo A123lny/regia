@@ -67,6 +67,12 @@ export function buildActionSummary(toolName: string, input: unknown): string {
       const outcome = inp["outcome"] ? ` (${inp["outcome"]})` : "";
       return `Registro attività '${kind}'${outcome} con fornitore ${inp["partnerId"]}`;
     }
+    case "dismissReminder":
+      return `Chiudo il promemoria ${inp["reminderId"]} (senza inviare)`;
+    case "markReminderSent":
+      return `Marco il promemoria ${inp["reminderId"]} come già inviato manualmente`;
+    case "sendReminderNow":
+      return `Invio SUBITO il promemoria ${inp["reminderId"]} via SMS/email/WhatsApp`;
     default:
       return `Eseguo ${toolName}`;
   }

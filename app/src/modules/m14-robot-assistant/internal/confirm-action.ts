@@ -27,6 +27,9 @@ const PATHS_BY_TOOL: Record<string, string[]> = {
   rejectContentDraft: ["/contenuti", "/contenuti/sessione"],
   scheduleContentDraft: ["/contenuti", "/contenuti/calendario"],
   deleteContentDraft: ["/contenuti"],
+  dismissReminder: ["/promemoria", "/dashboard", "/"],
+  markReminderSent: ["/promemoria", "/dashboard", "/"],
+  sendReminderNow: ["/promemoria", "/dashboard", "/"],
 };
 
 export type ConfirmResult =

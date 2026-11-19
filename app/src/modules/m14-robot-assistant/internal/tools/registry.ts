@@ -38,6 +38,11 @@ import {
   archivePartnerTool,
   logPartnerActivityTool,
 } from "./partners-workflow";
+import {
+  dismissReminderTool,
+  markReminderSentTool,
+  sendReminderNowTool,
+} from "./reminders-workflow";
 
 export const ROBOT_TOOLS: Record<string, RobotTool> = {
   describePage: describePageTool,
@@ -67,6 +72,9 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   createPartner: createPartnerTool,
   archivePartner: archivePartnerTool,
   logPartnerActivity: logPartnerActivityTool,
+  dismissReminder: dismissReminderTool,
+  markReminderSent: markReminderSentTool,
+  sendReminderNow: sendReminderNowTool,
 };
 
 export function getToolsForRole(
