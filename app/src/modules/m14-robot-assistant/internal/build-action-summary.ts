@@ -92,6 +92,11 @@ export function buildActionSummary(toolName: string, input: unknown): string {
       return `Archivio il brand ${inp["brandId"]}`;
     case "restoreBrand":
       return `Ripristino il brand ${inp["brandId"]}`;
+    case "createOffer": {
+      const name = String(inp["name"] ?? "(senza nome)");
+      const kind = String(inp["rewardKind"] ?? "?");
+      return `Creo offer "${name}" (reward: ${kind})`;
+    }
     default:
       return `Eseguo ${toolName}`;
   }

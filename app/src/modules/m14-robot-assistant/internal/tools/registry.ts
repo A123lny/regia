@@ -54,6 +54,12 @@ import {
   archiveBrandTool,
   restoreBrandTool,
 } from "./brands-workflow";
+import {
+  listOffersTool,
+  createOfferTool,
+  listOrdersTool,
+  getAnalyticsTool,
+} from "./offers-orders-analytics";
 
 export const ROBOT_TOOLS: Record<string, RobotTool> = {
   describePage: describePageTool,
@@ -93,6 +99,10 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   updateBrand: updateBrandTool,
   archiveBrand: archiveBrandTool,
   restoreBrand: restoreBrandTool,
+  listOffers: listOffersTool,
+  createOffer: createOfferTool,
+  listOrders: listOrdersTool,
+  getAnalytics: getAnalyticsTool,
 };
 
 export function getToolsForRole(

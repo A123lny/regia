@@ -35,6 +35,7 @@ const PATHS_BY_TOOL: Record<string, string[]> = {
   updateBrand: ["/marchi", "/"],
   archiveBrand: ["/marchi", "/"],
   restoreBrand: ["/marchi", "/"],
+  createOffer: ["/fedelta"],
 };
 
 export type ConfirmResult =
