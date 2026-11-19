@@ -10,6 +10,7 @@ import {
   getLoyaltyAnalytics,
   getOutreachAnalytics,
 } from "@/modules/m08-analytics/public";
+import { hasCapability, type Capability } from "@/lib/auth/permissions";
 import type { RobotTool } from "./tool-types";
 
 // ============================================================
@@ -30,7 +31,7 @@ export const listOffersTool: RobotTool = {
     },
     additionalProperties: false,
   },
-  requiredCapability: null,
+  requiredCapability: "loyalty.read",
   kind: "read",
   execute: async (rawInput, ctx) => {
     const parsed = ListOffersSchema.safeParse(rawInput ?? {});
@@ -180,7 +181,7 @@ export const listOrdersTool: RobotTool = {
     },
     additionalProperties: false,
   },
-  requiredCapability: null,
+  requiredCapability: "orders.read",
   kind: "read",
   execute: async (rawInput, ctx) => {
     const parsed = ListOrdersSchema.safeParse(rawInput ?? {});
@@ -238,13 +239,30 @@ export const getAnalyticsTool: RobotTool = {
     required: ["topic"],
     additionalProperties: false,
   },
-  requiredCapability: null,
+  // Capability per-topic: contacts/outreach -> marketing.read (owner+editor),
+  // orders/loyalty -> commercial.read (owner only). analytics.read come gate base.
+  requiredCapability: "analytics.read",
   kind: "read",
   execute: async (rawInput, ctx) => {
     const parsed = AnalyticsSchema.safeParse(rawInput ?? {});
     if (!parsed.success) return { error: "input_invalido", details: parsed.error.message };
     const { topic, period } = parsed.data;
     const orgId = ctx.session.organizationId;
+
+    // Check capability specifica per topic (defense in depth sopra il gate base)
+    const topicCap: Record<typeof topic, Capability> = {
+      contacts: "analytics.marketing.read",
+      outreach: "analytics.marketing.read",
+      orders: "analytics.commercial.read",
+      loyalty: "analytics.commercial.read",
+    };
+    if (!hasCapability(ctx.session.role, topicCap[topic])) {
+      return {
+        error: "capability_mancante",
+        message: `Serve capability ${topicCap[topic]} per '${topic}' analytics.`,
+      };
+    }
+
     switch (topic) {
       case "contacts":
         return { topic, period, data: await getContactsAnalytics(orgId, period) };

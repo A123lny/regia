@@ -39,7 +39,7 @@ export const listRemindersTool: RobotTool = {
     },
     additionalProperties: false,
   },
-  requiredCapability: null,
+  requiredCapability: "reminders.read",
   kind: "read",
   execute: async (rawInput, ctx) => {
     const parsed = InputSchema.safeParse(rawInput ?? {});

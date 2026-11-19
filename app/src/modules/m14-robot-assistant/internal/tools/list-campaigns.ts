@@ -27,7 +27,7 @@ export const listCampaignsTool: RobotTool = {
     },
     additionalProperties: false,
   },
-  requiredCapability: null,
+  requiredCapability: "campaign.read",
   kind: "read",
   execute: async (rawInput, ctx) => {
     const parsed = InputSchema.safeParse(rawInput ?? {});

@@ -29,7 +29,7 @@ export const listSegmentsTool: RobotTool = {
     },
     additionalProperties: false,
   },
-  requiredCapability: null,
+  requiredCapability: "segment.read",
   kind: "read",
   execute: async (rawInput, ctx) => {
     const parsed = ListSegmentsSchema.safeParse(rawInput ?? {});
@@ -74,7 +74,7 @@ export const listVouchersTool: RobotTool = {
     },
     additionalProperties: false,
   },
-  requiredCapability: null,
+  requiredCapability: "loyalty.read",
   kind: "read",
   execute: async (rawInput, ctx) => {
     const parsed = ListVouchersSchema.safeParse(rawInput ?? {});
