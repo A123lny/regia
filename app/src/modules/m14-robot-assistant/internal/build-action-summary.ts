@@ -55,6 +55,18 @@ export function buildActionSummary(toolName: string, input: unknown): string {
         .join(", ");
       return `Modifico il task ${inp["taskId"]}: ${changes || "nessuna modifica"}`;
     }
+    case "createPartner": {
+      const name = String(inp["name"] ?? "(senza nome)");
+      const cuisine = inp["cuisineCategory"] ? ` (${inp["cuisineCategory"]})` : "";
+      return `Creo il fornitore "${name}"${cuisine}`;
+    }
+    case "archivePartner":
+      return `Archivio il fornitore ${inp["partnerId"]}`;
+    case "logPartnerActivity": {
+      const kind = String(inp["kind"] ?? "note");
+      const outcome = inp["outcome"] ? ` (${inp["outcome"]})` : "";
+      return `Registro attività '${kind}'${outcome} con fornitore ${inp["partnerId"]}`;
+    }
     default:
       return `Eseguo ${toolName}`;
   }

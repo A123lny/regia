@@ -32,6 +32,12 @@ import {
   cancelTaskTool,
   updateTaskTool,
 } from "./tasks-workflow";
+import {
+  listPartnersTool,
+  createPartnerTool,
+  archivePartnerTool,
+  logPartnerActivityTool,
+} from "./partners-workflow";
 
 export const ROBOT_TOOLS: Record<string, RobotTool> = {
   describePage: describePageTool,
@@ -57,6 +63,10 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   reopenTask: reopenTaskTool,
   cancelTask: cancelTaskTool,
   updateTask: updateTaskTool,
+  listPartners: listPartnersTool,
+  createPartner: createPartnerTool,
+  archivePartner: archivePartnerTool,
+  logPartnerActivity: logPartnerActivityTool,
 };
 
 export function getToolsForRole(
