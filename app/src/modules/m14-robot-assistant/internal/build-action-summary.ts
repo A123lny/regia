@@ -76,6 +76,22 @@ export function buildActionSummary(toolName: string, input: unknown): string {
     case "issueVoucher": {
       return `Emetto un voucher (offerId ${inp["offerId"]}) per il contatto ${inp["contactId"]}`;
     }
+    case "createBrand": {
+      const name = String(inp["displayName"] ?? "(senza nome)");
+      const slug = String(inp["slug"] ?? "?");
+      return `Creo il brand "${name}" (slug: ${slug}, colore: ${inp["color"]})`;
+    }
+    case "updateBrand": {
+      const patch = (inp["patch"] ?? {}) as Record<string, unknown>;
+      const changes = Object.entries(patch)
+        .map(([k, v]) => `${k}=${v === null ? "(vuoto)" : JSON.stringify(v)}`)
+        .join(", ");
+      return `Modifico il brand ${inp["brandId"]}: ${changes || "nessuna modifica"}`;
+    }
+    case "archiveBrand":
+      return `Archivio il brand ${inp["brandId"]}`;
+    case "restoreBrand":
+      return `Ripristino il brand ${inp["brandId"]}`;
     default:
       return `Eseguo ${toolName}`;
   }

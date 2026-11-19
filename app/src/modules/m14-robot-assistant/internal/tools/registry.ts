@@ -48,6 +48,12 @@ import {
   listVouchersTool,
   issueVoucherTool,
 } from "./segments-vouchers";
+import {
+  createBrandTool,
+  updateBrandTool,
+  archiveBrandTool,
+  restoreBrandTool,
+} from "./brands-workflow";
 
 export const ROBOT_TOOLS: Record<string, RobotTool> = {
   describePage: describePageTool,
@@ -83,6 +89,10 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   listSegments: listSegmentsTool,
   listVouchers: listVouchersTool,
   issueVoucher: issueVoucherTool,
+  createBrand: createBrandTool,
+  updateBrand: updateBrandTool,
+  archiveBrand: archiveBrandTool,
+  restoreBrand: restoreBrandTool,
 };
 
 export function getToolsForRole(

@@ -31,6 +31,10 @@ const PATHS_BY_TOOL: Record<string, string[]> = {
   markReminderSent: ["/promemoria", "/dashboard", "/"],
   sendReminderNow: ["/promemoria", "/dashboard", "/"],
   issueVoucher: ["/fedelta", "/contatti"],
+  createBrand: ["/marchi", "/"],
+  updateBrand: ["/marchi", "/"],
+  archiveBrand: ["/marchi", "/"],
+  restoreBrand: ["/marchi", "/"],
 };
 
 export type ConfirmResult =
