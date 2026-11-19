@@ -73,6 +73,9 @@ export function buildActionSummary(toolName: string, input: unknown): string {
       return `Marco il promemoria ${inp["reminderId"]} come già inviato manualmente`;
     case "sendReminderNow":
       return `Invio SUBITO il promemoria ${inp["reminderId"]} via SMS/email/WhatsApp`;
+    case "issueVoucher": {
+      return `Emetto un voucher (offerId ${inp["offerId"]}) per il contatto ${inp["contactId"]}`;
+    }
     default:
       return `Eseguo ${toolName}`;
   }

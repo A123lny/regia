@@ -43,6 +43,11 @@ import {
   markReminderSentTool,
   sendReminderNowTool,
 } from "./reminders-workflow";
+import {
+  listSegmentsTool,
+  listVouchersTool,
+  issueVoucherTool,
+} from "./segments-vouchers";
 
 export const ROBOT_TOOLS: Record<string, RobotTool> = {
   describePage: describePageTool,
@@ -75,6 +80,9 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   dismissReminder: dismissReminderTool,
   markReminderSent: markReminderSentTool,
   sendReminderNow: sendReminderNowTool,
+  listSegments: listSegmentsTool,
+  listVouchers: listVouchersTool,
+  issueVoucher: issueVoucherTool,
 };
 
 export function getToolsForRole(
