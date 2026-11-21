@@ -28,6 +28,7 @@ import { ChannelPreviews } from "./channel-previews";
 import { SeoHintsCard } from "./seo-hints-card";
 import { UtmPreviewCard } from "@/components/editorial/utm-preview-card";
 import { TopicLabelEditor } from "@/components/editorial/topic-label-editor";
+import { DraftTextEditor } from "@/components/editorial/draft-text-editor";
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("it-IT", {
@@ -121,6 +122,13 @@ export default async function DraftDetailPage({
             <TopicLabelEditor
               draftId={draft.id}
               currentLabel={draft.topicLabel}
+              disabled={draft.status === "published" || draft.status === "rejected"}
+            />
+          </div>
+          <div className="mt-4">
+            <DraftTextEditor
+              draftId={draft.id}
+              currentText={draft.generatedText}
               disabled={draft.status === "published" || draft.status === "rejected"}
             />
           </div>

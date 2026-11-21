@@ -169,7 +169,7 @@ function OrderDetailDrawer({ order }: { order: OrderRow }) {
           </div>
           {order.contactId && order.contactFullName ? (
             <Link
-              href={`/contatti?q=${encodeURIComponent(order.contactFullName)}`}
+              href={`/contatti?q=${encodeURIComponent(order.contactId)}`}
               className="text-primary underline hover:no-underline"
             >
               {order.contactFullName}

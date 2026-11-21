@@ -52,6 +52,10 @@ export function TopicLabelEditor({ draftId, currentLabel, disabled }: Props) {
         Argomento (RF-12.2):
       </label>
       <select
+        // key sul valore corrente: dopo il salvataggio, il parent revalida e
+        // ripassa la nuova label — rimontando il select ne aggiorniamo lo
+        // stato "uncontrolled". Fix bug: prima tornava alla prima opzione.
+        key={current}
         id={`topic-${draftId}`}
         name="topicLabel"
         defaultValue={current}

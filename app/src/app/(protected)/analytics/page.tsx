@@ -49,9 +49,12 @@ function isPeriod(s: string | undefined): s is AnalyticsPeriod {
 function pctDelta(
   current: number,
   previous: number,
-): { pct: number; direction: "up" | "down" | "flat" } {
+): { pct: number; direction: "up" | "down" | "flat" | "new" } {
   if (previous === 0 && current === 0) return { pct: 0, direction: "flat" };
-  if (previous === 0) return { pct: 100, direction: "up" };
+  // Fix bug: prima partire da 0 dava sempre "+100%" che non ha senso statistico.
+  // Ora distinguiamo "nuovo" (nessun valore precedente) e non mostriamo una
+  // percentuale finta.
+  if (previous === 0) return { pct: 0, direction: "new" };
   const delta = ((current - previous) / previous) * 100;
   const pct = Math.round(Math.abs(delta));
   if (Math.abs(delta) < 1) return { pct, direction: "flat" };
@@ -60,17 +63,28 @@ function pctDelta(
 
 function TrendBadge({ current, previous }: { current: number; previous: number }) {
   const d = pctDelta(current, previous);
-  const Icon = d.direction === "up" ? TrendingUp : d.direction === "down" ? TrendingDown : Minus;
+  const Icon =
+    d.direction === "up"
+      ? TrendingUp
+      : d.direction === "down"
+        ? TrendingDown
+        : Minus;
   const cls =
     d.direction === "up"
       ? "text-success"
       : d.direction === "down"
         ? "text-danger"
-        : "text-text-muted";
+        : d.direction === "new"
+          ? "text-primary"
+          : "text-text-muted";
   return (
     <span className={`inline-flex items-center gap-1 text-xs font-medium ${cls}`}>
       <Icon className="h-3.5 w-3.5" />
-      {d.direction === "flat" ? "stabile" : `${d.pct}%`}
+      {d.direction === "flat"
+        ? "stabile"
+        : d.direction === "new"
+          ? "nuovo"
+          : `${d.pct}%`}
     </span>
   );
 }

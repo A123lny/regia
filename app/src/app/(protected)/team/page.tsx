@@ -102,11 +102,8 @@ export default async function TeamPage({
         </p>
         {canManage && (
           <p className="mt-3 text-xs text-text-muted">
-            Per aggiungere un nuovo membro esegui{" "}
-            <code className="rounded bg-surface-muted px-1 py-0.5">
-              bash scripts/dev-create-member.sh --email &lt;email&gt; --password &lt;pwd&gt;
-            </code>{" "}
-            (dev locale). UI di invito magic-link prevista in F1.6.
+            L&apos;invito di nuovi membri tramite UI (magic-link via email) &egrave; previsto in
+            F1.6. Al momento la creazione account passa da chi gestisce il deploy.
           </p>
         )}
         <p className="mt-2 text-xs text-text-muted">

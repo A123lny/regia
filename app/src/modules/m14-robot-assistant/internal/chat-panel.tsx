@@ -181,6 +181,8 @@ export function RobotChatPanel({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let gotAnyText = false;
+      let gotInteraction = false; // confirm/brand picker/tool esposti: lo stream puo' chiudersi senza testo
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -193,12 +195,26 @@ export function RobotChatPanel({
           const line = chunk.replace(/^data:\s*/, "").trim();
           if (!line) continue;
           try {
-            const event = JSON.parse(line);
-            handleEvent(event);
+            const event = JSON.parse(line) as { type: string; text?: string };
+            if (event.type === "text_delta" && event.text) gotAnyText = true;
+            if (
+              event.type === "confirmation_required" ||
+              event.type === "brand_picker_required"
+            ) {
+              gotInteraction = true;
+            }
+            handleEvent(event as Parameters<typeof handleEvent>[0]);
           } catch {
             // ignora frammento mal formato
           }
         }
+      }
+      // Fallback: se lo stream chiude senza testo ne' interazioni, mostra un messaggio.
+      // Fix bug: prima la bolla restava vuota e l'utente non capiva cosa fosse successo.
+      if (!gotAnyText && !gotInteraction) {
+        appendToLastAssistant(
+          "Non sono riuscita a rispondere ora. Riprova tra un istante o riformula la domanda.",
+        );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "errore sconosciuto";

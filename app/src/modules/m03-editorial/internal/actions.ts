@@ -640,6 +640,44 @@ export async function markContentDraftPublished(draftId: string): Promise<void> 
   revalidatePath(`/contenuti/${brandSlug}/calendario`);
 }
 
+// Permette all'owner di editare manualmente il testo di una bozza prima
+// dell'approvazione/pubblicazione. Un contenuto gia' pubblicato o rifiutato
+// non e' editabile (immutabilita' post-pubblicazione).
+export async function updateContentDraftGeneratedText(
+  draftId: string,
+  newText: string,
+): Promise<void> {
+  const trimmed = (newText ?? "").trim();
+  if (trimmed.length < 1) throw new Error("Il testo non puo' essere vuoto");
+  if (trimmed.length > 5000) throw new Error("Testo troppo lungo (max 5000 caratteri)");
+  const { session, draft } = await requireOwnedDraft(draftId, "content.generate");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dr = draft as any;
+  if (dr.status === "published" || dr.status === "rejected") {
+    throw new Error("Impossibile modificare una bozza pubblicata o rifiutata");
+  }
+  const brandSlug = await getBrandSlug(dr.brand_id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { error } = await admin
+    .from("content_drafts")
+    .update({ generated_text: trimmed })
+    .eq("id", draftId)
+    .eq("organization_id", session.organizationId);
+  if (error) throw new Error(`Errore salvataggio testo: ${error.message}`);
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "editorial.draft_text_edited",
+    target: `brand:${brandSlug}`,
+    details: { draftId, length: trimmed.length },
+  });
+  revalidatePath(`/contenuti/${brandSlug}/${draftId}`);
+  revalidatePath(`/contenuti/${brandSlug}`);
+  revalidatePath(`/contenuti/${brandSlug}/calendario`);
+}
+
 // RF-12.2 manual override dell'etichetta di argomento su una bozza esistente.
 // Accetta solo i valori enum in TOPIC_LABELS; DB check constraint doppia guardia.
 export async function updateContentDraftTopicLabel(

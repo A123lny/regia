@@ -66,6 +66,12 @@ async function getLastBackupAt(): Promise<string | null> {
 function getEnvironment(): Environment {
   const env = process.env["REGIA_ENVIRONMENT"];
   if (env === "produzione" || env === "staging") return env;
+  // Fallback automatico su Vercel: VERCEL_ENV e' 'production' | 'preview' | 'development'.
+  // Senza questo, i deploy Vercel mostravano sempre 'Sviluppo locale'.
+  const vercelEnv = process.env["VERCEL_ENV"];
+  if (vercelEnv === "production") return "produzione";
+  if (vercelEnv === "preview") return "staging";
+  if (process.env["NODE_ENV"] === "production") return "produzione";
   return "sviluppo-locale";
 }
 

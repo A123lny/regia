@@ -125,14 +125,17 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
         .order("created_at", { ascending: true }),
       { data: [] as Array<{ id: string; created_at: string }> },
     ),
-    // Promemoria pending oggi (important)
+    // Promemoria pending oggi (important) — "oggi" significa scheduled <= end-of-today,
+    // ma NON quelli scaduti da piu' di 2 giorni (vanno in un bucket separato per
+    // evitare di contare 30gg di pending come "da gestire oggi").
     safe(
       admin
         .from("reminders")
         .select("id", { count: "exact", head: true })
         .eq("organization_id", organizationId)
         .eq("status", "pending")
-        .lte("scheduled_at", nowIso),
+        .lte("scheduled_at", new Date(Date.now() + 24 * 3600 * 1000).toISOString())
+        .gte("scheduled_at", new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString()),
       { count: 0 },
     ),
     // Voucher in scadenza nei prossimi 10gg (important)

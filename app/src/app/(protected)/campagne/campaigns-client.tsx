@@ -200,6 +200,7 @@ export function CampaignsClient({ campaigns, segments, brands, canCrud, canMarkS
                           type="button"
                           disabled={pending}
                           onClick={() => {
+                            if (!window.confirm("Annullare questa campagna?")) return;
                             startTransition(async () => {
                               await cancelCampaignAction(c.id);
                             });

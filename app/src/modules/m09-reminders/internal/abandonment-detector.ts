@@ -155,8 +155,18 @@ export async function detectSilenceInactivity(
   let created = 0;
   let skipped = 0;
   for (const [contactId, v] of agg.entries()) {
-    if (v.lastPlaced < sixtyAgo && v.count >= 1) {
-      // inactivity
+    // Fix bug: prima bastava 1 ordine + 60gg di silenzio per marchiare HIGH.
+    // Un cliente "one-shot" non e' un cliente abituale che abbandona.
+    // Nuove soglie:
+    //  - HIGH: >=3 ordini + silenzio da 60gg (cliente abituale che e' sparito)
+    //  - MEDIUM: (>=2 ordini + 60gg) oppure (>=3 ordini + 30gg)
+    //  - LOW: >=2 ordini + 30gg
+    //  - 1 ordine: nessun segnale (non c'e' abbastanza storia)
+    if (v.count === 1) {
+      skipped++;
+      continue;
+    }
+    if (v.lastPlaced < sixtyAgo && v.count >= 3) {
       const ok = await upsertSignal({
         organizationId,
         brandId: v.brandId,
@@ -167,7 +177,22 @@ export async function detectSilenceInactivity(
         windowEndIso: new Date(now).toISOString(),
         previousOrdersCount: v.count,
         currentOrdersCount: 0,
-        notes: `60+ giorni senza ordini (ultimo: ${new Date(v.lastPlaced).toLocaleDateString("it-IT")})`,
+        notes: `${v.count} ordini nell'ultimo anno, silenzio da 60+ giorni (ultimo: ${new Date(v.lastPlaced).toLocaleDateString("it-IT")})`,
+      });
+      if (ok) created++;
+      else skipped++;
+    } else if (v.lastPlaced < sixtyAgo && v.count === 2) {
+      const ok = await upsertSignal({
+        organizationId,
+        brandId: v.brandId,
+        contactId,
+        kind: "inactivity",
+        severity: "medium",
+        windowStartIso: v.lastPlaced,
+        windowEndIso: new Date(now).toISOString(),
+        previousOrdersCount: v.count,
+        currentOrdersCount: 0,
+        notes: `2 ordini e silenzio da 60+ giorni`,
       });
       if (ok) created++;
       else skipped++;
@@ -183,6 +208,21 @@ export async function detectSilenceInactivity(
         previousOrdersCount: v.count,
         currentOrdersCount: 0,
         notes: `30+ giorni senza ordini (${v.count} ordini nell'ultimo anno)`,
+      });
+      if (ok) created++;
+      else skipped++;
+    } else if (v.lastPlaced < thirtyAgo && v.count === 2) {
+      const ok = await upsertSignal({
+        organizationId,
+        brandId: v.brandId,
+        contactId,
+        kind: "silence_gap",
+        severity: "low",
+        windowStartIso: v.lastPlaced,
+        windowEndIso: new Date(now).toISOString(),
+        previousOrdersCount: v.count,
+        currentOrdersCount: 0,
+        notes: `2 ordini e silenzio da 30+ giorni`,
       });
       if (ok) created++;
       else skipped++;

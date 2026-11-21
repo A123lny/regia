@@ -96,6 +96,7 @@ export default async function ImpostazioniPage() {
 
   const anthropic = maskApiKey(process.env["ANTHROPIC_API_KEY"]);
   const voyage = maskApiKey(process.env["VOYAGE_API_KEY"]);
+  const gemini = maskApiKey(process.env["GEMINI_API_KEY"]);
 
   return (
     <div className="space-y-8">
@@ -296,17 +297,37 @@ export default async function ImpostazioniPage() {
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-1">
               <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                Google Gemini (generazione testi, robottino)
+              </span>
+              {gemini.present ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-success">chiave presente</span>
+                  <code className="rounded bg-surface-muted px-2 py-1 text-xs text-text">
+                    {gemini.masked}
+                  </code>
+                </div>
+              ) : (
+                <span className="text-sm text-danger">chiave non impostata</span>
+              )}
+              <span className="text-[11px] text-text-muted/80">
+                &quot;Chiave presente&quot; non significa &quot;chiamata riuscita&quot;: una chiave
+                scaduta o senza budget pu&ograve; comunque fallire a runtime.
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
                 Anthropic API (Claude, generazione testi)
               </span>
               {anthropic.present ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-success">✅ configurata</span>
+                  <span className="text-sm text-success">chiave presente</span>
                   <code className="rounded bg-surface-muted px-2 py-1 text-xs text-text">
                     {anthropic.masked}
                   </code>
                 </div>
               ) : (
-                <span className="text-sm text-danger">❌ non configurata</span>
+                <span className="text-sm text-danger">chiave non impostata</span>
               )}
             </div>
 
@@ -316,7 +337,7 @@ export default async function ImpostazioniPage() {
               </span>
               {voyage.present ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-success">✅ configurata</span>
+                  <span className="text-sm text-success">chiave presente</span>
                   <code className="rounded bg-surface-muted px-2 py-1 text-xs text-text">
                     {voyage.masked}
                   </code>
@@ -329,8 +350,8 @@ export default async function ImpostazioniPage() {
             </div>
 
             <p className="border-t border-border pt-3 text-xs text-text-muted">
-              La modifica delle chiavi avviene in <code>app/.env.local</code> (edit + riavvio dev
-              server). UI di edit + test connessione prevista in F1.6 configurazione runtime.
+              Le chiavi sono configurate come variabili d&apos;ambiente del deploy. L&apos;UI di
+              edit + test connessione &egrave; prevista in F1.6.
             </p>
           </CardContent>
         </Card>

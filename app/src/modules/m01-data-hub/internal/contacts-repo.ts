@@ -90,10 +90,17 @@ export async function listContacts(input: ListContactsInput): Promise<ListContac
   if (contactIdsFilter) q = q.in("id", contactIdsFilter);
 
   if (input.query && input.query.trim().length > 0) {
-    const term = `%${input.query.trim()}%`;
-    q = q.or(
-      `first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`,
-    );
+    const raw = input.query.trim();
+    // Se la query sembra un UUID, cerca per id esatto (usato dal link ordini → cliente).
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRe.test(raw)) {
+      q = q.eq("id", raw);
+    } else {
+      const term = `%${raw}%`;
+      q = q.or(
+        `first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`,
+      );
+    }
   }
 
   const limit = input.limit ?? 50;
@@ -226,6 +233,10 @@ export async function updateContact(input: UpdateContactInput): Promise<Contact 
 
 /**
  * Soft-delete: set archived_at. Preservazione storico (RF-11.3 audit trail).
+ *
+ * Side-effect: cancella tutti i voucher ancora "issued" di questo contatto.
+ * Fix bug: prima si archiviava il contatto ma i suoi voucher restavano riscattabili
+ * fino alla scadenza, con il rischio che qualcuno al banco li convalidasse.
  */
 export async function archiveContact(contactId: string, organizationId: string): Promise<boolean> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -237,7 +248,21 @@ export async function archiveContact(contactId: string, organizationId: string):
     .eq("organization_id", organizationId)
     .is("archived_at", null);
   if (error) throw new Error(`Errore archiviazione contatto: ${error.message}`);
-  return (count ?? 0) > 0;
+  const archived = (count ?? 0) > 0;
+  if (archived) {
+    // Cancella voucher attivi del contatto.
+    await admin
+      .from("vouchers")
+      .update({
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+        cancelled_reason: "contatto archiviato",
+      })
+      .eq("contact_id", contactId)
+      .eq("organization_id", organizationId)
+      .eq("status", "issued");
+  }
+  return archived;
 }
 
 export async function restoreContact(contactId: string, organizationId: string): Promise<boolean> {

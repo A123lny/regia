@@ -76,5 +76,6 @@ export {
   generateServiceCommunication,
   generateRecurrenceDraft,
   updateContentDraftTopicLabel,
+  updateContentDraftGeneratedText,
 } from "./internal/actions";
 export type { PlanGenerationActionInput } from "./internal/actions";

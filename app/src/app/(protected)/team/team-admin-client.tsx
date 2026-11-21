@@ -167,11 +167,11 @@ export function TeamAdminClient({ members, canManage, showArchived, currentUserI
                     </td>
                     <td className="p-3 text-xs text-text-muted">
                       {m.requiresMfa ? (
-                        <span className="inline-flex items-center gap-1">
-                          <ShieldCheck className="h-3.5 w-3.5" /> richiesta
+                        <span className="inline-flex items-center gap-1" title="Attivazione prevista in F1.6">
+                          <ShieldCheck className="h-3.5 w-3.5" /> prevista
                         </span>
                       ) : (
-                        "non richiesta"
+                        <span className="opacity-60">—</span>
                       )}
                     </td>
                     <td className="p-3 text-xs text-text-muted">{formatDate(m.createdAt)}</td>
