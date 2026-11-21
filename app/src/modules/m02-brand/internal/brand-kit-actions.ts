@@ -284,7 +284,13 @@ export async function addBrandForbiddenWord(brandId: string, word: string): Prom
     .from("brand_forbidden_words")
     .insert({ brand_id: brandId, word: trimmed });
   if (error) {
-    if (error.code === "23505") throw new Error("Parola già presente per questo marchio");
+    // Idempotenza: se la parola esiste gia' per questo brand (unique violation),
+    // non trattiamo come errore — e' un no-op. Fix bug: prima mostrava crash page
+    // Next.js quando si tentava di aggiungere una parola duplicata.
+    if (error.code === "23505") {
+      revalidateBrandPage(brand.slug);
+      return;
+    }
     throw new Error(`Errore aggiunta parola: ${error.message}`);
   }
 
@@ -342,8 +348,11 @@ export async function addBrandSensitiveTopic(
     note: payload.note,
   });
   if (error) {
-    if (error.code === "23505")
-      throw new Error("Argomento già presente per questo marchio con lo stesso tipo");
+    // Idempotenza duplicato (fix crash come per forbidden words)
+    if (error.code === "23505") {
+      revalidateBrandPage(brand.slug);
+      return;
+    }
     throw new Error(`Errore aggiunta argomento: ${error.message}`);
   }
 

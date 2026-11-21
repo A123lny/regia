@@ -67,29 +67,49 @@ export function RobotChatPanel({
   pageTitle: string;
   pagePath: string;
 }) {
-  const persisted = React.useRef<PersistedState | null>(null);
-  if (persisted.current === null) persisted.current = loadPersisted(userId);
-
-  const [messages, setMessages] = React.useState<RobotMessage[]>(
-    persisted.current?.messages && persisted.current.messages.length > 0
-      ? persisted.current.messages
-      : [
-          {
-            role: "assistant",
-            content: `Ciao! Sono Regia. In "${pageTitle}" posso aiutarti a capire cosa fare o eseguire azioni al posto tuo. Chiedimi pure.`,
-            timestamp: new Date().toISOString(),
-          },
-        ],
+  // Lazy init via useState: loadPersisted() gira una sola volta al mount,
+  // evita di toccare un ref durante il render (vietato in React 19).
+  // Fallback a messaggio di benvenuto se non c'e' persistenza.
+  // Nota: SSR ritorna sempre null (no window), il client fa l'hydration e poi
+  // carica. Per evitare mismatch in hydration partiamo dal benvenuto, e
+  // montiamo la persistenza dopo via useEffect.
+  const initialGreeting = React.useMemo<RobotMessage[]>(
+    () => [
+      {
+        role: "assistant",
+        content: `Ciao! Sono Regia. In "${pageTitle}" posso aiutarti a capire cosa fare o eseguire azioni al posto tuo. Chiedimi pure.`,
+        timestamp: new Date().toISOString(),
+      },
+    ],
+    [pageTitle],
   );
+  const [messages, setMessages] = React.useState<RobotMessage[]>(initialGreeting);
   const [input, setInput] = React.useState("");
   const [streaming, setStreaming] = React.useState(false);
-  const [convId, setConvId] = React.useState<string | null>(persisted.current?.convId ?? null);
+  const [convId, setConvId] = React.useState<string | null>(null);
+  const [hydrated, setHydrated] = React.useState(false);
+
+  // Hydration: carichiamo la persistenza dopo il mount per non divergere dal SSR.
+  // setState in effect e' intenzionale qui: stiamo sincronizzando con sessionStorage
+  // (external system), caso previsto dal pattern.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  React.useEffect(() => {
+    const p = loadPersisted(userId);
+    if (p) {
+      if (p.messages.length > 0) setMessages(p.messages);
+      if (p.convId) setConvId(p.convId);
+    }
+    setHydrated(true);
+  }, [userId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   const router = useRouter();
 
-  // Persist on changes
+  // Persist on changes — ma solo DOPO l'hydration, altrimenti il primo render
+  // sovrascriverebbe la persistenza con il greeting iniziale.
   React.useEffect(() => {
+    if (!hydrated) return;
     savePersisted(userId, { messages, convId });
-  }, [userId, messages, convId]);
+  }, [hydrated, userId, messages, convId]);
   const [pendingConfirm, setPendingConfirm] = React.useState<{
     actionId: string;
     toolName: string;
@@ -467,7 +487,7 @@ export function RobotChatPanel({
           >
             <div className="mb-2 font-semibold">🏷️ Scegli il brand</div>
             <div className="mb-3 text-text-muted">
-              Clicca il marchio su cui procedere con l'azione.
+              Clicca il marchio su cui procedere con l&apos;azione.
             </div>
             <div className="flex flex-wrap gap-2">
               {pendingBrandPicker.brands.map((b) => (

@@ -26,7 +26,9 @@ export function SignupPublicForm({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ code: string | null; message: string } | null>(null);
-  const [channels, setChannels] = useState<Set<ConsentChannel>>(new Set(["email"]));
+  // GDPR: i checkbox di consenso NON possono essere pre-spuntati.
+  // Devono essere spuntati attivamente dall'utente (RF-1.4).
+  const [channels, setChannels] = useState<Set<ConsentChannel>>(new Set());
 
   function toggleChannel(ch: ConsentChannel) {
     const next = new Set(channels);
@@ -182,6 +184,19 @@ export function SignupPublicForm({
             WhatsApp
           </label>
         </div>
+        <p className="mt-3 text-[11px] leading-snug text-text-muted">
+          Puoi revocare in qualsiasi momento cliccando &quot;disiscriviti&quot; in ogni messaggio.
+          I dati sono trattati secondo la nostra{" "}
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-text"
+          >
+            informativa privacy
+          </a>
+          .
+        </p>
       </div>
 
       {/* Honeypot: campo nascosto, i bot lo compilano — se pieno rifiutiamo */}

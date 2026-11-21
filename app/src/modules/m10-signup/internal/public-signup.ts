@@ -59,6 +59,16 @@ function normalizePhone(phone: string): string {
 }
 
 /**
+ * Validazione di base per telefono: cifre, +, -, (), spazi; almeno 5 cifre.
+ * Rifiuta lettere (es. "abc") che altrimenti venivano accettate.
+ */
+function isValidPhone(phone: string): boolean {
+  if (!/^[+]?[\d\s().-]{6,25}$/.test(phone)) return false;
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 5;
+}
+
+/**
  * Cerca un contatto esistente per (org, brand) matching su email/phone/whatsapp.
  * Ritorna il primo che matcha (priorità email > phone > whatsapp).
  * Ignora contatti archiviati.
@@ -133,6 +143,12 @@ export async function submitPublicSignup(input: PublicSignupInput): Promise<Publ
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { ok: false, error: "Email non valida", kind: "invalid_input" };
   }
+  if (phone && !isValidPhone(phone)) {
+    return { ok: false, error: "Telefono non valido", kind: "invalid_input" };
+  }
+  if (whatsapp && !isValidPhone(whatsapp)) {
+    return { ok: false, error: "WhatsApp non valido", kind: "invalid_input" };
+  }
   if (input.channelsGranted.length === 0) {
     return {
       ok: false,
@@ -188,6 +204,7 @@ export async function submitPublicSignup(input: PublicSignupInput): Promise<Publ
   );
 
   let contactId: string;
+  let isNewContact = false;
   if (existing) {
     contactId = existing.id;
     // Aggiorna eventuali dati mancanti (name/other recapiti) senza sovrascrivere se già presenti
@@ -245,6 +262,7 @@ export async function submitPublicSignup(input: PublicSignupInput): Promise<Publ
       return { ok: false, error: `Errore creazione contatto: ${error.message}` };
     }
     contactId = (data as { id: string }).id;
+    isNewContact = true;
   }
 
   // 6. Upsert consensi per canale
@@ -279,9 +297,12 @@ export async function submitPublicSignup(input: PublicSignupInput): Promise<Publ
   }
 
   // 7. Voucher benvenuto se offerta collegata (delegato a m06-loyalty)
+  // Anti-abuso: emesso solo al primo signup (contatto nuovo). Un contatto esistente
+  // che si re-iscrive non riceve un secondo voucher. Fix: prima bastava iscriversi
+  // piu' volte con gli stessi dati per avere piu' voucher.
   let welcomeVoucherId: string | null = null;
   let welcomeCode: string | null = null;
-  if (landing.welcomeOfferId) {
+  if (isNewContact && landing.welcomeOfferId) {
     const result = await issueVoucherForSignup({
       organizationId: landing.organizationId,
       offerId: landing.welcomeOfferId,

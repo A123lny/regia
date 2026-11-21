@@ -803,6 +803,16 @@ const VOUCHER_STATUS_STYLE: Record<VoucherStatus, string> = {
   cancelled: "border-danger/40 bg-danger/15 text-danger",
 };
 
+// Stato "effettivo" del voucher: se e' "issued" ma la data di scadenza e' passata,
+// mostralo come "expired" (il DB non fa il flip automatico, il cron potrebbe non
+// girare o essere in ritardo). Fix bug: voucher scaduti mostrati come "Emesso".
+function effectiveVoucherStatus(status: VoucherStatus, expiresAt: string): VoucherStatus {
+  if (status === "issued" && new Date(expiresAt).getTime() < Date.now()) {
+    return "expired";
+  }
+  return status;
+}
+
 function VouchersTab({
   offers,
   recentDrafts,
@@ -951,13 +961,18 @@ function VouchersTab({
                     {new Date(v.expiresAt).toLocaleDateString("it-IT")}
                   </td>
                   <td className="p-3">
-                    <Badge className={`border ${VOUCHER_STATUS_STYLE[v.status]}`}>
-                      {VOUCHER_STATUS_LABELS[v.status]}
-                    </Badge>
+                    {(() => {
+                      const eff = effectiveVoucherStatus(v.status, v.expiresAt);
+                      return (
+                        <Badge className={`border ${VOUCHER_STATUS_STYLE[eff]}`}>
+                          {VOUCHER_STATUS_LABELS[eff]}
+                        </Badge>
+                      );
+                    })()}
                   </td>
                   {canCancel && (
                     <td className="p-3">
-                      {v.status === "issued" && (
+                      {effectiveVoucherStatus(v.status, v.expiresAt) === "issued" && (
                         <button
                           type="button"
                           disabled={pending}

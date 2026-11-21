@@ -97,6 +97,22 @@ export async function createContactAction(
     return { ok: false, error: "Serve almeno un recapito (email, telefono o WhatsApp)" };
   }
 
+  // Validazione formato: email regex, telefono/whatsapp cifre minime
+  if (input.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
+    return { ok: false, error: "Email non valida" };
+  }
+  const phoneRe = /^[+]?[\d\s().-]{6,25}$/;
+  const hasEnoughDigits = (s: string) => s.replace(/\D/g, "").length >= 5;
+  if (input.phone && (!phoneRe.test(input.phone.trim()) || !hasEnoughDigits(input.phone))) {
+    return { ok: false, error: "Numero di telefono non valido" };
+  }
+  if (
+    input.whatsapp &&
+    (!phoneRe.test(input.whatsapp.trim()) || !hasEnoughDigits(input.whatsapp))
+  ) {
+    return { ok: false, error: "Numero WhatsApp non valido" };
+  }
+
   try {
     const contact = await createContact({
       organizationId: session.organizationId,
@@ -217,7 +233,28 @@ export type UpsertConsentActionInput = {
 export async function upsertConsentAction(
   input: UpsertConsentActionInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { session } = await requireOwnedContact(input.contactId, "contacts.consent.manage");
+  const { session, contact } = await requireOwnedContact(
+    input.contactId,
+    "contacts.consent.manage",
+  );
+  // Guard: non si puo' attivare consenso su canale senza il recapito corrispondente
+  if (input.status === "granted") {
+    if (input.channel === "email" && !contact.email) {
+      return { ok: false, error: "Il contatto non ha email: impossibile attivare consenso email." };
+    }
+    if (input.channel === "sms" && !contact.phone) {
+      return {
+        ok: false,
+        error: "Il contatto non ha telefono: impossibile attivare consenso SMS.",
+      };
+    }
+    if (input.channel === "whatsapp" && !contact.whatsapp) {
+      return {
+        ok: false,
+        error: "Il contatto non ha numero WhatsApp: impossibile attivare consenso WhatsApp.",
+      };
+    }
+  }
   try {
     const consent = await upsertConsent({
       organizationId: session.organizationId,

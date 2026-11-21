@@ -1,17 +1,13 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { ErrorFallback } from "@/components/ui/error-fallback";
 
-export default function MarchiError({ error, reset }: { error: Error; reset: () => void }) {
-  return (
-    <div className="rounded-lg border border-danger/30 bg-danger/10 p-6">
-      <h2 className="font-serif text-xl font-semibold text-danger">
-        Errore nel caricamento marchi
-      </h2>
-      <p className="mt-2 text-sm text-text-muted">{error.message}</p>
-      <Button onClick={reset} className="mt-4 bg-primary text-white hover:bg-primary-hover">
-        Ricarica
-      </Button>
-    </div>
-  );
+export default function MarchiError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  return <ErrorFallback title="Errore nel caricamento marchi" error={error} reset={reset} />;
 }
