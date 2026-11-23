@@ -15,6 +15,8 @@ import {
   assertBudgetOk,
   logSpend,
   AiBudgetExceededError,
+  assertAiEnabled,
+  AiKillSwitchError,
 } from "@/modules/m11-admin/public";
 import type { RobotPageContext, RobotMessage } from "./types";
 import { buildSystemPrompt } from "./prompt-builder";
@@ -96,12 +98,34 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
     return;
   }
 
+  // 0a1. Kill switch AI (RF-11.4) — fail-closed. Se l'owner ha spento tutte le
+  // generazioni AI, il robottino non parte.
+  try {
+    await assertAiEnabled(input.session.organizationId);
+  } catch (err) {
+    if (err instanceof AiKillSwitchError) {
+      yield {
+        type: "error",
+        code: "ai_disabled",
+        message: "Le generazioni AI sono state sospese dall'owner.",
+      };
+      return;
+    }
+    yield {
+      type: "error",
+      code: "ai_check_failed",
+      message: "Controllo stato AI fallito, riprova piu' tardi.",
+    };
+    console.error("[robot] killswitch check error:", err);
+    return;
+  }
+
   // 0b. Budget gate — fail CLOSED su qualsiasi errore (anche non-AiBudgetExceeded):
   // se non sappiamo se il budget regge, non invochiamo il modello.
   // Controlliamo sia il budget dedicato al robot (anthropic-robot, per
   // visibilita' separata del costo dell'assistente) sia quello generico
-  // 'gemini' del provider realmente usato: se l'owner ha messo un cap
-  // sulla categoria gemini, deve contare anche la spesa del robottino.
+  // 'gemini' del provider realmente usato. La somma su gemini include
+  // anche le righe anthropic-robot (centralizzata in sumSpendThisMonth).
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await assertBudgetOk(input.session.organizationId, "anthropic-robot" as any);

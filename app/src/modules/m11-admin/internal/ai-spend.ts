@@ -66,6 +66,12 @@ export async function listBudgets(organizationId: string): Promise<AiSpendBudget
 
 /**
  * Somma spese del mese corrente per categoria. Se category='all', somma tutte le categorie.
+ *
+ * Regola di aggregazione: la spesa del robottino e' loggata sotto la categoria
+ * sintetica 'anthropic-robot' per avere una vista separata del costo del robot
+ * in /impostazioni, ma il robottino usa Gemini come provider. Quindi quando si
+ * controlla il cap 'gemini' si somma anche 'anthropic-robot', altrimenti la
+ * spesa del robot bypassava silenziosamente qualsiasi tetto Gemini.
  */
 export async function sumSpendThisMonth(
   organizationId: string,
@@ -78,7 +84,11 @@ export async function sumSpendThisMonth(
     .select("cost_usd")
     .eq("organization_id", organizationId)
     .gte("occurred_at", currentMonthStartIso());
-  if (category !== "all") q = q.eq("category", category);
+  if (category === "gemini") {
+    q = q.in("category", ["gemini", "anthropic-robot"]);
+  } else if (category !== "all") {
+    q = q.eq("category", category);
+  }
   const { data, error } = await q;
   if (error) throw new Error(`Errore somma spese: ${error.message}`);
   const rows = (data ?? []) as Array<{ cost_usd: string | number }>;
