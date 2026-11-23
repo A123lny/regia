@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { LogOut, Share2 } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
+
+export const metadata: Metadata = { title: "Impostazioni" };
 import { getAdminClient } from "@/lib/db/admin";
 import { ROLE_LABELS, hasCapability, type Role } from "@/lib/auth/permissions";
 import {

@@ -83,23 +83,48 @@ export async function uploadMediaAsset(brandId: string, formData: FormData): Pro
   const storagePath = pathForAsset(session.organizationId, brand.id, assetId, ext);
 
   const admin = getAdminClient();
-  const arrayBuffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
+  let bytes: Uint8Array;
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    bytes = new Uint8Array(arrayBuffer);
+  } catch (err) {
+    console.error("[media] file.arrayBuffer fallito", {
+      name: file.name,
+      size: file.size,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    throw new Error("Impossibile leggere il file. Riprova con un file piu' piccolo.");
+  }
 
   const { error: uploadError } = await admin.storage.from(MEDIA_BUCKET).upload(storagePath, bytes, {
     contentType,
     upsert: false,
   });
-  if (uploadError) throw new Error(`Errore upload storage: ${uploadError.message}`);
+  if (uploadError) {
+    // Log server-side il dettaglio (utile se e' bucket mancante o RLS).
+    console.error("[media] storage.upload fallito", {
+      bucket: MEDIA_BUCKET,
+      path: storagePath,
+      msg: uploadError.message,
+    });
+    // Messaggio generico al client, nessun leak di bucket name / path.
+    throw new Error("Impossibile salvare l'immagine. Verifica che il bucket di storage sia configurato.");
+  }
 
-  // Signed URL 10 anni (bucket privato, ma URL usabile in <img>)
+  // Signed URL ~1 anno (prima era 10 anni, URL piu' pesante nel body del
+  // server action -> contribuiva al React #441 su upload grandi). 1 anno
+  // basta per il ciclo editoriale, rinnovabile via regenerate signed URL.
   const { data: signed, error: signError } = await admin.storage
     .from(MEDIA_BUCKET)
-    .createSignedUrl(storagePath, 60 * 60 * 24 * 365 * 10);
+    .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
   if (signError || !signed) {
     // Cleanup se fallisce
     await admin.storage.from(MEDIA_BUCKET).remove([storagePath]);
-    throw new Error(`Errore creazione URL: ${signError?.message ?? ""}`);
+    console.error("[media] createSignedUrl fallito", {
+      path: storagePath,
+      msg: signError?.message,
+    });
+    throw new Error("Immagine caricata ma URL di accesso non disponibile. Contatta il supporto.");
   }
 
   // Dimensioni: solo per raster (per SVG lasciamo null)

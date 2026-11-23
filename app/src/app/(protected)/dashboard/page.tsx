@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getSessionOrRedirect } from "@/lib/auth/session";
+
+export const metadata: Metadata = { title: "Dashboard" };
 import {
   getDashboardStats,
   buildDashboardTasks,

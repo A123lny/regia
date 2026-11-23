@@ -7,6 +7,7 @@ import { generateText } from "@/lib/ai/gemini";
 import { AiTimeoutError, AiRateLimitError, AiApiError } from "@/lib/ai/anthropic";
 import { loadPromptTemplate, interpolate } from "./prompt-loader";
 import { insertDraft } from "./content-drafts-repo";
+import { stripMarkdown } from "./generate-social-post";
 import type { ContentDraft } from "./content-drafts-types";
 
 export const SERVICE_PROMPT_VERSION = "service-communication-v1";
@@ -102,7 +103,7 @@ export async function runGenerateServiceCommunication(
     brandId: input.brandId,
     channel: "social",
     themeInput,
-    generatedText: result.text.trim(),
+    generatedText: stripMarkdown(result.text).trim(),
     promptVersion: SERVICE_PROMPT_VERSION,
     modelUsed: result.model,
     tokensIn: result.tokensIn,

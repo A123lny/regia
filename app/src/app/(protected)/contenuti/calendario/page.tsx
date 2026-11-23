@@ -94,32 +94,32 @@ export default async function CalendarioGlobalePage({
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <Link href={`/contenuti/calendario?start=${prevStart}`}>
-              <Button variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/contenuti/calendario?start=${prevStart}`}>
                 <ChevronLeft className="mr-1 h-3.5 w-3.5" /> 14gg prima
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             <span className="min-w-[10rem] text-center font-medium">
               {formatRange(startDate, endDate)}
             </span>
-            <Link href={`/contenuti/calendario?start=${nextStart}`}>
-              <Button variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/contenuti/calendario?start=${nextStart}`}>
                 14gg dopo <ChevronRight className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             {/* Spazio stabile: il bottone "Oggi" si mostra solo quando siamo
                 lontani dalla data odierna, ma lasciamo l'ingombro riservato
                 via invisible per evitare che "14gg prima" salti di posizione
                 dopo il primo clic. */}
-            <Link
-              href="/contenuti/calendario"
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
               className={isToday ? "pointer-events-none invisible" : ""}
               aria-hidden={isToday}
             >
-              <Button variant="ghost" size="sm">
-                Oggi
-              </Button>
-            </Link>
+              <Link href="/contenuti/calendario">Oggi</Link>
+            </Button>
           </div>
         </div>
       </header>

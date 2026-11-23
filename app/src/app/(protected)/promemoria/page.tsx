@@ -1,4 +1,6 @@
 // M09 Promemoria — RF-6.22 motore promemoria automatici.
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Promemoria" };
 
 import { notFound } from "next/navigation";
 import { BellRing, ClipboardCheck, XCircle, Calendar } from "lucide-react";
@@ -14,7 +16,7 @@ import { listBrands } from "@/modules/m02-brand/public";
 import { HelpButton } from "@/components/help/help-button";
 import { RemindersClient } from "./reminders-client";
 
-type SearchParams = { brand?: string; kind?: string; status?: string };
+type SearchParams = { brand?: string; kind?: string; status?: string; showAll?: string };
 
 function isKind(s: string | undefined): s is ReminderKind {
   return (
@@ -44,6 +46,10 @@ export default async function PromemoriaPage({
   const brandFilter = params.brand ?? "";
   const kindFilter = isKind(params.kind) ? params.kind : undefined;
   const statusFilter: ReminderStatus = isStatus(params.status) ? params.status : "pending";
+  // Finestra "da fare": per i pending mostriamo solo scheduled nella finestra
+  // -2d .. +24h (coerente con dashboard "Da fare oggi"). Include overdue recenti
+  // ma esclude pending scaduti da mesi. Sent/dismissed non hanno la finestra.
+  const showAllPending = params.showAll === "1";
 
   const [brands, stats] = await Promise.all([
     listBrands(session.organizationId, "active"),
@@ -58,6 +64,12 @@ export default async function PromemoriaPage({
   };
   if (selectedBrand) listInput.brandId = selectedBrand.id;
   if (kindFilter) listInput.kind = kindFilter;
+  if (statusFilter === "pending" && !showAllPending) {
+    // eslint-disable-next-line react-hooks/purity
+    const now = Date.now();
+    listInput.scheduledAfterIso = new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString();
+    listInput.scheduledBeforeIso = new Date(now + 24 * 60 * 60 * 1000).toISOString();
+  }
 
   const reminders = await listReminders(listInput);
 

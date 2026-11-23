@@ -1,4 +1,6 @@
 // M01 Data Hub — pagina Contatti cross-brand.
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Contatti" };
 // RF-1.2 modello canonico, RF-1.4 registro consensi visibile per canale.
 
 import { notFound } from "next/navigation";

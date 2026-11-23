@@ -93,6 +93,7 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
         .eq("organization_id", organizationId)
         .eq("severity", "high")
         .is("resolved_at", null)
+        .gte("previous_orders_count", 2)
         .order("signal_at", { ascending: false }),
       { data: [] as Array<{ id: string; signal_at: string }> },
     ),
@@ -104,6 +105,7 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
         .eq("organization_id", organizationId)
         .eq("severity", "medium")
         .is("resolved_at", null)
+        .gte("previous_orders_count", 2)
         .order("signal_at", { ascending: false }),
       { data: [] as Array<{ id: string; signal_at: string }> },
     ),
@@ -163,20 +165,54 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
         .eq("is_active", true),
       { count: 0 },
     ),
-    // Ristoranti cooling non contattati da 7gg (urgent) + dati completi per il
-    // detail sheet (il count si deriva da data.length).
+    // Ristoranti da chiamare (urgent). Include:
+    //  (a) cooling_flag manuale + silenzio >7gg;
+    //  (b) last_contact_at < 30gg (silenziosi, anche senza flag manuale).
+    // La OR nested PostgREST era fragile; qui facciamo due query separate e
+    // uniamo applicativamente. Volumi piccoli (~50 ristoranti): costo zero.
     safe(
-      admin
-        .from("partner_restaurants")
-        .select("id, name, phone, cuisine_category, cooling_reason, last_contact_at, address_cap")
-        .eq("organization_id", organizationId)
-        .is("archived_at", null)
-        // Include sia i partner con cooling_flag manuale (non contattati da 7gg)
-        // SIA quelli silenziosi da >30gg anche senza flag: prima questi ultimi
-        // non apparivano, generando il mismatch "segnalato a 40gg, ignorato a 61gg".
-        .or(
-          `and(cooling_flag.eq.true,or(last_contact_at.is.null,last_contact_at.lt.${sevenDaysAgo})),last_contact_at.lt.${thirtyDaysAgo}`,
-        ),
+      (async () => {
+        const [coolRes, silentRes] = await Promise.all([
+          admin
+            .from("partner_restaurants")
+            .select("id, name, phone, cuisine_category, cooling_reason, last_contact_at, address_cap")
+            .eq("organization_id", organizationId)
+            .is("archived_at", null)
+            .eq("cooling_flag", true)
+            .or(`last_contact_at.is.null,last_contact_at.lt.${sevenDaysAgo}`),
+          admin
+            .from("partner_restaurants")
+            .select("id, name, phone, cuisine_category, cooling_reason, last_contact_at, address_cap")
+            .eq("organization_id", organizationId)
+            .is("archived_at", null)
+            .not("last_contact_at", "is", null)
+            .lt("last_contact_at", thirtyDaysAgo),
+        ]);
+        const errObj =
+          coolRes.error || silentRes.error
+            ? coolRes.error ?? silentRes.error
+            : null;
+        type Row = {
+          id: string;
+          name: string;
+          phone: string | null;
+          cuisine_category: string | null;
+          cooling_reason: string | null;
+          last_contact_at: string | null;
+          address_cap: string | null;
+        };
+        const seen = new Set<string>();
+        const merged: Row[] = [];
+        for (const row of [
+          ...((coolRes.data ?? []) as Row[]),
+          ...((silentRes.data ?? []) as Row[]),
+        ]) {
+          if (seen.has(row.id)) continue;
+          seen.add(row.id);
+          merged.push(row);
+        }
+        return { data: merged, error: errObj };
+      })(),
       {
         data: [] as Array<{
           id: string;
@@ -187,6 +223,7 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
           last_contact_at: string | null;
           address_cap: string | null;
         }>,
+        error: null,
       },
     ),
     // Partner con errori consegna in allarme (>=3 ultimi 30gg) — urgent.

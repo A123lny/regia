@@ -49,6 +49,7 @@ export type ListRemindersInput = {
   kind?: ReminderKind;
   status?: ReminderStatus;
   scheduledBeforeIso?: string;
+  scheduledAfterIso?: string;
   limit?: number;
 };
 
@@ -66,6 +67,7 @@ export async function listReminders(input: ListRemindersInput): Promise<Reminder
   if (input.kind) q = q.eq("kind", input.kind);
   if (input.status) q = q.eq("status", input.status);
   if (input.scheduledBeforeIso) q = q.lte("scheduled_at", input.scheduledBeforeIso);
+  if (input.scheduledAfterIso) q = q.gte("scheduled_at", input.scheduledAfterIso);
   const { data, error } = await q
     .order("scheduled_at", { ascending: true })
     .limit(input.limit ?? 200);

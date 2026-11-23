@@ -1,6 +1,9 @@
 // M07 Campagne — predisposizione. L'invio effettivo arriverà con M5.
 
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+
+export const metadata: Metadata = { title: "Campagne" };
 import { Megaphone } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";

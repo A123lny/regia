@@ -1,6 +1,9 @@
 // M08 Analytics — cruscotto commerciale cross-modulo (RF-8.x).
 
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+
+export const metadata: Metadata = { title: "Analytics" };
 import {
   BarChart3,
   Users,

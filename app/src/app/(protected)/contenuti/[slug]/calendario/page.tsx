@@ -93,28 +93,28 @@ export default async function CalendarioPage({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="font-serif text-3xl font-semibold text-text">Calendario editoriale</h1>
           <div className="flex items-center gap-2 text-sm">
-            <Link href={`/contenuti/${slug}/calendario?start=${prevStart}`}>
-              <Button variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/contenuti/${slug}/calendario?start=${prevStart}`}>
                 <ChevronLeft className="mr-1 h-3.5 w-3.5" /> 14gg prima
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             <span className="min-w-[10rem] text-center font-medium">
               {formatRange(startDate, endDate)}
             </span>
-            <Link href={`/contenuti/${slug}/calendario?start=${nextStart}`}>
-              <Button variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/contenuti/${slug}/calendario?start=${nextStart}`}>
                 14gg dopo <ChevronRight className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            </Link>
-            <Link
-              href={`/contenuti/${slug}/calendario`}
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
               className={isToday ? "pointer-events-none invisible" : ""}
               aria-hidden={isToday}
             >
-              <Button variant="ghost" size="sm">
-                Oggi
-              </Button>
-            </Link>
+              <Link href={`/contenuti/${slug}/calendario`}>Oggi</Link>
+            </Button>
           </div>
         </div>
       </header>

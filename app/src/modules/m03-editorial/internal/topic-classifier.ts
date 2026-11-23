@@ -54,6 +54,10 @@ const KEYWORD_RULES: Array<{ label: TopicLabel; words: string[] }> = [
       "asporto",
       "take away",
       "take-away",
+      "ordini",
+      "ordine",
+      "pranzo a domicilio",
+      "cena a domicilio",
     ],
   },
   {
@@ -101,14 +105,6 @@ const KEYWORD_RULES: Array<{ label: TopicLabel; words: string[] }> = [
 ];
 
 /**
- * Rimuove prefisso strutturato [X] o [X:Y] e ritorna il resto in lowercase.
- * Usato per il matching keyword sul corpo del tema.
- */
-function stripPrefix(theme: string): string {
-  return theme.replace(/^\[[^\]]+\]\s*/, "").toLowerCase();
-}
-
-/**
  * Estrae il prefisso [X] o [X:Y] dal theme_input, se presente.
  * Ritorna il label originale in maiuscolo (es. "SERVIZIO"), o null.
  */
@@ -125,6 +121,10 @@ function extractPrefix(theme: string): string | null {
 /**
  * Classifica un theme_input in una TopicLabel deterministica.
  * Priorità: prefisso strutturato > keyword match > "altro".
+ *
+ * Nota: per il piano editoriale il theme e' tipicamente "[Pilastro X] tema — data";
+ * il NOME DEL PILASTRO e' informativo (es. "Consegne a pranzo") e va incluso
+ * nel keyword matching, altrimenti classificava sempre "altro".
  */
 export function classifyTopicLabel(themeInput: string): TopicLabel {
   const prefix = extractPrefix(themeInput);
@@ -133,7 +133,9 @@ export function classifyTopicLabel(themeInput: string): TopicLabel {
     if (prefixMatch) return prefixMatch.label;
   }
 
-  const body = stripPrefix(themeInput);
+  // Usa l'intero input (incluso il pillar name nel prefix) come corpo di
+  // ricerca. Prima strippava il prefix e perdeva il segnale piu' forte.
+  const body = themeInput.toLowerCase();
   if (!body) return "altro";
 
   // Scoring: ogni categoria raccoglie il numero di keyword distinte matchate.

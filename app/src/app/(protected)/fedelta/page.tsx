@@ -1,6 +1,9 @@
 // M06 Fedeltà + Voucher — panoramica RF-6.1..6.10, RF-6.26.
 
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+
+export const metadata: Metadata = { title: "Fedeltà" };
 import { Gift, TicketCheck, Users as UsersIcon, Clock } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";

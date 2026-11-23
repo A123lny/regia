@@ -150,19 +150,22 @@ export async function getAbandonmentStats(organizationId: string): Promise<{
       .select("*", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("severity", "high")
-      .is("resolved_at", null),
+      .is("resolved_at", null)
+      .gte("previous_orders_count", 2),
     admin
       .from("abandonment_signals")
       .select("*", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("severity", "medium")
-      .is("resolved_at", null),
+      .is("resolved_at", null)
+      .gte("previous_orders_count", 2),
     admin
       .from("abandonment_signals")
       .select("*", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("severity", "low")
-      .is("resolved_at", null),
+      .is("resolved_at", null)
+      .gte("previous_orders_count", 2),
     admin
       .from("abandonment_signals")
       .select("*", { count: "exact", head: true })

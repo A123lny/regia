@@ -21,6 +21,22 @@ import type { ContentDraft } from "./content-drafts-types";
 
 export const PROMPT_VERSION = "social-post-v1";
 
+/**
+ * Rimuove sintassi markdown che su Facebook/Instagram apparirebbe letteralmente
+ * (asterischi doppi/singoli, underscore, backtick). Conserva il testo.
+ */
+export function stripMarkdown(text: string): string {
+  return text
+    // **bold** -> bold
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    // *italic* -> italic (solo asterischi isolati, non operatori)
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1$2")
+    // _italic_ -> italic
+    .replace(/(^|\W)_([^_\n]+)_(?!_)/g, "$1$2")
+    // `code` -> code
+    .replace(/`([^`\n]+)`/g, "$1");
+}
+
 export type ComposePromptInput = {
   brandDisplayName: string;
   brandContext: string;
@@ -203,8 +219,10 @@ export async function runGenerateSocialPost(
       },
     };
   }
-  // Strip residui di label tecniche vecchie [REVISIONE] dai testi (safety net).
-  const cleanedText = result.text.replace(/\[REVISIONE\]\s*/gi, "").trim();
+  // Strip residui di label tecniche vecchie [REVISIONE] + stripping markdown:
+  // asterischi (**bold**, *italic*) e underscore (_italic_) non sono renderizzati
+  // da Facebook/Instagram e aparirebbero letteralmente nel post.
+  const cleanedText = stripMarkdown(result.text.replace(/\[REVISIONE\]\s*/gi, "")).trim();
 
   // 7. Salva draft
   const draft = await insertDraft({

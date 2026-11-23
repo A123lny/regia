@@ -26,6 +26,7 @@ import {
   AiBudgetExceededError,
 } from "@/modules/m11-admin/public";
 import { insertDraft } from "./content-drafts-repo";
+import { stripMarkdown } from "./generate-social-post";
 import type { ContentDraft } from "./content-drafts-types";
 
 export const PLAN_PROMPT_VERSION = "editorial-plan-v1";
@@ -274,7 +275,17 @@ export async function runGenerateEditorialPlan(
     }
   };
 
+  // Throttle inter-chiamata: Gemini free tier e' ~10 RPM. Distanziando le
+  // chiamate di 7 secondi rientriamo largamente sotto il limite senza che
+  // il retry di gemini.ts debba scattare. Costa un piano di 14 bozze ~100s
+  // invece dei 30-40s di prima, ma il piano non si ferma piu' a meta'.
+  const INTER_CALL_DELAY_MS = 7_000;
+
   for (let i = 0; i < input.numDrafts; i++) {
+    if (i > 0) {
+      await new Promise((r) => setTimeout(r, INTER_CALL_DELAY_MS));
+    }
+
     // Re-check kill switch e budget prima di ogni draft: se l'owner spegne
     // l'AI o esaurisce il budget a meta' piano, ci fermiamo subito invece di
     // continuare a bruciare chiamate. Fail-closed su errore del check.
@@ -389,7 +400,7 @@ export async function runGenerateEditorialPlan(
         brandId: input.brandId,
         channel: "social",
         themeInput,
-        generatedText: parsed.post,
+        generatedText: stripMarkdown(parsed.post),
         promptVersion: PLAN_PROMPT_VERSION,
         modelUsed: result.model,
         tokensIn: result.tokensIn,

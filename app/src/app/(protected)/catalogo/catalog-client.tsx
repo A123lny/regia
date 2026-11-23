@@ -177,6 +177,14 @@ function NewProductForm({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Live state per mostrare l'avviso "costo >= prezzo" sotto i campi senza
+  // dover arrivare al submit. L'avviso su submit (window.confirm) rimane.
+  const [priceEuroLive, setPriceEuroLive] = useState<string>("");
+  const [costEuroLive, setCostEuroLive] = useState<string>("");
+  const livePrice = parseFloat(priceEuroLive);
+  const liveCost = parseFloat(costEuroLive);
+  const marginWarning =
+    !isNaN(livePrice) && !isNaN(liveCost) && livePrice > 0 && liveCost >= livePrice;
   const defaultBrandId = brands[0]?.id ?? "";
 
   return (
@@ -283,17 +291,39 @@ function NewProductForm({
       <div className="grid grid-cols-3 gap-2">
         <div>
           <Label htmlFor="priceEuro">Prezzo (€)</Label>
-          <Input id="priceEuro" name="priceEuro" type="number" step="0.01" min={0} />
+          <Input
+            id="priceEuro"
+            name="priceEuro"
+            type="number"
+            step="0.01"
+            min={0}
+            value={priceEuroLive}
+            onChange={(e) => setPriceEuroLive(e.target.value)}
+          />
         </div>
         <div>
           <Label htmlFor="costEuro">Costo (€)</Label>
-          <Input id="costEuro" name="costEuro" type="number" step="0.01" min={0} />
+          <Input
+            id="costEuro"
+            name="costEuro"
+            type="number"
+            step="0.01"
+            min={0}
+            value={costEuroLive}
+            onChange={(e) => setCostEuroLive(e.target.value)}
+          />
         </div>
         <div>
           <Label htmlFor="minMarginPct">Margine %</Label>
           <Input id="minMarginPct" name="minMarginPct" type="number" step="0.1" min={0} max={100} />
         </div>
       </div>
+      {marginWarning && (
+        <p className="text-xs text-warning">
+          Attenzione: il costo ({liveCost.toFixed(2)}€) è uguale o maggiore del prezzo
+          ({livePrice.toFixed(2)}€). Margine zero o negativo.
+        </p>
+      )}
       <div>
         <Label htmlFor="notes">Note</Label>
         <Textarea id="notes" name="notes" rows={2} maxLength={500} />

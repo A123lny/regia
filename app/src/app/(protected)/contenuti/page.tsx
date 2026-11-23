@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, ArrowLeft } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
+
+export const metadata: Metadata = { title: "Contenuti" };
 import { listBrands } from "@/modules/m02-brand/public";
 import { BrandChip } from "@/components/brand/brand-chip";
 import { Badge } from "@/components/ui/badge";
