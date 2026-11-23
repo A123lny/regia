@@ -400,10 +400,18 @@ export async function runGenerateEditorialPlan(
         planBatchId,
       });
     } catch (err) {
+      // Log server-side del dettaglio tecnico (planBatchId + err.message)
+      // per debug. Al caller/audit mandiamo solo un messaggio generico: evita
+      // leak di struttura DB, constraint names, errori Postgres grezzi.
+      console.error("[plan-generator] insertDraft fallito", {
+        planBatchId,
+        draftIndex: i,
+        err: err instanceof Error ? err.message : String(err),
+      });
       const madeCount = drafts.length;
       return {
         ok: false,
-        error: `Piano interrotto al draft ${i + 1}/${input.numDrafts}: errore salvataggio (${err instanceof Error ? err.message : "?"}). ${madeCount} bozze gia' create restano in stato draft.`,
+        error: `Piano interrotto al draft ${i + 1}/${input.numDrafts}: errore salvataggio bozza. ${madeCount} bozze gia' create restano in stato draft.`,
         partialBatchId: planBatchId,
         partialDrafts: drafts,
         totalCostUsd,
