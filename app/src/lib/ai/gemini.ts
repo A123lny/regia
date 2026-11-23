@@ -43,6 +43,22 @@ const EMBEDDING_DIM = 768; // il nostro schema manuale_chunks e' vector(768)
  * Usato per generazione bozze contenuti dal robottino (variante Gemini
  * di generateSocialPost di m03, che usa Anthropic).
  */
+/**
+ * Classifica se un errore del SDK e' transiente (rate limit / overload / 5xx) e
+ * merita retry con backoff. Gemini free tier ha ~10 RPM, quindi anche piccole
+ * raffiche di generazioni superano il quota.
+ */
+function retryDelayMsForStatus(status: number | undefined): number | null {
+  if (status === 429) return 20_000; // rate limit: lascia ~20s
+  if (status === 503) return 10_000; // overload: 10s
+  if (status === 500 || status === 502 || status === 504) return 5_000;
+  return null;
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function generateText(input: {
   systemPrompt: string;
   userMessage: string;
@@ -62,76 +78,89 @@ export async function generateText(input: {
   const model = input.model ?? DEFAULT_MODEL;
   const started = Date.now();
 
-  try {
-    // Gemini 2.5 Flash consuma una parte di maxOutputTokens per il reasoning
-    // interno (thinking). Con maxTokens basso (es. 400) rischiamo risposte
-    // troncate perche' il ragionamento mangia tutto. Alziamo il default a
-    // 4096 e disabilitiamo esplicitamente il thinking (thinkingBudget=0) per
-    // il motore editoriale, cosi' tutti i token vanno nel testo.
-    const requestedMaxTokens = input.maxTokens ?? 4096;
-    const response = await client.models.generateContent({
-      model,
-      contents: [{ role: "user", parts: [{ text: input.userMessage }] }],
-      config: {
-        systemInstruction: input.systemPrompt,
-        maxOutputTokens: requestedMaxTokens,
-        // thinkingConfig: zero thinking budget -> l'intero maxOutputTokens
-        // va nella risposta visibile. Senza questo, Gemini 2.5 Flash spende
-        // in reasoning anche quando chiediamo un post semplice.
-        thinkingConfig: { thinkingBudget: 0 },
-        ...(input.responseMimeType && { responseMimeType: input.responseMimeType }),
-      },
-    });
-    const latencyMs = Date.now() - started;
+  const requestedMaxTokens = input.maxTokens ?? 4096;
 
-    const parts = response.candidates?.[0]?.content?.parts ?? [];
-    const text = parts
-      .map((p) => ("text" in p && p.text ? p.text : ""))
-      .filter(Boolean)
-      .join("");
-    const finishReason = response.candidates?.[0]?.finishReason;
-
-    // Usage calcolato una sola volta, usato anche sui path di errore sotto
-    // cosi' il caller puo' sempre loggare la spesa effettiva (il billing
-    // Gemini e' avvenuto comunque, non possiamo "scartarlo").
-    const usage = response.usageMetadata;
-    const tokensIn = usage?.promptTokenCount ?? 0;
-    const tokensOut = usage?.candidatesTokenCount ?? 0;
-    const costUsd =
-      (tokensIn * PRICE_INPUT_PER_M_USD + tokensOut * PRICE_OUTPUT_PER_M_USD) / 1_000_000;
-
-    if (!text) {
-      throw new AiApiError(
-        500,
-        `Gemini: risposta senza testo (finish=${finishReason ?? "?"}). Possibile taglio per maxOutputTokens o safety.`,
-      );
-    }
-    // Se il modello ha finito per raggiunto il max tokens la risposta e'
-    // tagliata: segnaliamo al caller con un errore dedicato che porta l'usage
-    // effettivo, cosi' puo' loggare la spesa (billed) e non salvare la bozza.
-    if (finishReason === "MAX_TOKENS") {
-      throw new AiMaxTokensError(
+  // Retry su 429/503/5xx transient: free tier Gemini ha ~10 RPM, bastano poche
+  // generazioni ravvicinate per far scattare il rate limit. 2 retry + attesa
+  // graduale sono quasi sempre sufficienti a lasciar rientrare la finestra.
+  let attempt = 0;
+  const maxAttempts = 3; // originale + 2 retry
+  while (true) {
+    try {
+      const response = await client.models.generateContent({
         model,
-        tokensIn,
-        tokensOut,
-        costUsd,
-        latencyMs,
-        `Gemini: risposta troncata al limite di ${requestedMaxTokens} token.`,
-      );
-    }
+        contents: [{ role: "user", parts: [{ text: input.userMessage }] }],
+        config: {
+          systemInstruction: input.systemPrompt,
+          maxOutputTokens: requestedMaxTokens,
+          // thinkingConfig: zero thinking budget -> l'intero maxOutputTokens
+          // va nella risposta visibile. Senza questo, Gemini 2.5 Flash spende
+          // in reasoning anche quando chiediamo un post semplice.
+          thinkingConfig: { thinkingBudget: 0 },
+          ...(input.responseMimeType && { responseMimeType: input.responseMimeType }),
+        },
+      });
+      const latencyMs = Date.now() - started;
 
-    return { text, model, tokensIn, tokensOut, costUsd, latencyMs };
-  } catch (err) {
-    // Preserva gli errori tipizzati che gia' portano context/usage.
-    if (err instanceof AiMaxTokensError) throw err;
-    if (err instanceof AiApiError) throw err;
-    if (err instanceof AiRateLimitError) throw err;
-    if (err instanceof AiTimeoutError) throw err;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const e = err as any;
-    if (e?.status === 429) throw new AiRateLimitError(null);
-    if (e?.name === "AbortError") throw new AiTimeoutError("Gemini generateText aborted");
-    throw new AiApiError(e?.status ?? 500, e?.message ?? "Gemini generateText error");
+      const parts = response.candidates?.[0]?.content?.parts ?? [];
+      const text = parts
+        .map((p) => ("text" in p && p.text ? p.text : ""))
+        .filter(Boolean)
+        .join("");
+      const finishReason = response.candidates?.[0]?.finishReason;
+
+      // Usage calcolato una sola volta, usato anche sui path di errore sotto
+      // cosi' il caller puo' sempre loggare la spesa effettiva (il billing
+      // Gemini e' avvenuto comunque, non possiamo "scartarlo").
+      const usage = response.usageMetadata;
+      const tokensIn = usage?.promptTokenCount ?? 0;
+      const tokensOut = usage?.candidatesTokenCount ?? 0;
+      const costUsd =
+        (tokensIn * PRICE_INPUT_PER_M_USD + tokensOut * PRICE_OUTPUT_PER_M_USD) / 1_000_000;
+
+      if (!text) {
+        throw new AiApiError(
+          500,
+          `Gemini: risposta senza testo (finish=${finishReason ?? "?"}). Possibile taglio per maxOutputTokens o safety.`,
+        );
+      }
+      if (finishReason === "MAX_TOKENS") {
+        throw new AiMaxTokensError(
+          model,
+          tokensIn,
+          tokensOut,
+          costUsd,
+          latencyMs,
+          `Gemini: risposta troncata al limite di ${requestedMaxTokens} token.`,
+        );
+      }
+
+      return { text, model, tokensIn, tokensOut, costUsd, latencyMs };
+    } catch (err) {
+      // Preserva gli errori tipizzati che gia' portano context/usage: niente retry.
+      if (err instanceof AiMaxTokensError) throw err;
+      if (err instanceof AiApiError) throw err;
+      if (err instanceof AiTimeoutError) throw err;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const e = err as any;
+      const status = typeof e?.status === "number" ? (e.status as number) : undefined;
+
+      // 429 / 5xx transient: backoff + retry finche' abbiamo tentativi.
+      const delay = retryDelayMsForStatus(status);
+      if (delay !== null && attempt < maxAttempts - 1) {
+        attempt++;
+        console.warn(
+          `[gemini] generateText status=${status} attempt=${attempt}/${maxAttempts - 1}, retry in ${delay}ms`,
+        );
+        await sleep(delay);
+        continue;
+      }
+
+      if (status === 429) throw new AiRateLimitError(null);
+      if (e?.name === "AbortError") throw new AiTimeoutError("Gemini generateText aborted");
+      throw new AiApiError(status ?? 500, e?.message ?? "Gemini generateText error");
+    }
   }
 }
 

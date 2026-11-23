@@ -217,6 +217,11 @@ export async function getRemindersStats(organizationId: string): Promise<{
     59,
     59,
   ).toISOString();
+  // Finestra "oggi" allineata al bucket della dashboard (task-aggregator): +24h,
+  // ma non piu' di 2 giorni indietro. I pending oltre questa finestra (es.
+  // scaduti da 30 giorni) non contano piu' come "da fare oggi" ma restano nella
+  // pagina come pending generali.
+  const todayFloor = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
   const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -226,6 +231,7 @@ export async function getRemindersStats(organizationId: string): Promise<{
       .select("*", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("status", "pending")
+      .gte("scheduled_at", todayFloor)
       .lte("scheduled_at", todayEnd),
     admin
       .from("reminders")

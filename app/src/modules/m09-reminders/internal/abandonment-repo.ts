@@ -68,7 +68,13 @@ export async function listAbandonmentSignals(
     )
     .eq("organization_id", organizationId)
     .eq("brands.is_archived", false);
-  if (onlyActive) q = q.is("resolved_at", null);
+  if (onlyActive) {
+    q = q.is("resolved_at", null);
+    // Fix: le soglie anti-abbandono richiedono almeno 2 ordini. I signals
+    // legacy con previous_orders_count<=1 (prima del rework) vengono
+    // nascosti anche se la migration di cleanup non e' stata applicata.
+    q = q.gte("previous_orders_count", 2);
+  }
   // Niente .order severity qui: ordinamento alfabetico di Supabase sbaglia
   // (medium > low > high lessicografico). Facciamo il sort esplicito sotto.
   q = q.order("signal_at", { ascending: false }).limit(limit);

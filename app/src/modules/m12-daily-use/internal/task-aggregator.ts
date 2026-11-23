@@ -5,6 +5,7 @@
 // se una query fallisce la riga non appare, non si rompe il dashboard.
 
 import { getAdminClient } from "@/lib/db/admin";
+import { findDuplicateGroups } from "@/modules/m01-data-hub/public";
 
 export type TaskPriority = "urgent" | "important" | "opportunity";
 
@@ -149,17 +150,10 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
         .lt("expires_at", in10Days),
       { count: 0 },
     ),
-    // Contatti duplicati pending (important) — stima via query, dedup detector ha logica piu complessa
-    safe(
-      admin
-        .from("contacts")
-        .select("email")
-        .eq("organization_id", organizationId)
-        .is("archived_at", null)
-        .is("is_duplicate_of", null)
-        .not("email", "is", null),
-      { data: [] as { email: string }[] },
-    ),
+    // Contatti duplicati pending (important). Prima contava solo i gruppi
+    // per email, ma la pagina /contatti/duplicati conta anche phone+whatsapp:
+    // da qui il delta "Home 1 vs Pagina 3". Ora usiamo lo stesso detector.
+    safe(findDuplicateGroups(organizationId), []),
     // Ricorrenze in arrivo (opportunity)
     safe(
       admin
@@ -177,8 +171,12 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
         .select("id, name, phone, cuisine_category, cooling_reason, last_contact_at, address_cap")
         .eq("organization_id", organizationId)
         .is("archived_at", null)
-        .eq("cooling_flag", true)
-        .or(`last_contact_at.is.null,last_contact_at.lt.${sevenDaysAgo}`),
+        // Include sia i partner con cooling_flag manuale (non contattati da 7gg)
+        // SIA quelli silenziosi da >30gg anche senza flag: prima questi ultimi
+        // non apparivano, generando il mismatch "segnalato a 40gg, ignorato a 61gg".
+        .or(
+          `and(cooling_flag.eq.true,or(last_contact_at.is.null,last_contact_at.lt.${sevenDaysAgo})),last_contact_at.lt.${thirtyDaysAgo}`,
+        ),
       {
         data: [] as Array<{
           id: string;
@@ -222,13 +220,9 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
     ),
   ]);
 
-  // Dedup contatti: conta email duplicate (semplificato)
-  const emailMap = new Map<string, number>();
-  for (const row of (duplicateContacts.data ?? []) as { email: string }[]) {
-    const k = row.email.toLowerCase().trim();
-    emailMap.set(k, (emailMap.get(k) ?? 0) + 1);
-  }
-  const duplicateGroups = Array.from(emailMap.values()).filter((n) => n >= 2).length;
+  // Dedup contatti: usa lo stesso detector della pagina /contatti/duplicati per
+  // coerenza. Prima si contavano solo i gruppi email, ora email+phone+whatsapp.
+  const duplicateGroups = Array.isArray(duplicateContacts) ? duplicateContacts.length : 0;
 
   // Partner con allarme errori consegna
   const errorsByPartner = new Map<string, number>();

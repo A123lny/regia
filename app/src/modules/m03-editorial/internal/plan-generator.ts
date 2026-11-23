@@ -10,6 +10,7 @@
 import { randomUUID } from "node:crypto";
 import { getBrandKitWithLists, formatBrandContextForAI } from "@/modules/m02-brand/public";
 import type { BrandPillar } from "@/modules/m02-brand/public";
+import { listPartners } from "@/modules/m07-partners/public";
 import { generateText } from "@/lib/ai/gemini";
 import { AiTimeoutError, AiRateLimitError, AiApiError } from "@/lib/ai/anthropic";
 import { insertDraft } from "./content-drafts-repo";
@@ -79,14 +80,44 @@ export function composePlanItemPrompt(input: {
   pillar: BrandPillar;
   slotDate: Date;
   previousItemsSummary: Array<{ dayIndex: number; pillar: string; theme: string }>;
+  // Opzionale: lista nomi ristoranti partner attivi del brand. Serve ai pilastri
+  // tipo "Ristorante della settimana" che prima venivano generati generici.
+  partnerRestaurants?: string[];
+  // Nomi gia' usati nel piano corrente: per rotazione deterministica, evita di
+  // ripetere lo stesso ristorante prima di aver esaurito la lista.
+  usedPartnerNames?: string[];
 }): { systemPrompt: string; userMessage: string } {
   const dayLabel = formatDateItalian(input.slotDate);
+
+  // Se il pillar ha a che fare con un partner (parole chiave tipiche) e abbiamo
+  // la lista, forziamo la scelta di un nome specifico non ancora usato.
+  const pillarName = input.pillar.name.toLowerCase();
+  const isRestaurantPillar =
+    /ristorante|partner|locale|cucina|chef/.test(pillarName) &&
+    (input.partnerRestaurants?.length ?? 0) > 0;
+
+  const partnerSection = (() => {
+    if (!isRestaurantPillar) return "";
+    const used = new Set(input.usedPartnerNames ?? []);
+    const available = (input.partnerRestaurants ?? []).filter((n) => !used.has(n));
+    const list = available.length > 0 ? available : (input.partnerRestaurants ?? []);
+    const pick = list[0] ?? null;
+    if (!pick) return "";
+    return (
+      `\n<partner-selezionato>\n` +
+      `Per questo post usa il ristorante "${pick}". ` +
+      `Scrivi il post nominandolo esplicitamente nel testo (il nome deve apparire). ` +
+      `Non inventare piatti, prezzi o orari: se non li hai, resta sul generale.\n` +
+      `</partner-selezionato>`
+    );
+  })();
 
   const systemPrompt =
     `Sei l'assistente editoriale del marchio "${input.brandDisplayName}".\n` +
     `Genera UN post social per il giorno indicato, coerente col brand kit e con il pilastro richiesto.\n\n` +
-    `<brand-kit>\n${input.brandContext}\n</brand-kit>\n\n` +
-    `REGOLE:\n` +
+    `<brand-kit>\n${input.brandContext}\n</brand-kit>` +
+    partnerSection +
+    `\n\nREGOLE:\n` +
     `- Rispetta rigorosamente il tono di voce e i vincoli del brand kit.\n` +
     `- Il post appartiene al pilastro "${input.pillar.name}".\n` +
     `- Considera stagionalita e giorno della settimana.\n` +
@@ -170,10 +201,26 @@ export async function runGenerateEditorialPlan(
   // 3. Brand context (Markdown, fidato)
   const brandContext = await formatBrandContextForAI(input.brandId);
 
+  // 3b. Elenco partner ristoranti attivi del brand (se il brand e' Lenny-like).
+  // Serve ai pilastri tipo "Ristorante della settimana" che altrimenti
+  // restano generici. Errore qui non blocca il piano: continua senza lista.
+  let partnerNames: string[] = [];
+  try {
+    const partners = await listPartners({
+      organizationId: input.organizationId,
+      brandId: input.brandId,
+      status: "attivo",
+    });
+    partnerNames = partners.map((p) => p.name).filter((n) => n.trim().length > 0);
+  } catch (err) {
+    console.warn("[plan-generator] listPartners non disponibile:", (err as Error).message);
+  }
+
   // 4. Loop sequenziale: N chiamate AI con context accumulato
   const planBatchId = randomUUID();
   const drafts: ContentDraft[] = [];
   const summary: Array<{ dayIndex: number; pillar: string; theme: string }> = [];
+  const usedPartnerNames: string[] = [];
   let totalCostUsd = 0;
 
   for (let i = 0; i < input.numDrafts; i++) {
@@ -186,6 +233,8 @@ export async function runGenerateEditorialPlan(
       pillar,
       slotDate,
       previousItemsSummary: summary,
+      partnerRestaurants: partnerNames,
+      usedPartnerNames,
     });
 
     let result;
@@ -200,15 +249,29 @@ export async function runGenerateEditorialPlan(
         responseMimeType: "application/json",
       });
     } catch (err) {
-      // Errori AI: interrompe il piano ma non perde i draft gia creati
+      // Errori AI: interrompe il piano ma non perde i draft gia creati.
+      // Se e' rate limit o timeout, lascia esplicitamente un suggerimento di
+      // riprovare: il retry di gemini.ts ha gia' fatto 3 tentativi e fallito
+      // -> servono qualche minuto di attesa (quota Gemini free-tier ~10 RPM).
       let errMsg = "Errore imprevisto";
-      if (err instanceof AiTimeoutError) errMsg = "Timeout servizio AI";
-      else if (err instanceof AiRateLimitError) errMsg = "Rate limit AI raggiunto";
-      else if (err instanceof AiApiError) errMsg = `AI error ${err.status}`;
-      else if (err instanceof Error) errMsg = err.message;
+      let suggestion = "";
+      if (err instanceof AiTimeoutError) {
+        errMsg = "Timeout servizio AI";
+        suggestion = " Riprova tra qualche minuto.";
+      } else if (err instanceof AiRateLimitError) {
+        errMsg = "Rate limit AI raggiunto (quota Gemini free-tier)";
+        suggestion =
+          " Attendi 1-2 minuti e genera un nuovo piano con i restanti giorni, oppure passa a un piano a pagamento.";
+      } else if (err instanceof AiApiError) {
+        errMsg = `AI error ${err.status}`;
+        if (err.status === 503) suggestion = " Servizio AI sovraccarico, riprova tra 1-2 minuti.";
+      } else if (err instanceof Error) {
+        errMsg = err.message;
+      }
+      const madeCount = drafts.length;
       return {
         ok: false,
-        error: `Piano interrotto al draft ${i + 1}/${input.numDrafts}: ${errMsg}. Le ${i} bozze gia create restano in stato draft.`,
+        error: `Piano interrotto al draft ${i + 1}/${input.numDrafts}: ${errMsg}.${suggestion} ${madeCount} bozze gia' create restano in stato draft (le vedi in /contenuti/${input.brandSlug}).`,
         partialBatchId: planBatchId,
         partialDrafts: drafts,
       };
@@ -237,6 +300,14 @@ export async function runGenerateEditorialPlan(
     drafts.push(draft);
     summary.push({ dayIndex: i, pillar: pillar.name, theme: parsed.theme });
     totalCostUsd += result.costUsd;
+
+    // Se il post nomina esplicitamente uno dei partner, marchiamolo come usato
+    // cosi' la prossima iterazione del pillar "ristorante" sceglie un altro.
+    for (const partnerName of partnerNames) {
+      if (parsed.post.toLowerCase().includes(partnerName.toLowerCase())) {
+        if (!usedPartnerNames.includes(partnerName)) usedPartnerNames.push(partnerName);
+      }
+    }
   }
 
   return { ok: true, planBatchId, drafts, totalCostUsd };

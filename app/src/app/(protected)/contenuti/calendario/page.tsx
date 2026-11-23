@@ -107,13 +107,19 @@ export default async function CalendarioGlobalePage({
                 14gg dopo <ChevronRight className="ml-1 h-3.5 w-3.5" />
               </Button>
             </Link>
-            {!isToday && (
-              <Link href="/contenuti/calendario">
-                <Button variant="ghost" size="sm">
-                  Oggi
-                </Button>
-              </Link>
-            )}
+            {/* Spazio stabile: il bottone "Oggi" si mostra solo quando siamo
+                lontani dalla data odierna, ma lasciamo l'ingombro riservato
+                via invisible per evitare che "14gg prima" salti di posizione
+                dopo il primo clic. */}
+            <Link
+              href="/contenuti/calendario"
+              className={isToday ? "pointer-events-none invisible" : ""}
+              aria-hidden={isToday}
+            >
+              <Button variant="ghost" size="sm">
+                Oggi
+              </Button>
+            </Link>
           </div>
         </div>
       </header>

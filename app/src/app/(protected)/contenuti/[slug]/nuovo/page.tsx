@@ -21,13 +21,13 @@ export default async function NewContentPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; theme?: string }>;
 }) {
   const session = await getSessionOrRedirect();
   if (!hasCapability(session.role, "content.generate")) notFound();
 
   const { slug } = await params;
-  const { error: errorParam } = await searchParams;
+  const { error: errorParam, theme: themeParam } = await searchParams;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
@@ -73,7 +73,12 @@ export default async function NewContentPage({
           if (result.ok) {
             redirect(`/contenuti/${brandSlug}/${result.draftId}`);
           } else {
-            redirect(`/contenuti/${brandSlug}/nuovo?error=${encodeURIComponent(result.error)}`);
+            // Preserva il testo scritto dall'utente nel redirect: senza questo,
+            // l'errore AI cancellava quanto digitato e costringeva a riscrivere.
+            const theme = String(formData.get("themeInput") ?? "").slice(0, 2000);
+            redirect(
+              `/contenuti/${brandSlug}/nuovo?error=${encodeURIComponent(result.error)}&theme=${encodeURIComponent(theme)}`,
+            );
           }
         }}
         className="space-y-4 rounded-lg border border-border bg-surface p-6"
@@ -102,6 +107,7 @@ export default async function NewContentPage({
             maxLength={2000}
             rows={6}
             placeholder="Es. Annunciare che apriamo la sera dal 20 ottobre, giovedì e venerdì fino alle 22"
+            defaultValue={themeParam ?? ""}
           />
           <p className="text-xs text-text-muted">
             Max 2000 caratteri. Sii specifico: date, orari, motivi. Il sistema non inventerà dati

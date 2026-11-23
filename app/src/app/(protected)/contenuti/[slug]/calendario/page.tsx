@@ -106,13 +106,15 @@ export default async function CalendarioPage({
                 14gg dopo <ChevronRight className="ml-1 h-3.5 w-3.5" />
               </Button>
             </Link>
-            {!isToday && (
-              <Link href={`/contenuti/${slug}/calendario`}>
-                <Button variant="ghost" size="sm">
-                  Oggi
-                </Button>
-              </Link>
-            )}
+            <Link
+              href={`/contenuti/${slug}/calendario`}
+              className={isToday ? "pointer-events-none invisible" : ""}
+              aria-hidden={isToday}
+            >
+              <Button variant="ghost" size="sm">
+                Oggi
+              </Button>
+            </Link>
           </div>
         </div>
       </header>

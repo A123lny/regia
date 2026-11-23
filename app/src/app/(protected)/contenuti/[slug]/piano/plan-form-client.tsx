@@ -140,13 +140,23 @@ export function PlanFormClient({ brandId, brandSlug, pillars, defaultStartDate }
             min={1}
             max={30}
             value={numDrafts}
-            onChange={(e) => setNumDrafts(Number(e.target.value))}
+            onChange={(e) => {
+              const raw = Number(e.target.value);
+              setNumDrafts(Math.min(30, Math.max(1, isNaN(raw) ? 1 : raw)));
+            }}
             className="w-20 rounded-md border border-border bg-bg px-2 py-1.5 text-sm text-text focus:border-primary focus:outline-none"
           />
         </div>
         <p className="mt-1 text-[11px] text-text-muted">
-          Consigliato 14 (~2 settimane, 1 al giorno). Range 1-30.
+          Consigliato 14 (~2 settimane, 1 al giorno). Massimo consentito: 30 bozze per
+          piano. Per piani più lunghi, genera più volte scegliendo date di inizio
+          successive.
         </p>
+        {numDrafts > 30 && (
+          <p className="mt-1 text-xs text-warning">
+            Il limite per piano è 30 bozze (il numero verrà clippato automaticamente).
+          </p>
+        )}
       </div>
 
       {/* Data inizio */}
