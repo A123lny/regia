@@ -81,9 +81,44 @@ function areaVisible(area: Area, role: Role): boolean {
   return area.requiresAnyOf.some((c) => hasCapability(role, c));
 }
 
-function isAreaActive(pathname: string, areaHref: string): boolean {
-  // "/oggi" → match anche per path dentro Oggi come /oggi/giorno/...
-  return pathname === areaHref || pathname.startsWith(areaHref + "/");
+/**
+ * Mappa pathname (anche quelle legacy pre-refactor) -> area.
+ * Serve ad evidenziare la voce di sidebar corretta anche quando l'utente
+ * sta navigando su route vecchie (es. /fornitori -> "Rete").
+ */
+const LEGACY_PATH_TO_AREA: Array<{ prefix: string; area: Area["key"] }> = [
+  { prefix: "/oggi", area: "oggi" },
+  { prefix: "/dashboard", area: "oggi" },
+  { prefix: "/contenuti", area: "contenuti" },
+  { prefix: "/campagne", area: "contenuti" },
+  { prefix: "/clienti", area: "clienti" },
+  { prefix: "/contatti", area: "clienti" },
+  { prefix: "/promemoria", area: "clienti" },
+  { prefix: "/anti-abbandono", area: "clienti" },
+  { prefix: "/fedelta", area: "clienti" },
+  { prefix: "/iscrizioni", area: "clienti" },
+  { prefix: "/segmenti", area: "clienti" },
+  { prefix: "/recensioni", area: "clienti" },
+  { prefix: "/rete", area: "rete" },
+  { prefix: "/ristoranti", area: "rete" },
+  { prefix: "/fornitori", area: "rete" },
+  { prefix: "/catalogo", area: "rete" },
+  { prefix: "/ordini", area: "rete" },
+  { prefix: "/impostazioni", area: "impostazioni" },
+  { prefix: "/marchi", area: "impostazioni" },
+  { prefix: "/governance", area: "impostazioni" },
+  { prefix: "/team", area: "impostazioni" },
+  { prefix: "/audit", area: "impostazioni" },
+  { prefix: "/analytics", area: "clienti" },
+];
+
+function isAreaActive(pathname: string, areaKey: Area["key"]): boolean {
+  const matches = LEGACY_PATH_TO_AREA.filter(
+    (m) => pathname === m.prefix || pathname.startsWith(m.prefix + "/"),
+  );
+  // Prende il prefisso piu' lungo (/impostazioni/memoria-agente vince su /impostazioni).
+  matches.sort((a, b) => b.prefix.length - a.prefix.length);
+  return matches[0]?.area === areaKey;
 }
 
 function areaClasses(active: boolean): string {
@@ -116,7 +151,7 @@ function NavList({
       <div className="flex flex-1 flex-col gap-0.5 px-3 py-4">
         {visibleAreas.map((area) => {
           const Icon = area.icon;
-          const active = isAreaActive(pathname, area.href);
+          const active = isAreaActive(pathname, area.key);
           return (
             <Link
               key={area.key}
@@ -207,7 +242,7 @@ export function MobileBottomBar({ role }: { role: Role }) {
       <div className="flex items-stretch">
         {visibleAreas.map((area) => {
           const Icon = area.icon;
-          const active = isAreaActive(pathname, area.href);
+          const active = isAreaActive(pathname, area.key);
           return (
             <Link
               key={area.key}

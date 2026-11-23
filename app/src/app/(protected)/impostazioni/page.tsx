@@ -103,15 +103,12 @@ export default async function ImpostazioniPage() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <div className="flex items-start justify-between gap-3">
-          <h1 className="font-serif text-3xl font-semibold text-text">Impostazioni</h1>
-          <HelpButton pageKey="impostazioni" />
-        </div>
-        <p className="mt-1 text-sm text-text-muted">
-          Profilo utente e informazioni sull&apos;ambiente di esecuzione.
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm text-text-muted">
+          Profilo, chiavi API, kill switch AI, tetti spesa e integrazioni.
         </p>
-      </header>
+        <HelpButton pageKey="impostazioni" />
+      </div>
 
       {/* Sezione profilo */}
       <Card className="border-border bg-surface">

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, ArrowLeft } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Contenuti" };
@@ -92,31 +92,15 @@ export default async function ContenutiIndexPage({
 
     return (
       <div className="space-y-6">
-        <header className="space-y-2">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-primary"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> Home
-          </Link>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1
-                className="text-3xl font-extrabold uppercase tracking-[0.04em] text-text"
-                style={{ fontFamily: "var(--font-bricolage)" }}
-              >
-                {meta.heading}
-              </h1>
-              <p className="mt-1 text-sm text-text-muted">{meta.subtitle}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge className="border border-border bg-surface-muted text-text">
-                {drafts.length} risultat{drafts.length === 1 ? "o" : "i"}
-              </Badge>
-              <HelpButton pageKey="contenuti" />
-            </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-text-muted">{meta.subtitle}</p>
+          <div className="flex items-center gap-2">
+            <Badge className="border border-border bg-surface-muted text-text">
+              {drafts.length} risultat{drafts.length === 1 ? "o" : "i"}
+            </Badge>
+            <HelpButton pageKey="contenuti" />
           </div>
-        </header>
+        </div>
 
         <div className="rounded-lg border border-border bg-surface">
           {drafts.length === 0 ? (
@@ -193,21 +177,13 @@ export default async function ContenutiIndexPage({
 
   return (
     <div className="space-y-6">
-      <header>
-        <div className="flex items-start justify-between gap-3">
-          <h1
-            className="text-3xl font-extrabold uppercase tracking-[0.04em] text-text"
-            style={{ fontFamily: "var(--font-bricolage)" }}
-          >
-            Contenuti
-          </h1>
-          <HelpButton pageKey="contenuti" />
-        </div>
-        <p className="mt-1 text-sm text-text-muted">
-          Scegli un marchio per generare, approvare e rifiutare bozze di post social usando il brand
-          kit come contesto (RF-3.3).
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm text-text-muted">
+          Scegli un marchio per generare, approvare e rifiutare bozze. Il brand kit del marchio
+          viene usato come contesto.
         </p>
-      </header>
+        <HelpButton pageKey="contenuti" />
+      </div>
 
       <div className="rounded-lg border border-border bg-surface">
         <Table>

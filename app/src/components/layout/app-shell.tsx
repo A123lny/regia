@@ -4,6 +4,8 @@
 import Link from "next/link";
 import { PowerOff } from "lucide-react";
 import { DesktopSidebar, MobileBottomBar } from "@/components/layout/sidebar";
+import { AreaTabBar } from "@/components/layout/area-tabs";
+import { BrandFilterBanner } from "@/components/layout/brand-filter-banner";
 import { Header } from "@/components/layout/header";
 import type { Role } from "@/lib/auth/permissions";
 import { getAiSafetyStatus, getPlatformBranding } from "@/modules/m11-admin/public";
@@ -53,6 +55,7 @@ export async function AppShell({
         brands={brands}
         currentBrand={currentBrand}
       />
+      <BrandFilterBanner currentBrand={currentBrand} brands={brands} />
       {aiSafety.killSwitchOn && (
         <div className="border-b border-danger bg-danger/10 px-4 py-2 text-center text-sm text-danger">
           <PowerOff className="mr-1 inline-block h-4 w-4" />
@@ -71,6 +74,7 @@ export async function AppShell({
       <div className="flex flex-1">
         <DesktopSidebar role={role} brands={brands} currentBrand={currentBrand} />
         <main className="flex-1 px-4 py-6 pb-20 md:px-6 md:pb-6 lg:mx-auto lg:max-w-6xl lg:px-8">
+          <AreaTabBar />
           {children}
         </main>
       </div>
