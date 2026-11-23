@@ -640,9 +640,12 @@ export async function markContentDraftPublished(draftId: string): Promise<void> 
   revalidatePath(`/contenuti/${brandSlug}/calendario`);
 }
 
-// Permette all'owner di editare manualmente il testo di una bozza prima
-// dell'approvazione/pubblicazione. Un contenuto gia' pubblicato o rifiutato
-// non e' editabile (immutabilita' post-pubblicazione).
+// Edit manuale del testo di una bozza. Vincolo: solo status='draft'.
+// Se approved/scheduled serve prima rifiutare/unschedule — cosi' non si
+// aggira il workflow di approvazione cambiando il testo sotto il naso di
+// chi ha gia' approvato. Published/rejected sono immutabili per definizione.
+// La guardia .eq("status","draft") nell'UPDATE evita la race fra il check
+// applicativo e il flip di stato concorrente.
 export async function updateContentDraftGeneratedText(
   draftId: string,
   newText: string,
@@ -653,18 +656,27 @@ export async function updateContentDraftGeneratedText(
   const { session, draft } = await requireOwnedDraft(draftId, "content.generate");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dr = draft as any;
-  if (dr.status === "published" || dr.status === "rejected") {
-    throw new Error("Impossibile modificare una bozza pubblicata o rifiutata");
+  if (dr.status !== "draft") {
+    throw new Error(
+      "Puoi modificare il testo solo di una bozza non ancora approvata. Rifiuta o sprogramma prima.",
+    );
   }
   const brandSlug = await getBrandSlug(dr.brand_id);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  const { error } = await admin
+  const { data, error } = await admin
     .from("content_drafts")
     .update({ generated_text: trimmed })
     .eq("id", draftId)
-    .eq("organization_id", session.organizationId);
+    .eq("organization_id", session.organizationId)
+    .eq("status", "draft")
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(`Errore salvataggio testo: ${error.message}`);
+  if (!data) {
+    // Qualcuno ha approvato/schedulato tra il check e l'update.
+    throw new Error("La bozza e' stata approvata o schedulata nel frattempo. Ricarica.");
+  }
   await logAuditEvent({
     organizationId: session.organizationId,
     actorUserId: session.userId,

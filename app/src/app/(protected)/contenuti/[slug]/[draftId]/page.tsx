@@ -129,7 +129,7 @@ export default async function DraftDetailPage({
             <DraftTextEditor
               draftId={draft.id}
               currentText={draft.generatedText}
-              disabled={draft.status === "published" || draft.status === "rejected"}
+              disabled={draft.status !== "draft"}
             />
           </div>
         </CardContent>
