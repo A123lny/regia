@@ -170,6 +170,25 @@ export async function redeemVoucherAtomic(
 ): Promise<Voucher | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
+
+  // Difesa in profondita' sul riscatto:
+  // 1) status='issued' + expires_at > now gia' garantiscono "non doppio
+  //    riscatto" e "non scaduto".
+  // 2) Pre-check esplicito: contatto NON archiviato. In teoria l'archive
+  //    RPC ha gia' cancelled i voucher, ma se per qualunque race restassero
+  //    issued voucher su un contatto archiviato non li lasciamo riscattare.
+  const { data: voucherPre, error: preErr } = await admin
+    .from("vouchers")
+    .select("contact_id, contacts!inner(archived_at)")
+    .eq("id", voucherId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (preErr) throw new Error(`Errore pre-check voucher: ${preErr.message}`);
+  if (!voucherPre) return null;
+  if ((voucherPre as { contacts: { archived_at: string | null } }).contacts.archived_at !== null) {
+    return null;
+  }
+
   const patch: Record<string, unknown> = {
     status: "redeemed",
     redeemed_at: new Date().toISOString(),

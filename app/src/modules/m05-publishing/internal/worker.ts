@@ -5,6 +5,7 @@ import { reclaimOrphaned, claimBatch, markSent, markFailed } from "./publish-job
 import { logSent, logFailed } from "./publish-log-repo";
 import { getAdapter } from "./adapter-registry";
 import { loadAdapterCredentials } from "./credentials-repo";
+import { getAdminClient } from "@/lib/db/admin";
 
 export type TickResult = {
   orphaned: number;
@@ -22,6 +23,28 @@ export async function tickBatch(batchSize = 20): Promise<TickResult> {
   result.claimed = jobs.length;
   for (const job of jobs) {
     try {
+      // Re-check archived/consent al momento del send (TOCTOU safety).
+      // Tra il momento in cui il job e' stato inserito (enqueue) e il momento
+      // in cui il worker lo esegue possono passare minuti o ore: l'owner puo'
+      // aver archiviato il contatto o revocato il consenso nel frattempo.
+      // Senza questa guardia il messaggio verrebbe inviato comunque.
+      if (job.recipientContactId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const admin = getAdminClient() as any;
+        const { data: contactRow } = await admin
+          .from("contacts")
+          .select("archived_at")
+          .eq("organization_id", job.organizationId)
+          .eq("id", job.recipientContactId)
+          .maybeSingle();
+        if (!contactRow) {
+          throw new Error("Contatto destinatario non trovato al momento del send");
+        }
+        if ((contactRow as { archived_at: string | null }).archived_at !== null) {
+          throw new Error("Contatto archiviato dopo enqueue: invio annullato");
+        }
+      }
+
       const loaded = await loadAdapterCredentials(job.organizationId, job.channel);
       if (!loaded) throw new Error(`Credenziali ${job.channel} sparite`);
       const adapter = await getAdapter(job.channel, loaded.provider);

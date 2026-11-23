@@ -37,6 +37,25 @@ export async function gateConsent(
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
+
+  // Pre-check: contatto NON archiviato. Archivio = revoca di fatto di tutti
+  // i consensi. Qualunque percorso (enqueue, worker, resend) passa da qui.
+  const { data: contactRow, error: contactErr } = await admin
+    .from("contacts")
+    .select("archived_at")
+    .eq("organization_id", organizationId)
+    .eq("id", contactId)
+    .maybeSingle();
+  if (contactErr) throw new Error(`gateConsent (contact): ${contactErr.message}`);
+  if (!contactRow) {
+    throw new ConsentMissingError(`Contatto ${contactId} non trovato`);
+  }
+  if ((contactRow as { archived_at: string | null }).archived_at !== null) {
+    throw new ConsentMissingError(
+      `Contatto ${contactId} archiviato: nessun invio consentito`,
+    );
+  }
+
   const { data, error } = await admin
     .from("contact_consents")
     .select("status")

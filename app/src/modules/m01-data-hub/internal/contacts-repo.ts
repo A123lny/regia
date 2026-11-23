@@ -248,72 +248,21 @@ export async function updateContact(input: UpdateContactInput): Promise<Contact 
 }
 
 /**
- * Soft-delete: set archived_at. Preservazione storico (RF-11.3 audit trail).
+ * Soft-delete atomico via RPC: archive + cancel voucher issued + dismiss
+ * reminders pending in una singola transazione Postgres.
  *
- * Side-effect: cancella tutti i voucher ancora "issued" di questo contatto.
- * Fix bug: prima si archiviava il contatto ma i suoi voucher restavano riscattabili
- * fino alla scadenza, con il rischio che qualcuno al banco li convalidasse.
+ * Senza transazione, un fallimento sul cascade (voucher ok, reminder ko)
+ * lasciava il contatto archiviato con reminder ancora pending.
  */
 export async function archiveContact(contactId: string, organizationId: string): Promise<boolean> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  const { error, count } = await admin
-    .from("contacts")
-    .update({ archived_at: new Date().toISOString() }, { count: "exact" })
-    .eq("id", contactId)
-    .eq("organization_id", organizationId)
-    .is("archived_at", null);
+  const { data, error } = await admin.rpc("rpc_archive_contact", {
+    p_organization_id: organizationId,
+    p_contact_id: contactId,
+  });
   if (error) throw new Error(`Errore archiviazione contatto: ${error.message}`);
-  const archived = (count ?? 0) > 0;
-  if (archived) {
-    // Cancella voucher attivi del contatto.
-    const voucherRes = await admin
-      .from("vouchers")
-      .update({
-        status: "cancelled",
-        cancelled_at: new Date().toISOString(),
-        cancelled_reason: "contatto archiviato",
-      })
-      .eq("contact_id", contactId)
-      .eq("organization_id", organizationId)
-      .eq("status", "issued");
-    if (voucherRes.error) {
-      // Side-effect fallita: la coerenza "archiviato -> niente voucher attivi"
-      // e' violata. Ripristina e fai fallire l'operazione (no transazione
-      // disponibile cross-table, facciamo compensating update).
-      await admin
-        .from("contacts")
-        .update({ archived_at: null })
-        .eq("id", contactId)
-        .eq("organization_id", organizationId);
-      throw new Error(`Archiviazione fallita (voucher): ${voucherRes.error.message}`);
-    }
-    // Dismiss promemoria pending del contatto: un contatto archiviato non
-    // riceve piu' comunicazioni, quindi non ha senso che continuino ad
-    // apparire nella lista "da gestire".
-    const reminderRes = await admin
-      .from("reminders")
-      .update({
-        status: "dismissed",
-        dismissed_at: new Date().toISOString(),
-      })
-      .eq("contact_id", contactId)
-      .eq("organization_id", organizationId)
-      .eq("status", "pending");
-    if (reminderRes.error) {
-      // Compensating rollback: ripristina contatto E voucher (best effort).
-      await admin
-        .from("contacts")
-        .update({ archived_at: null })
-        .eq("id", contactId)
-        .eq("organization_id", organizationId);
-      // I voucher annullati NON vengono ri-emessi (reward_kind + code unico);
-      // li lasciamo cancelled, meglio dover ri-emettere a mano che riscattare
-      // un voucher su un contatto da archiviare.
-      throw new Error(`Archiviazione fallita (reminders): ${reminderRes.error.message}`);
-    }
-  }
-  return archived;
+  return data === true;
 }
 
 export async function restoreContact(contactId: string, organizationId: string): Promise<boolean> {
