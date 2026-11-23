@@ -56,7 +56,13 @@ export async function listPartners(input: ListPartnersInput): Promise<PartnerRes
     .eq("brand_id", input.brandId);
   if (!input.includeArchived) q = q.is("archived_at", null);
   if (input.status) q = q.eq("onboarding_status", input.status);
-  if (input.coolingOnly) q = q.eq("cooling_flag", true);
+  if (input.coolingOnly) {
+    // "cooling" significa: flag manuale oppure silenzio >30gg (allineato alla
+    // dashboard "ristoranti da chiamare"). Prima era solo flag manuale e la
+    // pagina elencava 1 partner mentre la Home ne mostrava 5.
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    q = q.or(`cooling_flag.eq.true,last_contact_at.lt.${thirtyDaysAgo}`);
+  }
   if (input.cuisineCategory) q = q.eq("cuisine_category", input.cuisineCategory);
   if (input.query && input.query.trim().length > 0) {
     const term = `%${input.query.trim()}%`;
@@ -196,7 +202,9 @@ export async function getPartnerStats(
       .select("*", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("brand_id", brandId)
-      .eq("cooling_flag", true)
+      .or(
+        `cooling_flag.eq.true,last_contact_at.lt.${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()}`,
+      )
       .is("archived_at", null),
     admin
       .from("partner_restaurants")

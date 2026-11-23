@@ -277,6 +277,18 @@ export async function archiveContact(contactId: string, organizationId: string):
       .eq("contact_id", contactId)
       .eq("organization_id", organizationId)
       .eq("status", "issued");
+    // Dismiss promemoria pending del contatto: un contatto archiviato non
+    // riceve piu' comunicazioni, quindi non ha senso che continuino ad
+    // apparire nella lista "da gestire".
+    await admin
+      .from("reminders")
+      .update({
+        status: "dismissed",
+        dismissed_at: new Date().toISOString(),
+      })
+      .eq("contact_id", contactId)
+      .eq("organization_id", organizationId)
+      .eq("status", "pending");
   }
   return archived;
 }

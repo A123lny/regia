@@ -59,10 +59,13 @@ export async function listReminders(input: ListRemindersInput): Promise<Reminder
   let q = admin
     .from("reminders")
     .select(
-      `${SELECT_COLS}, brands!inner(slug, display_name, color, is_archived), contacts!inner(first_name, last_name, email)`,
+      `${SELECT_COLS}, brands!inner(slug, display_name, color, is_archived), contacts!inner(first_name, last_name, email, archived_at)`,
     )
     .eq("organization_id", input.organizationId)
-    .eq("brands.is_archived", false);
+    .eq("brands.is_archived", false)
+    // Esclude reminders di contatti archiviati: il contatto non riceve piu'
+    // comunicazioni, quindi i suoi reminder pending non devono comparire.
+    .is("contacts.archived_at", null);
   if (input.brandId) q = q.eq("brand_id", input.brandId);
   if (input.kind) q = q.eq("kind", input.kind);
   if (input.status) q = q.eq("status", input.status);
@@ -219,10 +222,10 @@ export async function getRemindersStats(organizationId: string): Promise<{
     59,
     59,
   ).toISOString();
-  // Finestra "oggi" allineata al bucket della dashboard (task-aggregator): +24h,
-  // ma non piu' di 2 giorni indietro. I pending oltre questa finestra (es.
-  // scaduti da 30 giorni) non contano piu' come "da fare oggi" ma restano nella
-  // pagina come pending generali.
+  // Finestra "oggi" allineata al bucket della dashboard (task-aggregator):
+  // -2d fino a end-of-today. Niente +24h (prima includeva reminder di domani
+  // e creava delta con la pagina). I pending scaduti >2gg non contano piu'
+  // come "da fare oggi" ma restano nella pagina generale.
   const todayFloor = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
   const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -230,9 +233,10 @@ export async function getRemindersStats(organizationId: string): Promise<{
   const [todayRes, weekRes, sentRes, dismissedRes] = await Promise.all([
     admin
       .from("reminders")
-      .select("*", { count: "exact", head: true })
+      .select("id, contacts!inner(archived_at)", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("status", "pending")
+      .is("contacts.archived_at", null)
       .gte("scheduled_at", todayFloor)
       .lte("scheduled_at", todayEnd),
     admin

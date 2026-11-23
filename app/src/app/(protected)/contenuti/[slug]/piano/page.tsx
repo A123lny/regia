@@ -2,8 +2,11 @@
 // L'Owner sceglie: numero bozze, data inizio, pilastri da escludere.
 // La server action genera N bozze sequenziali con context accumulato (~1-3 min).
 
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+export const metadata: Metadata = { title: "Piano editoriale" };
 import { ArrowLeft } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";

@@ -65,9 +65,20 @@ export function MediaLibraryClient({ brandId, initialAssets }: Props) {
       for (const file of list) {
         const fd = new FormData();
         fd.set("file", file);
+        fd.set("brandId", brandId);
         try {
-          const asset = await uploadMediaAsset(brandId, fd);
-          setAssets((prev) => [asset, ...prev]);
+          // Upload via API Route invece di Server Action: la Server Action su
+          // Vercel dava React error #441 su file medium/grandi. POST classico
+          // multipart gestisce meglio il payload.
+          const res = await fetch("/api/media/upload", {
+            method: "POST",
+            body: fd,
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            throw new Error(data.error ?? `HTTP ${res.status}`);
+          }
+          setAssets((prev) => [data.asset as MediaAsset, ...prev]);
         } catch (err) {
           setUploadError(`${file.name}: ${err instanceof Error ? err.message : "errore upload"}`);
         }

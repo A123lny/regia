@@ -1,5 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  // Titolo pagina marchio: "Brand slug · Regìa" (il layout aggiunge Regìa).
+  return { title: `Marchio ${slug}` };
+}
 import { ArrowLeft, Trash2, ChevronUp, ChevronDown, ImagePlus } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";
@@ -97,11 +108,11 @@ export default async function BrandKitPage({
             <h1 className="font-serif text-3xl font-semibold text-text">{displayName}</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Link href={`/marchi/${brandSlug}/media`}>
-              <Button variant="outline">
+            <Button asChild variant="outline">
+              <Link href={`/marchi/${brandSlug}/media`}>
                 <ImagePlus className="mr-2 h-4 w-4" /> Libreria media
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             <HelpButton pageKey="brand-kit" />
           </div>
         </div>

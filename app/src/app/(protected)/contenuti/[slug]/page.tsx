@@ -93,26 +93,26 @@ export default async function BrandContentPage({
             <h1 className="font-serif text-3xl font-semibold text-text">{displayName}</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Link href={`/contenuti/${brandSlug}/calendario`}>
-              <Button variant="outline">
+            <Button asChild variant="outline">
+              <Link href={`/contenuti/${brandSlug}/calendario`}>
                 <Calendar className="mr-2 h-4 w-4" /> Calendario
-              </Button>
-            </Link>
-            <Link href={`/contenuti/${brandSlug}/piano`}>
-              <Button variant="outline">
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/contenuti/${brandSlug}/piano`}>
                 <ListChecks className="mr-2 h-4 w-4" /> Piano 14gg
-              </Button>
-            </Link>
-            <Link href={`/contenuti/${brandSlug}/servizio`}>
-              <Button variant="outline">
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/contenuti/${brandSlug}/servizio`}>
                 <Zap className="mr-2 h-4 w-4" /> Corsia veloce
-              </Button>
-            </Link>
-            <Link href={`/contenuti/${brandSlug}/nuovo`}>
-              <Button className="bg-primary text-white hover:bg-primary-hover">
+              </Link>
+            </Button>
+            <Button asChild className="bg-primary text-white hover:bg-primary-hover">
+              <Link href={`/contenuti/${brandSlug}/nuovo`}>
                 <Sparkles className="mr-2 h-4 w-4" /> Nuovo contenuto
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             <HelpButton pageKey="contenuti" />
           </div>
         </div>

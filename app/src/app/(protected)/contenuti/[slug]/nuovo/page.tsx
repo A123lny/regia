@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
+
+export const metadata: Metadata = { title: "Nuovo contenuto" };
 import { ArrowLeft } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";

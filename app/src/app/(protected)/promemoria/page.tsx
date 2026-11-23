@@ -65,10 +65,15 @@ export default async function PromemoriaPage({
   if (selectedBrand) listInput.brandId = selectedBrand.id;
   if (kindFilter) listInput.kind = kindFilter;
   if (statusFilter === "pending" && !showAllPending) {
-    // eslint-disable-next-line react-hooks/purity
-    const now = Date.now();
-    listInput.scheduledAfterIso = new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString();
-    listInput.scheduledBeforeIso = new Date(now + 24 * 60 * 60 * 1000).toISOString();
+    // Finestra "oggi" allineata al KPI "Da fare oggi" e alla Home dashboard:
+    // dal -2d fino a fine giornata. Non prendiamo il giorno dopo per evitare
+    // delta visibili tra Home e pagina.
+    const now = new Date();
+    const todayEnd = new Date(now);
+    todayEnd.setHours(23, 59, 59, 999);
+    const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+    listInput.scheduledAfterIso = twoDaysAgo.toISOString();
+    listInput.scheduledBeforeIso = todayEnd.toISOString();
   }
 
   const reminders = await listReminders(listInput);

@@ -4,7 +4,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Informativa privacy — Regìa",
+  // Il layout root ha template "%s · Regìa", quindi "Informativa privacy"
+  // diventa "Informativa privacy · Regìa" senza doppioni.
+  title: "Informativa privacy",
   description: "Informativa sul trattamento dei dati personali raccolti tramite le landing di iscrizione.",
 };
 

@@ -1,8 +1,21 @@
 // M10 landing pubblica RF-10.1: pagina di iscrizione senza login richiesto.
 
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublicLandingBySlug } from "@/modules/m10-signup/public";
 import { SignupPublicForm } from "./signup-public-form";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const landing = await getPublicLandingBySlug(slug);
+  if (!landing) return { title: "Iscrizione" };
+  // Il titolo include il brand della landing (es. "Iscrizione Lenny").
+  return { title: `Iscrizione ${landing.brandDisplayName ?? slug}` };
+}
 
 export default async function IscrivitiPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

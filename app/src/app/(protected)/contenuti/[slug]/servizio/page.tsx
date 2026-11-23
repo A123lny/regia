@@ -1,8 +1,11 @@
 // RF-3.4 Corsia veloce comunicazioni di servizio.
 // Form asciutto: 1 riga in ingresso → post di servizio pronto in pochi secondi.
 
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+export const metadata: Metadata = { title: "Corsia veloce" };
 import { ArrowLeft, Zap } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";
