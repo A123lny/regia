@@ -13,6 +13,26 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "25mb",
     },
   },
+
+  // Redirect permanenti (308) dalle vecchie route del refactor UI.
+  // I QR gia' stampati e i link esterni (es. mail, segnaposti) continuano
+  // a funzionare. Le pagine pubbliche /iscriviti/* /privacy /login / NON
+  // sono toccate. Vedi docs/inventario-funzioni.md §5.
+  async redirects() {
+    return [
+      // Dashboard -> Oggi
+      { source: "/dashboard", destination: "/oggi", permanent: true },
+
+      // Clienti (aggiunti nei commit successivi delle Fasi 1.3+)
+      // {
+      //   source: "/anti-abbandono",
+      //   destination: "/clienti?scheda=da-recuperare",
+      //   permanent: true,
+      // },
+      // Le rimanenti (fornitori, catalogo, ...) le aggiungeremo quando
+      // gli hub /clienti, /rete, /contenuti, /impostazioni saranno pronti.
+    ];
+  },
 };
 
 export default nextConfig;
