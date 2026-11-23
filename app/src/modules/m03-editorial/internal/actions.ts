@@ -171,44 +171,32 @@ export async function generateSocialPost(
 }
 
 /**
- * Approva una bozza. Protezione TOCTOU: il chiamante passa il testo che ha
- * letto. Se nel frattempo qualcuno lo ha modificato, l'approvazione si
- * rifiuta per non applicarsi a un contenuto che il revisore non ha visto.
- * Se il parametro reviewedText e' omesso (caller legacy, es. wizard), si
- * applica solo la guardia atomica di stato via markApproved.
+ * Approva una bozza. Protezione TOCTOU: il chiamante DEVE passare il testo
+ * che ha letto. L'uguaglianza vive nel WHERE della UPDATE atomica dentro
+ * markApproved, quindi non esiste finestra fra check e scrittura. Se il
+ * testo e' cambiato o lo stato non e' piu' 'draft', l'approvazione fallisce.
+ * reviewedText obbligatorio = fail-closed: una chiamata sbagliata non approva
+ * silenziosamente senza binding al contenuto.
  */
 export async function approveContentDraft(
   draftId: string,
-  reviewedText?: string,
+  reviewedText: string,
 ): Promise<void> {
+  if (typeof reviewedText !== "string") {
+    throw new Error("reviewedText obbligatorio: lega l'approvazione al contenuto letto");
+  }
   const { session, draft } = await requireOwnedDraft(draftId, "content.approve");
   if (draft.status !== "draft") {
     throw new Error(`Bozza in stato ${draft.status}, non approvabile`);
   }
 
-  // Binding al contenuto letto: fetch la riga completa per confrontare il testo.
-  if (reviewedText !== undefined) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = getAdminClient() as any;
-    const { data: cur } = await admin
-      .from("content_drafts")
-      .select("generated_text")
-      .eq("id", draftId)
-      .eq("organization_id", session.organizationId)
-      .maybeSingle();
-    if (!cur) throw new Error("Bozza non trovata");
-    if ((cur as { generated_text: string }).generated_text !== reviewedText) {
-      throw new Error(
-        "Il testo e' cambiato dopo la lettura. Ricarica la pagina prima di approvare.",
-      );
-    }
-  }
-
   const brandSlug = await getBrandSlug(draft.brand_id);
 
-  const approved = await markApproved(draftId);
+  const approved = await markApproved(draftId, session.organizationId, reviewedText);
   if (!approved) {
-    throw new Error("La bozza e' stata modificata nel frattempo. Ricarica.");
+    throw new Error(
+      "Il testo e' cambiato o la bozza e' gia' stata approvata/rifiutata. Ricarica.",
+    );
   }
 
   await logAuditEvent({

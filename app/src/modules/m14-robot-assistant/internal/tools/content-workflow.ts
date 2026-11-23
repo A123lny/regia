@@ -8,6 +8,7 @@ import {
   rejectContentDraft,
   scheduleContentDraft,
   deleteContentDraft,
+  getContentDraft,
 } from "@/modules/m03-editorial/public";
 import type { RobotTool } from "./tool-types";
 
@@ -28,11 +29,17 @@ export const approveContentDraftTool: RobotTool = {
   },
   requiredCapability: "content.approve",
   kind: "write",
-  execute: async (rawInput) => {
+  execute: async (rawInput, ctx) => {
     const parsed = ApproveSchema.safeParse(rawInput ?? {});
     if (!parsed.success) return { error: "input_invalido", details: parsed.error.message };
     try {
-      await approveContentDraft(parsed.data.draftId);
+      // Snapshot del testo al momento dell'esecuzione del tool: lega
+      // l'approvazione al contenuto che il robottino sta per confermare.
+      // Se qualcuno edita tra fetch e markApproved, l'UPDATE atomica
+      // (eq generated_text) fallira' e restituiremo errore.
+      const draft = await getContentDraft(parsed.data.draftId, ctx.session.organizationId);
+      if (!draft) return { error: "draft_non_trovato", message: "Bozza non trovata." };
+      await approveContentDraft(parsed.data.draftId, draft.generatedText);
       return { ok: true, draftId: parsed.data.draftId, message: "Bozza approvata." };
     } catch (err) {
       return { error: "approvazione_fallita", message: err instanceof Error ? err.message : "?" };

@@ -153,20 +153,27 @@ export async function listDraftsByPlanBatch(
 }
 
 /**
- * Transizione draft -> approved atomica.
- * Guardia status='draft': se qualcun altro ha gia' approvato/rifiutato nel
- * frattempo, UPDATE restituisce 0 righe e noi segnaliamo errore. Protezione
- * TOCTOU fra il check applicativo in approveContentDraft() e questa update.
- * Ritorna true se la riga era in draft al momento dell'update, false altrimenti.
+ * Transizione draft -> approved atomica, legata al contenuto letto dal revisore.
+ * Tutte le guardie sono nel WHERE della UPDATE (status='draft', org=?, testo=?)
+ * cosi' non c'e' finestra fra check e update: se qualcuno ha editato o
+ * approvato nel frattempo, UPDATE restituisce 0 righe e noi segnaliamo errore.
+ * Ritorna true se la transizione e' andata a buon fine, false se qualcosa e'
+ * cambiato (testo diverso o stato diverso).
  */
-export async function markApproved(draftId: string): Promise<boolean> {
+export async function markApproved(
+  draftId: string,
+  organizationId: string,
+  reviewedText: string,
+): Promise<boolean> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const { data, error } = await admin
     .from("content_drafts")
     .update({ status: "approved", approved_at: new Date().toISOString() })
     .eq("id", draftId)
+    .eq("organization_id", organizationId)
     .eq("status", "draft")
+    .eq("generated_text", reviewedText)
     .select("id")
     .maybeSingle();
   if (error) throw new Error(`Errore approvazione draft: ${error.message}`);

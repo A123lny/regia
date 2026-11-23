@@ -47,7 +47,7 @@ export function SessionWizardClient({ initialDrafts }: Props) {
     setError(null);
     startTransition(async () => {
       try {
-        await approveContentDraft(draft.id);
+        await approveContentDraft(draft.id, draft.generatedText);
         markDecision(draft.id, "approved");
       } catch (e) {
         setError(e instanceof Error ? e.message : "Errore approvazione");
