@@ -138,7 +138,11 @@ export function AiKillSwitchCard({ initialStatus }: { initialStatus: AiSafetySta
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 maxLength={200}
-                placeholder="es. credito Anthropic esaurito, staff in formazione, ecc."
+                placeholder="es. credito AI esaurito, staff in formazione, ecc."
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                name="ai-kill-switch-reason"
                 className="mt-1 w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
                 autoFocus
               />

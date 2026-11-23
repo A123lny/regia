@@ -204,7 +204,7 @@ export function PlanFormClient({ brandId, brandSlug, pillars, defaultStartDate }
       {/* Submit */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
         <p className="text-xs text-text-muted">
-          Costo stimato: ~{(numDrafts * 0.001).toFixed(3)}$ (Anthropic Sonnet).
+          Costo stimato: ~{(numDrafts * 0.0001).toFixed(4)}$ (Google Gemini 2.5 Flash).
         </p>
         <button
           type="submit"

@@ -52,11 +52,19 @@ function formatDate(iso: string): string {
   });
 }
 
-export default async function BrandKitPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function BrandKitPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ forbiddenDup?: string }>;
+}) {
   const session = await getSessionOrRedirect();
   if (!hasCapability(session.role, "brand.kit.edit")) notFound();
 
   const { slug } = await params;
+  const sp = await searchParams;
+  const forbiddenDup = sp.forbiddenDup ?? null;
 
   const brand = await getBrandBySlug(session.organizationId, slug);
   if (!brand) notFound();
@@ -327,6 +335,11 @@ export default async function BrandKitPage({ params }: { params: Promise<{ slug:
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {forbiddenDup && (
+            <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning">
+              La parola &quot;{forbiddenDup}&quot; è già presente nell&apos;elenco.
+            </div>
+          )}
           {forbiddenWords.length === 0 ? (
             <p className="text-sm text-text-muted">Nessuna parola bandita.</p>
           ) : (

@@ -5,7 +5,7 @@ import type { Campaign, CampaignChannel, CampaignStatus } from "./outreach-types
 
 const SELECT_COLS =
   "id, organization_id, brand_id, segment_id, content_draft_id, name, channel, status, " +
-  "planned_at, sent_at, attempted_count, delivered_count, failed_count, notes, created_at, updated_at";
+  "planned_at, sent_at, attempted_count, delivered_count, failed_count, notes, message_text, created_at, updated_at";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowToCampaign(row: any): Campaign {
@@ -24,6 +24,7 @@ function rowToCampaign(row: any): Campaign {
     deliveredCount: row.delivered_count,
     failedCount: row.failed_count,
     notes: row.notes ?? null,
+    messageText: row.message_text ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -90,6 +91,7 @@ export type UpsertCampaignInput = {
   channel: CampaignChannel;
   plannedAt?: string | null;
   notes?: string | null;
+  messageText?: string | null;
 };
 
 export async function upsertCampaign(input: UpsertCampaignInput): Promise<Campaign> {
@@ -106,6 +108,7 @@ export async function upsertCampaign(input: UpsertCampaignInput): Promise<Campai
     status,
     planned_at: input.plannedAt ?? null,
     notes: input.notes ?? null,
+    message_text: input.messageText?.trim() ? input.messageText.trim().slice(0, 2000) : null,
   };
   if (input.campaignId) {
     const { data, error } = await admin

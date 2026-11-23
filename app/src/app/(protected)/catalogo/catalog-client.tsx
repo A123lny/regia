@@ -204,6 +204,21 @@ function NewProductForm({
           if (marginPct) payload.minMarginPct = parseFloat(marginPct);
           if (notes) payload.notes = notes;
 
+          // Warning margine negativo: se costo >= prezzo, chiedi conferma.
+          // Motivo: tipico errore di data entry (scambio dei due campi) e
+          // pubblicare un prodotto in perdita e' una decisione intenzionale
+          // che deve essere confermata.
+          if (
+            payload.priceCents !== undefined &&
+            payload.costCents !== undefined &&
+            payload.costCents >= payload.priceCents
+          ) {
+            const proceed = window.confirm(
+              `Il costo (${(payload.costCents / 100).toFixed(2)}€) e' uguale o maggiore del prezzo (${(payload.priceCents / 100).toFixed(2)}€): margine zero o negativo. Vuoi procedere comunque?`,
+            );
+            if (!proceed) return;
+          }
+
           const result = await createProductAction(payload);
           if (result.ok) {
             onDone();

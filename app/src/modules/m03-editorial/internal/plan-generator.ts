@@ -190,7 +190,15 @@ export async function runGenerateEditorialPlan(
 
     let result;
     try {
-      result = await generateText({ systemPrompt, userMessage });
+      // Budget generoso: una bozza puo' arrivare a ~300 parole di post +
+      // overhead JSON. 2048 token lasciano margine, anche considerando che
+      // gemini.ts gia' disabilita il thinking budget.
+      result = await generateText({
+        systemPrompt,
+        userMessage,
+        maxTokens: 2048,
+        responseMimeType: "application/json",
+      });
     } catch (err) {
       // Errori AI: interrompe il piano ma non perde i draft gia creati
       let errMsg = "Errore imprevisto";

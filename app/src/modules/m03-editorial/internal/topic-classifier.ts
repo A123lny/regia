@@ -22,7 +22,11 @@ const PREFIX_RULES: Array<{ prefix: string; label: TopicLabel }> = [
 ];
 
 // Keyword italiane comuni per ciascuna categoria (case-insensitive).
-// Non esaustive: fallback = "altro".
+// Scoring: ogni match conta 1, vince la categoria con score piu' alto;
+// in caso di parita', vince quella che compare prima nell'array.
+// Teniamo fuori parole generiche (pranzo, ristorante, spesa) che creavano
+// false positive sistematici: "post consegne a pranzo" classificato Bar;
+// "Ristorante della settimana" classificato Consegna.
 const KEYWORD_RULES: Array<{ label: TopicLabel; words: string[] }> = [
   {
     label: "officina",
@@ -34,27 +38,9 @@ const KEYWORD_RULES: Array<{ label: TopicLabel; words: string[] }> = [
       "gomme",
       "pneumatici",
       "tagliando",
-      "revisione",
       "auto",
       "vettura",
       "manutenzione",
-    ],
-  },
-  {
-    label: "bar",
-    words: [
-      "bar",
-      "caffe",
-      "caffè",
-      "colazione",
-      "aperitivo",
-      "pranzo",
-      "brioche",
-      "cornetto",
-      "cappuccino",
-      "espresso",
-      "menu",
-      "menù",
     ],
   },
   {
@@ -65,9 +51,23 @@ const KEYWORD_RULES: Array<{ label: TopicLabel; words: string[] }> = [
       "delivery",
       "domicilio",
       "rider",
-      "spesa",
-      "ordine",
-      "ristorante",
+      "asporto",
+      "take away",
+      "take-away",
+    ],
+  },
+  {
+    label: "bar",
+    words: [
+      "bar",
+      "caffe",
+      "caffè",
+      "colazione",
+      "aperitivo",
+      "brioche",
+      "cornetto",
+      "cappuccino",
+      "espresso",
     ],
   },
   {
@@ -96,7 +96,6 @@ const KEYWORD_RULES: Array<{ label: TopicLabel; words: string[] }> = [
       "festivo",
       "cambio orario",
       "riapertura",
-      "servizio",
     ],
   },
 ];
@@ -137,19 +136,22 @@ export function classifyTopicLabel(themeInput: string): TopicLabel {
   const body = stripPrefix(themeInput);
   if (!body) return "altro";
 
-  // Match keyword: prima categoria con almeno una parola presente vince.
-  // L'ordine in KEYWORD_RULES definisce la priorità in caso di overlap.
+  // Scoring: ogni categoria raccoglie il numero di keyword distinte matchate.
+  // Vince il punteggio piu' alto; parita' -> prima nell'ordine delle regole.
+  let bestLabel: TopicLabel = "altro";
+  let bestScore = 0;
   for (const rule of KEYWORD_RULES) {
+    let score = 0;
     for (const w of rule.words) {
-      // Word boundary loose: verifica che la keyword sia una parola intera
-      // (evita "caffe" che matcherebbe "caffeina" — non è un problema qui
-      // ma manteniamo comportamento predicibile).
       const re = new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-      if (re.test(body)) return rule.label;
+      if (re.test(body)) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestLabel = rule.label;
     }
   }
-
-  return "altro";
+  return bestLabel;
 }
 
 // Labels display per UI italiana.

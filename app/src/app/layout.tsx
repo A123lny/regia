@@ -21,8 +21,10 @@ const bricolage = Bricolage_Grotesque({
   weight: ["700", "800"],
 });
 
+// title.template: le pagine possono esportare metadata.title e viene composto
+// come "<titolo pagina> · Regìa" (default "Regìa" se non lo esportano).
 export const metadata: Metadata = {
-  title: "Regìa",
+  title: { default: "Regìa", template: "%s · Regìa" },
   description:
     "Piattaforma di marketing e operazioni commerciali multi-marchio (gruppo Lenny + stazione Eni, San Marino).",
 };

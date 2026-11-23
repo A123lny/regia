@@ -47,6 +47,8 @@ export async function generateText(input: {
   userMessage: string;
   model?: string;
   maxTokens?: number;
+  /** Se 'application/json', Gemini forza la risposta JSON parsabile. */
+  responseMimeType?: "text/plain" | "application/json";
 }): Promise<{
   text: string;
   model: string;
@@ -60,12 +62,23 @@ export async function generateText(input: {
   const started = Date.now();
 
   try {
+    // Gemini 2.5 Flash consuma una parte di maxOutputTokens per il reasoning
+    // interno (thinking). Con maxTokens basso (es. 400) rischiamo risposte
+    // troncate perche' il ragionamento mangia tutto. Alziamo il default a
+    // 4096 e disabilitiamo esplicitamente il thinking (thinkingBudget=0) per
+    // il motore editoriale, cosi' tutti i token vanno nel testo.
+    const requestedMaxTokens = input.maxTokens ?? 4096;
     const response = await client.models.generateContent({
       model,
       contents: [{ role: "user", parts: [{ text: input.userMessage }] }],
       config: {
         systemInstruction: input.systemPrompt,
-        maxOutputTokens: input.maxTokens ?? 1024,
+        maxOutputTokens: requestedMaxTokens,
+        // thinkingConfig: zero thinking budget -> l'intero maxOutputTokens
+        // va nella risposta visibile. Senza questo, Gemini 2.5 Flash spende
+        // in reasoning anche quando chiediamo un post semplice.
+        thinkingConfig: { thinkingBudget: 0 },
+        ...(input.responseMimeType && { responseMimeType: input.responseMimeType }),
       },
     });
     const latencyMs = Date.now() - started;
@@ -75,7 +88,22 @@ export async function generateText(input: {
       .map((p) => ("text" in p && p.text ? p.text : ""))
       .filter(Boolean)
       .join("");
-    if (!text) throw new AiApiError(500, "Gemini: risposta senza testo");
+    const finishReason = response.candidates?.[0]?.finishReason;
+    if (!text) {
+      throw new AiApiError(
+        500,
+        `Gemini: risposta senza testo (finish=${finishReason ?? "?"}). Possibile taglio per maxOutputTokens o safety.`,
+      );
+    }
+    // Se il modello ha finito per raggiunto il max tokens la risposta e'
+    // tagliata: lo segnaliamo al caller cosi' puo' decidere (es. per i piani
+    // JSON si ritenta/estende il budget invece di salvare roba troncata).
+    if (finishReason === "MAX_TOKENS") {
+      throw new AiApiError(
+        500,
+        `Gemini: risposta troncata al limite di ${requestedMaxTokens} token. Richiedi un budget maggiore o riduci l'input.`,
+      );
+    }
 
     const usage = response.usageMetadata;
     const tokensIn = usage?.promptTokenCount ?? 0;

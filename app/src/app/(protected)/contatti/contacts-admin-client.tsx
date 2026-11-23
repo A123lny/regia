@@ -476,13 +476,20 @@ function ContactDetailDrawer({
           </div>
         )}
 
-        {/* RN-74: Follow-up preventivo officina (manuale) */}
+        {/* RN-74: Follow-up preventivo officina (manuale) — solo brand automotive.
+            Prima appariva anche sui contatti lenny/eni-cafe dove non ha senso. */}
         {canCrud && !contact.archivedAt && (
-          <QuoteFollowupButton
-            contactId={contact.id}
-            brandId={contact.brandId}
-            disabled={pending}
-          />
+          (() => {
+            const AUTOMOTIVE_BRANDS = new Set(["stazione", "officina"]);
+            if (!AUTOMOTIVE_BRANDS.has(contact.brandSlug)) return null;
+            return (
+              <QuoteFollowupButton
+                contactId={contact.id}
+                brandId={contact.brandId}
+                disabled={pending}
+              />
+            );
+          })()
         )}
 
         {/* Azioni */}

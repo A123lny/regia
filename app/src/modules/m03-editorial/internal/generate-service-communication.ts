@@ -11,15 +11,27 @@ import type { ContentDraft } from "./content-drafts-types";
 
 export const SERVICE_PROMPT_VERSION = "service-communication-v1";
 
+function todayLabelIt(): string {
+  // Es. "sabato 23 novembre 2026". Usa fuso Europe/Rome (imposto da instrumentation.ts).
+  return new Date().toLocaleDateString("it-IT", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export function composeServiceCommunicationPrompt(input: {
   brandDisplayName: string;
   brandContext: string;
   ownerInput: string;
+  todayLabel?: string;
 }): { systemPrompt: string; userMessage: string } {
   const template = loadPromptTemplate("service-communication");
   const systemPrompt = interpolate(template, {
     brandDisplayName: input.brandDisplayName,
     brandContext: input.brandContext,
+    todayLabel: input.todayLabel ?? todayLabelIt(),
   });
   const userMessage =
     "Trasforma questa comunicazione di servizio in un post pronto:\n" +

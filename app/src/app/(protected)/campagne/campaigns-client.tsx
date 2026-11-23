@@ -487,6 +487,8 @@ function CampaignForm({
           if (planned) payload.plannedAt = new Date(planned).toISOString();
           const notes = String(fd.get("notes") ?? "").trim();
           if (notes) payload.notes = notes;
+          const messageText = String(fd.get("messageText") ?? "").trim();
+          if (messageText) payload.messageText = messageText;
 
           const result = await upsertCampaignAction(payload);
           if (result.ok) onDone();
@@ -564,13 +566,29 @@ function CampaignForm({
         />
       </div>
       <div>
-        <Label htmlFor="notes">Note</Label>
+        <Label htmlFor="messageText">Testo del messaggio</Label>
+        <Textarea
+          id="messageText"
+          name="messageText"
+          rows={5}
+          maxLength={2000}
+          defaultValue={initial?.messageText ?? ""}
+          placeholder="Es. Ciao {{firstName}}, da oggi la nuova carta clienti..."
+        />
+        <p className="mt-1 text-[11px] text-text-muted">
+          Testo che verrà inviato (max 2000 caratteri). Alternativa alla selezione di
+          una bozza esistente.
+        </p>
+      </div>
+      <div>
+        <Label htmlFor="notes">Note interne</Label>
         <Textarea
           id="notes"
           name="notes"
           rows={3}
           maxLength={500}
           defaultValue={initial?.notes ?? ""}
+          placeholder="Appunti privati (non inviati)"
         />
       </div>
       {error && <p className="text-xs text-danger">{error}</p>}

@@ -125,6 +125,7 @@ export type UpsertCampaignActionInput = {
   channel: CampaignChannel;
   plannedAt?: string;
   notes?: string;
+  messageText?: string;
 };
 
 export async function upsertCampaignAction(
@@ -144,6 +145,7 @@ export async function upsertCampaignAction(
     if (input.contentDraftId) payload.contentDraftId = input.contentDraftId;
     if (input.plannedAt) payload.plannedAt = input.plannedAt;
     if (input.notes !== undefined) payload.notes = input.notes;
+    if (input.messageText !== undefined) payload.messageText = input.messageText;
 
     const camp = await upsertCampaign(payload);
 

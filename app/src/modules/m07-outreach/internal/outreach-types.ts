@@ -69,6 +69,7 @@ export type Campaign = {
   deliveredCount: number;
   failedCount: number;
   notes: string | null;
+  messageText: string | null;
   createdAt: string;
   updatedAt: string;
 };

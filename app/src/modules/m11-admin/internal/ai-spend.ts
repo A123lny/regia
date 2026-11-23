@@ -33,14 +33,6 @@ export class AiBudgetExceededError extends Error {
   }
 }
 
-/**
- * Ritorna il primo giorno del mese corrente (ISO).
- */
-function currentMonthStartIso(): string {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
-}
-
 export async function listBudgets(organizationId: string): Promise<AiSpendBudget[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
@@ -72,6 +64,10 @@ export async function listBudgets(organizationId: string): Promise<AiSpendBudget
  * in /impostazioni, ma il robottino usa Gemini come provider. Quindi quando si
  * controlla il cap 'gemini' si somma anche 'anthropic-robot', altrimenti la
  * spesa del robot bypassava silenziosamente qualsiasi tetto Gemini.
+ *
+ * Aggregazione lato DB via RPC rpc_sum_ai_spend_this_month: la select-and-sum
+ * applicativa precedente veniva truncata dal limit PostgREST (default 1000
+ * rows) con conseguente spend-cap bypass su org molto attive.
  */
 export async function sumSpendThisMonth(
   organizationId: string,
@@ -79,20 +75,21 @@ export async function sumSpendThisMonth(
 ): Promise<number> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  let q = admin
-    .from("ai_spend_ledger")
-    .select("cost_usd")
-    .eq("organization_id", organizationId)
-    .gte("occurred_at", currentMonthStartIso());
-  if (category === "gemini") {
-    q = q.in("category", ["gemini", "anthropic-robot"]);
-  } else if (category !== "all") {
-    q = q.eq("category", category);
+  // categorie da aggregare in base al tetto richiesto
+  let categories: string[];
+  if (category === "all") {
+    categories = []; // array vuoto = somma tutto (il WHERE in RPC usa array_length is null)
+  } else if (category === "gemini") {
+    categories = ["gemini", "anthropic-robot"];
+  } else {
+    categories = [category];
   }
-  const { data, error } = await q;
+  const { data, error } = await admin.rpc("rpc_sum_ai_spend_this_month", {
+    p_organization_id: organizationId,
+    p_categories: categories,
+  });
   if (error) throw new Error(`Errore somma spese: ${error.message}`);
-  const rows = (data ?? []) as Array<{ cost_usd: string | number }>;
-  return rows.reduce((s, r) => s + Number(r.cost_usd), 0);
+  return Number(data ?? 0);
 }
 
 /**

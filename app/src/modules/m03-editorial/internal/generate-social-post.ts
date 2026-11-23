@@ -139,10 +139,10 @@ export async function runGenerateSocialPost(
     themeInput: input.themeInput,
   });
 
-  // 6. Call Anthropic. Fallback su errore: NON salva draft (RNF-9).
+  // 6. Call provider AI. Fallback su errore: NON salva draft (RNF-9).
   let result;
   try {
-    result = await generateText({ systemPrompt, userMessage });
+    result = await generateText({ systemPrompt, userMessage, maxTokens: 1024 });
   } catch (err) {
     if (err instanceof AiTimeoutError) {
       return {
@@ -162,13 +162,27 @@ export async function runGenerateSocialPost(
     throw err;
   }
 
+  // 6b. Sentinel di revisione umana: se il modello ha deciso che il tema
+  // richiede validazione (prompt lo istruisce a rispondere con la stringa
+  // esatta), NON salviamo una bozza ma ritorniamo errore all'utente.
+  const trimmedText = result.text.trim();
+  if (trimmedText === "TEMA_RICHIEDE_REVISIONE" || trimmedText.startsWith("TEMA_RICHIEDE_REVISIONE")) {
+    return {
+      ok: false,
+      error:
+        "Questo tema richiede l'approvazione di una persona (promo, dato sensibile o non verificato). Riformula il tema con dati certi.",
+    };
+  }
+  // Strip residui di label tecniche vecchie [REVISIONE] dai testi (safety net).
+  const cleanedText = result.text.replace(/\[REVISIONE\]\s*/gi, "").trim();
+
   // 7. Salva draft
   const draft = await insertDraft({
     organizationId: input.organizationId,
     brandId: input.brandId,
     channel: "social",
     themeInput: input.themeInput,
-    generatedText: result.text,
+    generatedText: cleanedText,
     promptVersion: PROMPT_VERSION,
     modelUsed: result.model,
     tokensIn: result.tokensIn,

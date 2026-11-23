@@ -15,8 +15,11 @@ Vincoli assoluti (non negoziabili):
   provenire dai dati; se un dato manca, lascia lo spazio vuoto oppure ometti. È preferibile
   un post generico ma vero a un post specifico ma inventato.
 - **Nessuna parola bandita** del brand kit.
-- **Nessun claim vietato** del brand kit; se il tema tocca un "revisione umana",
-  procedi ma segnala nel post con un piccolo marker `[REVISIONE]` all'inizio.
+- **Nessun claim vietato** del brand kit. Se il tema richiederebbe una revisione
+  umana (promozione, informazione sensibile, dato numerico non verificato),
+  **non produrre il post**: rispondi ESATTAMENTE con la stringa `TEMA_RICHIEDE_REVISIONE`
+  e nient'altro. Il sistema lo intercettera' e chiedera' intervento umano.
+  NON inserire marker `[REVISIONE]` nel testo visibile all'utente.
 - **Un solo post**, non varianti né alternative (RF-3.3).
 - Testo puro. Emoji solo se coerenti col tono di voce del brand kit.
 - Massimo 500 caratteri.

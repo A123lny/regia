@@ -14,6 +14,7 @@ import { getSessionOrRedirect } from "@/lib/auth/session";
 import { requireCapability } from "@/lib/auth/permissions";
 import { logAuditEvent } from "@/lib/audit/log";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { SensitiveTopicKind, ToneExample } from "./brand-kit-types";
 import {
   isValidToneExamples,
@@ -284,12 +285,12 @@ export async function addBrandForbiddenWord(brandId: string, word: string): Prom
     .from("brand_forbidden_words")
     .insert({ brand_id: brandId, word: trimmed });
   if (error) {
-    // Idempotenza: se la parola esiste gia' per questo brand (unique violation),
-    // non trattiamo come errore — e' un no-op. Fix bug: prima mostrava crash page
-    // Next.js quando si tentava di aggiungere una parola duplicata.
+    // Parola gia' presente: redirect con query param per feedback utente
+    // (il form e' un server action, non possiamo mostrare toast client senza
+    // useFormState). Caller mostra il banner leggendo ?forbiddenDup=<parola>.
     if (error.code === "23505") {
       revalidateBrandPage(brand.slug);
-      return;
+      redirect(`/marchi/${brand.slug}?forbiddenDup=${encodeURIComponent(trimmed)}`);
     }
     throw new Error(`Errore aggiunta parola: ${error.message}`);
   }
