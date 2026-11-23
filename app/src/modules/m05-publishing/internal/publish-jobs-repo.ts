@@ -161,8 +161,35 @@ export async function markSent(
       claimed_at: null,
     })
     .eq("id", jobId)
+    .eq("status", "claimed")
     .eq("claim_token", claimToken);
   if (error) throw new Error(`markSent: ${error.message}`);
+}
+
+/**
+ * Terminal: job non recuperabile (consenso revocato, contatto archiviato,
+ * recipient mismatch). Salta il retry path, va direttamente in 'dead'.
+ * Pulisce claim_token/claimed_at cosi' reclaimOrphaned non puo' resuscitarlo.
+ */
+export async function markDead(
+  jobId: string,
+  claimToken: string,
+  errorMessage: string,
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { error } = await admin
+    .from("m05_publish_jobs")
+    .update({
+      status: "dead",
+      last_error: errorMessage,
+      claim_token: null,
+      claimed_at: null,
+    })
+    .eq("id", jobId)
+    .eq("status", "claimed")
+    .eq("claim_token", claimToken);
+  if (error) throw new Error(`markDead: ${error.message}`);
 }
 
 const BACKOFF_SECONDS = [60, 300, 900, 3600, 21600]; // 1m, 5m, 15m, 1h, 6h
@@ -210,6 +237,7 @@ export async function markFailed(
       claimed_at: null,
     })
     .eq("id", jobId)
+    .eq("status", "claimed")
     .eq("claim_token", claimToken);
   if (error) throw new Error(`markFailed(retry): ${error.message}`);
   return { dead: false };

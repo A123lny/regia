@@ -48,13 +48,14 @@ begin
      and status = 'pending';
 
   -- 4) Marca come 'dead' i job M05 in coda (queued/claimed) per questo
-  --    contatto: anche se il worker ri-verifica archived prima di
-  --    adapter.send, rimuovere i job dalla pipeline evita lavoro inutile
-  --    e log rumorosi. 'dead' e' lo status terminale consentito dallo
-  --    schema (lo schema check non include 'cancelled').
+  --    contatto. Pulizia di claim_token/claimed_at: senza questo, il
+  --    reclaimOrphaned (che cerca job claimed con lease scaduta) potrebbe
+  --    riportare in queue un job gia' marcato dead.
   update public.m05_publish_jobs
      set status = 'dead',
-         last_error = 'contatto archiviato'
+         last_error = 'contatto archiviato',
+         claim_token = null,
+         claimed_at = null
    where recipient_contact_id = p_contact_id
      and organization_id = p_organization_id
      and status in ('queued', 'claimed');

@@ -1,11 +1,14 @@
 // M05 - worker della coda invii (RS-4).
 // Chiamato dalla route /api/publisher/tick, che a sua volta e' triggerata da pg_cron.
 
-import { reclaimOrphaned, claimBatch, markSent, markFailed } from "./publish-jobs-repo";
+import { reclaimOrphaned, claimBatch, markSent, markFailed, markDead } from "./publish-jobs-repo";
 import { logSent, logFailed } from "./publish-log-repo";
 import { getAdapter } from "./adapter-registry";
 import { loadAdapterCredentials } from "./credentials-repo";
-import { getAdminClient } from "@/lib/db/admin";
+import { gateConsent } from "./gates";
+import type { SourceKind } from "./gates";
+import { ConsentMissingError, RecipientMismatchError } from "./types";
+import type { Channel } from "./types";
 
 export type TickResult = {
   orphaned: number;
@@ -23,26 +26,23 @@ export async function tickBatch(batchSize = 20): Promise<TickResult> {
   result.claimed = jobs.length;
   for (const job of jobs) {
     try {
-      // Re-check archived/consent al momento del send (TOCTOU safety).
-      // Tra il momento in cui il job e' stato inserito (enqueue) e il momento
-      // in cui il worker lo esegue possono passare minuti o ore: l'owner puo'
-      // aver archiviato il contatto o revocato il consenso nel frattempo.
-      // Senza questa guardia il messaggio verrebbe inviato comunque.
+      // Fail-closed: invio senza contactId permesso solo per sourceKind='test'.
+      if (!job.recipientContactId && job.sourceKind !== "test") {
+        throw new ConsentMissingError(
+          `Job senza contactId non consentito (sourceKind=${job.sourceKind})`,
+        );
+      }
+
+      // TOCTOU safety: tra enqueue e send possono passare ore. Ri-verifichiamo
+      // archived + consent chiamando lo stesso gate dell'enqueue, che
+      // internamente controlla archived_at e consent 'granted' per il canale.
       if (job.recipientContactId) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const admin = getAdminClient() as any;
-        const { data: contactRow } = await admin
-          .from("contacts")
-          .select("archived_at")
-          .eq("organization_id", job.organizationId)
-          .eq("id", job.recipientContactId)
-          .maybeSingle();
-        if (!contactRow) {
-          throw new Error("Contatto destinatario non trovato al momento del send");
-        }
-        if ((contactRow as { archived_at: string | null }).archived_at !== null) {
-          throw new Error("Contatto archiviato dopo enqueue: invio annullato");
-        }
+        await gateConsent(
+          job.organizationId,
+          job.recipientContactId,
+          job.channel as Channel,
+          job.sourceKind as SourceKind,
+        );
       }
 
       const loaded = await loadAdapterCredentials(job.organizationId, job.channel);
@@ -54,12 +54,23 @@ export async function tickBatch(batchSize = 20): Promise<TickResult> {
       result.sent += 1;
     } catch (err) {
       const errMsg = (err as Error).message;
-      const { dead } = await markFailed(job.id, claimToken, errMsg);
-      if (dead) {
+      // Terminal errors: consenso revocato, contatto archiviato, mismatch
+      // destinatario. Retry non ha senso — segneremmo dead subito per non
+      // sprecare chiamate adapter.
+      const isTerminal =
+        err instanceof ConsentMissingError || err instanceof RecipientMismatchError;
+      if (isTerminal) {
+        await markDead(job.id, claimToken, errMsg);
         await logFailed(job, errMsg);
         result.dead += 1;
       } else {
-        result.failed += 1;
+        const { dead } = await markFailed(job.id, claimToken, errMsg);
+        if (dead) {
+          await logFailed(job, errMsg);
+          result.dead += 1;
+        } else {
+          result.failed += 1;
+        }
       }
       result.errors.push({ jobId: job.id, error: errMsg });
     }
