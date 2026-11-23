@@ -109,10 +109,13 @@ export const generateContentDraftTool: RobotTool = {
       return { error: "ai_check_fail", message: "Controllo kill switch fallito." };
     }
 
-    // 2b. Budget gate
+    // 2b. Budget gate — check sia il budget dedicato robot sia quello generico
+    // del provider (gemini). Se l'owner ha un cap gemini, deve contare anche
+    // la spesa generata dal robottino.
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await assertBudgetOk(session.organizationId, "anthropic-robot" as any);
+      await assertBudgetOk(session.organizationId, "gemini");
     } catch (err) {
       if (err instanceof AiBudgetExceededError) {
         return { error: "budget_exceeded", message: "Budget AI robottino esaurito." };

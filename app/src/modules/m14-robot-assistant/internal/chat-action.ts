@@ -97,10 +97,15 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
   }
 
   // 0b. Budget gate — fail CLOSED su qualsiasi errore (anche non-AiBudgetExceeded):
-  // se non sappiamo se il budget regge, non invochiamo Claude.
+  // se non sappiamo se il budget regge, non invochiamo il modello.
+  // Controlliamo sia il budget dedicato al robot (anthropic-robot, per
+  // visibilita' separata del costo dell'assistente) sia quello generico
+  // 'gemini' del provider realmente usato: se l'owner ha messo un cap
+  // sulla categoria gemini, deve contare anche la spesa del robottino.
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await assertBudgetOk(input.session.organizationId, "anthropic-robot" as any);
+    await assertBudgetOk(input.session.organizationId, "gemini");
   } catch (err) {
     if (err instanceof AiBudgetExceededError) {
       yield {
