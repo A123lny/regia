@@ -24,6 +24,7 @@ import {
   getConversation,
 } from "./conversation-repo";
 import { listBrands } from "@/modules/m02-brand/public";
+import { getContentDraft } from "@/modules/m03-editorial/public";
 import { ROBOT_TOOLS, getToolsForRole, toAnthropicTools, type RobotTool } from "./tools/registry";
 import { checkRateLimit } from "./rate-limiter";
 import { getRobotAccess } from "./role-access-repo";
@@ -352,22 +353,46 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
           return;
         }
 
+        // Snapshot server-side per approveContentDraft: catturiamo il testo
+        // della bozza nel momento della conferma, scartando qualsiasi
+        // reviewedText fornito dal modello (fail-closed su input LLM-controlled).
+        // All'esecuzione markApproved match sull'hash del testo salvato qui;
+        // se nel frattempo e' cambiato, UPDATE 0 righe = conflict.
+        let effectiveInput: unknown = tc.input;
+        if (tc.name === "approveContentDraft") {
+          const rawInp = (tc.input ?? {}) as Record<string, unknown>;
+          const draftId = String(rawInp["draftId"] ?? "");
+          if (!draftId) {
+            yield { type: "error", code: "draft_id_mancante", message: "draftId mancante." };
+            return;
+          }
+          const draft = await getContentDraft(draftId, input.session.organizationId);
+          if (!draft) {
+            yield { type: "error", code: "draft_non_trovato", message: "Bozza non trovata." };
+            return;
+          }
+          // Rimuovi reviewedText eventualmente passato dall'LLM, sovrascrivi col nostro snapshot.
+          const { reviewedText: _ignored, ...safe } = rawInp;
+          void _ignored;
+          effectiveInput = { ...safe, draftId, reviewedText: draft.generatedText };
+        }
+
         const pending = await savePending({
           conversationId: convId,
           userId: input.session.userId,
           organizationId: input.session.organizationId,
           pageContext: input.pageContext,
           toolName: tc.name,
-          toolInput: tc.input,
+          toolInput: effectiveInput,
           toolUseId: tc.id,
         });
-        const summary = buildActionSummary(tc.name, tc.input);
+        const summary = buildActionSummary(tc.name, effectiveInput);
         yield {
           type: "confirmation_required",
           actionId: pending.id,
           toolName: tc.name,
           summary,
-          toolInput: tc.input,
+          toolInput: effectiveInput,
         };
         await touchConversation(convId, { incrementToolCalls: true });
         return;

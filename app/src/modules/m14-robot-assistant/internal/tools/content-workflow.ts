@@ -8,14 +8,20 @@ import {
   rejectContentDraft,
   scheduleContentDraft,
   deleteContentDraft,
-  getContentDraft,
 } from "@/modules/m03-editorial/public";
 import type { RobotTool } from "./tool-types";
 
 // ============================================================
 // Approva bozza
 // ============================================================
-const ApproveSchema = z.object({ draftId: z.string().uuid() });
+// reviewedText NON e' fornito dall'LLM (non appare nel input_schema esposto al
+// modello). Lo inietta chat-action.ts prima di savePending, catturando il
+// testo visto al momento della proposta. L'execute usa quello snapshot, cosi'
+// l'approvazione e' legata al testo che il robottino ha presentato all'utente.
+const ApproveSchema = z.object({
+  draftId: z.string().uuid(),
+  reviewedText: z.string().min(1).max(5000),
+});
 
 export const approveContentDraftTool: RobotTool = {
   name: "approveContentDraft",
@@ -29,17 +35,15 @@ export const approveContentDraftTool: RobotTool = {
   },
   requiredCapability: "content.approve",
   kind: "write",
-  execute: async (rawInput, ctx) => {
+  execute: async (rawInput) => {
     const parsed = ApproveSchema.safeParse(rawInput ?? {});
-    if (!parsed.success) return { error: "input_invalido", details: parsed.error.message };
+    if (!parsed.success) {
+      // Se arriva senza reviewedText, qualcosa e' andato storto nella pipeline
+      // di snapshot (es. pending creata in versione vecchia). Fail-closed.
+      return { error: "snapshot_mancante", details: parsed.error.message };
+    }
     try {
-      // Snapshot del testo al momento dell'esecuzione del tool: lega
-      // l'approvazione al contenuto che il robottino sta per confermare.
-      // Se qualcuno edita tra fetch e markApproved, l'UPDATE atomica
-      // (eq generated_text) fallira' e restituiremo errore.
-      const draft = await getContentDraft(parsed.data.draftId, ctx.session.organizationId);
-      if (!draft) return { error: "draft_non_trovato", message: "Bozza non trovata." };
-      await approveContentDraft(parsed.data.draftId, draft.generatedText);
+      await approveContentDraft(parsed.data.draftId, parsed.data.reviewedText);
       return { ok: true, draftId: parsed.data.draftId, message: "Bozza approvata." };
     } catch (err) {
       return { error: "approvazione_fallita", message: err instanceof Error ? err.message : "?" };

@@ -185,6 +185,12 @@ export async function approveContentDraft(
   if (typeof reviewedText !== "string") {
     throw new Error("reviewedText obbligatorio: lega l'approvazione al contenuto letto");
   }
+  // Cap difensivo: coerente con il limite imposto in updateContentDraftGeneratedText.
+  // Un testo oltre questa soglia indica input malformato o tentativo di abuse —
+  // non e' un draft legittimo da approvare.
+  if (reviewedText.length > 5000) {
+    throw new Error("reviewedText oltre il limite consentito");
+  }
   const { session, draft } = await requireOwnedDraft(draftId, "content.approve");
   if (draft.status !== "draft") {
     throw new Error(`Bozza in stato ${draft.status}, non approvabile`);

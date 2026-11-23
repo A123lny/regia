@@ -3,9 +3,20 @@
 // Cast `as any` in linea col pattern F1.2 brand-kit-repo (tipi Supabase
 // non ancora generati — debito noto, task futuro F0-b).
 
+import { createHash } from "node:crypto";
 import { getAdminClient } from "@/lib/db/admin";
 import type { ContentDraft, ContentChannel, ContentDraftStatus } from "./content-drafts-types";
 import { classifyTopicLabel } from "./topic-classifier";
+
+/**
+ * SHA-256 (hex) di un testo. Deve combaciare con la colonna generata lato DB
+ * (generated_text_sha256 = encode(digest(coalesce(text,''),'sha256'),'hex')).
+ * Usiamo questo invece di spedire il testo intero nell'URL della query
+ * PostgREST (leak nei log, URL length limits).
+ */
+export function sha256Hex(text: string): string {
+  return createHash("sha256").update(text, "utf8").digest("hex");
+}
 
 // Row snake_case da DB → ContentDraft camelCase.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -154,17 +165,18 @@ export async function listDraftsByPlanBatch(
 
 /**
  * Transizione draft -> approved atomica, legata al contenuto letto dal revisore.
- * Tutte le guardie sono nel WHERE della UPDATE (status='draft', org=?, testo=?)
- * cosi' non c'e' finestra fra check e update: se qualcuno ha editato o
- * approvato nel frattempo, UPDATE restituisce 0 righe e noi segnaliamo errore.
- * Ritorna true se la transizione e' andata a buon fine, false se qualcosa e'
- * cambiato (testo diverso o stato diverso).
+ * Tutte le guardie sono nel WHERE della UPDATE (status='draft', org=?,
+ * generated_text_sha256=hash del testo letto): non c'e' finestra fra check e
+ * update. Se qualcuno ha editato o approvato nel frattempo, UPDATE restituisce
+ * 0 righe e segnaliamo errore. Match sull'hash per non spedire il testo pieno
+ * nell'URL della richiesta.
  */
 export async function markApproved(
   draftId: string,
   organizationId: string,
   reviewedText: string,
 ): Promise<boolean> {
+  const hash = sha256Hex(reviewedText);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const { data, error } = await admin
@@ -173,7 +185,7 @@ export async function markApproved(
     .eq("id", draftId)
     .eq("organization_id", organizationId)
     .eq("status", "draft")
-    .eq("generated_text", reviewedText)
+    .eq("generated_text_sha256", hash)
     .select("id")
     .maybeSingle();
   if (error) throw new Error(`Errore approvazione draft: ${error.message}`);
