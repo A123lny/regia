@@ -364,39 +364,54 @@ export async function runGenerateEditorialPlan(
       };
     }
 
-    const parsed = parsePlanItemResponse(result.text, pillar.name);
-    const dayLabel = formatDateItalian(slotDate);
-    const themeInput = `[${pillar.name}] ${parsed.theme} — ${dayLabel}`;
-
-    const draft = await insertDraft({
-      organizationId: input.organizationId,
-      brandId: input.brandId,
-      channel: "social",
-      themeInput,
-      generatedText: parsed.post,
-      promptVersion: PLAN_PROMPT_VERSION,
-      modelUsed: result.model,
-      tokensIn: result.tokensIn,
-      tokensOut: result.tokensOut,
-      costUsd: result.costUsd,
-      latencyMs: result.latencyMs,
-      createdBy: input.userId,
-      planBatchId,
-    });
-
-    drafts.push(draft);
-    summary.push({ dayIndex: i, pillar: pillar.name, theme: parsed.theme });
+    // ORDINE CRITICO: la chiamata AI e' gia' billed da Gemini. Loggiamo la
+    // spesa SUBITO, PRIMA di parsing/insert. Se poi il parsing o
+    // insertDraft falliscono, la spesa resta comunque riflessa nel ledger
+    // (fixa spend-ledger-bypass-ordering: senza questo, un crash su insert
+    // nascondeva il costo).
     totalCostUsd += result.costUsd;
-
-    // logSpend per-draft: la spesa viaggia ANCHE se il loop si interrompe a
-    // meta'. Prima si loggava solo in blocco sul successo totale del piano.
     await logDraftSpend(
       result.costUsd,
       result.tokensIn,
       result.tokensOut,
-      draft.id,
+      null, // targetId draft non ancora disponibile, lo colleghiamo via batch
       "editorial.plan_item",
     );
+
+    const parsed = parsePlanItemResponse(result.text, pillar.name);
+    const dayLabel = formatDateItalian(slotDate);
+    const themeInput = `[${pillar.name}] ${parsed.theme} — ${dayLabel}`;
+
+    let draft;
+    try {
+      draft = await insertDraft({
+        organizationId: input.organizationId,
+        brandId: input.brandId,
+        channel: "social",
+        themeInput,
+        generatedText: parsed.post,
+        promptVersion: PLAN_PROMPT_VERSION,
+        modelUsed: result.model,
+        tokensIn: result.tokensIn,
+        tokensOut: result.tokensOut,
+        costUsd: result.costUsd,
+        latencyMs: result.latencyMs,
+        createdBy: input.userId,
+        planBatchId,
+      });
+    } catch (err) {
+      const madeCount = drafts.length;
+      return {
+        ok: false,
+        error: `Piano interrotto al draft ${i + 1}/${input.numDrafts}: errore salvataggio (${err instanceof Error ? err.message : "?"}). ${madeCount} bozze gia' create restano in stato draft.`,
+        partialBatchId: planBatchId,
+        partialDrafts: drafts,
+        totalCostUsd,
+      };
+    }
+
+    drafts.push(draft);
+    summary.push({ dayIndex: i, pillar: pillar.name, theme: parsed.theme });
 
     // Se il post nomina esplicitamente uno dei partner, marchiamolo come usato
     // cosi' la prossima iterazione del pillar "ristorante" sceglie un altro.
