@@ -8,6 +8,7 @@ import { GoogleGenAI, type FunctionDeclaration, type Content, type Part } from "
 import {
   AiConfigError,
   AiApiError,
+  AiMaxTokensError,
   AiRateLimitError,
   AiTimeoutError,
   type StreamToolsInput,
@@ -89,6 +90,16 @@ export async function generateText(input: {
       .filter(Boolean)
       .join("");
     const finishReason = response.candidates?.[0]?.finishReason;
+
+    // Usage calcolato una sola volta, usato anche sui path di errore sotto
+    // cosi' il caller puo' sempre loggare la spesa effettiva (il billing
+    // Gemini e' avvenuto comunque, non possiamo "scartarlo").
+    const usage = response.usageMetadata;
+    const tokensIn = usage?.promptTokenCount ?? 0;
+    const tokensOut = usage?.candidatesTokenCount ?? 0;
+    const costUsd =
+      (tokensIn * PRICE_INPUT_PER_M_USD + tokensOut * PRICE_OUTPUT_PER_M_USD) / 1_000_000;
+
     if (!text) {
       throw new AiApiError(
         500,
@@ -96,23 +107,26 @@ export async function generateText(input: {
       );
     }
     // Se il modello ha finito per raggiunto il max tokens la risposta e'
-    // tagliata: lo segnaliamo al caller cosi' puo' decidere (es. per i piani
-    // JSON si ritenta/estende il budget invece di salvare roba troncata).
+    // tagliata: segnaliamo al caller con un errore dedicato che porta l'usage
+    // effettivo, cosi' puo' loggare la spesa (billed) e non salvare la bozza.
     if (finishReason === "MAX_TOKENS") {
-      throw new AiApiError(
-        500,
-        `Gemini: risposta troncata al limite di ${requestedMaxTokens} token. Richiedi un budget maggiore o riduci l'input.`,
+      throw new AiMaxTokensError(
+        model,
+        tokensIn,
+        tokensOut,
+        costUsd,
+        latencyMs,
+        `Gemini: risposta troncata al limite di ${requestedMaxTokens} token.`,
       );
     }
 
-    const usage = response.usageMetadata;
-    const tokensIn = usage?.promptTokenCount ?? 0;
-    const tokensOut = usage?.candidatesTokenCount ?? 0;
-    const costUsd =
-      (tokensIn * PRICE_INPUT_PER_M_USD + tokensOut * PRICE_OUTPUT_PER_M_USD) / 1_000_000;
-
     return { text, model, tokensIn, tokensOut, costUsd, latencyMs };
   } catch (err) {
+    // Preserva gli errori tipizzati che gia' portano context/usage.
+    if (err instanceof AiMaxTokensError) throw err;
+    if (err instanceof AiApiError) throw err;
+    if (err instanceof AiRateLimitError) throw err;
+    if (err instanceof AiTimeoutError) throw err;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const e = err as any;
     if (e?.status === 429) throw new AiRateLimitError(null);

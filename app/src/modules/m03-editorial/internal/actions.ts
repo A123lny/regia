@@ -135,7 +135,23 @@ export async function generateSocialPost(
     userId: session.userId,
   });
 
-  if (!result.ok) return result;
+  if (!result.ok) {
+    // La chiamata AI puo' essere avvenuta (es. MAX_TOKENS, sentinel di
+    // revisione umana). Se ha costo, lo logghiamo lo stesso: il billing
+    // Gemini e' avvenuto, non bypassiamo il ledger.
+    if (result.usage) {
+      await logSpend({
+        organizationId: session.organizationId,
+        brandId: brand.id,
+        category: "gemini",
+        action: "editorial.social_post_failed",
+        costUsd: result.usage.costUsd,
+        tokensIn: result.usage.tokensIn,
+        tokensOut: result.usage.tokensOut,
+      });
+    }
+    return result;
+  }
 
   // RF-11.5: log spesa AI
   await logSpend({

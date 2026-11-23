@@ -69,6 +69,26 @@ export class AiApiError extends Error {
   }
 }
 
+/**
+ * Risposta troncata al limite maxOutputTokens. Porta l'usage effettivo cosi'
+ * i caller possono loggare la spesa anche sul path di errore (non perdiamo
+ * il costo reale della chiamata nel ledger).
+ */
+export class AiMaxTokensError extends Error {
+  readonly kind = "max_tokens" as const;
+  constructor(
+    readonly model: string,
+    readonly tokensIn: number,
+    readonly tokensOut: number,
+    readonly costUsd: number,
+    readonly latencyMs: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "AiMaxTokensError";
+  }
+}
+
 const TIMEOUT_MS = 30_000;
 
 // Pricing Claude Sonnet 4.6 al 2026-09. Aggiornare quando cambia.

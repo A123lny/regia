@@ -9,7 +9,7 @@
 import { getBrandKitWithLists, formatBrandContextForAI } from "@/modules/m02-brand/public";
 // Provider testo: Gemini (free tier). anthropic.ts resta disponibile come fallback.
 import { generateText } from "@/lib/ai/gemini";
-import { AiTimeoutError, AiRateLimitError, AiApiError } from "@/lib/ai/anthropic";
+import { AiTimeoutError, AiRateLimitError, AiApiError, AiMaxTokensError } from "@/lib/ai/anthropic";
 import { embedText, VoyageApiError, VoyageTimeoutError, VoyageConfigError } from "@/lib/ai/voyage";
 import { loadPromptTemplate, interpolate } from "./prompt-loader";
 import {
@@ -84,8 +84,18 @@ export type RunGenerateSocialPostInput = {
   userId: string;
 };
 
+export type AiUsage = {
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+};
+
 export type RunGenerateSocialPostOutput =
-  { ok: true; draft: ContentDraft } | { ok: false; error: string };
+  | { ok: true; draft: ContentDraft }
+  // usage e' popolato quando la chiamata AI e' comunque avvenuta (billed):
+  // il caller DEVE loggare la spesa anche sul path di errore.
+  | { ok: false; error: string; usage?: AiUsage };
 
 export async function runGenerateSocialPost(
   input: RunGenerateSocialPostInput,
@@ -140,10 +150,25 @@ export async function runGenerateSocialPost(
   });
 
   // 6. Call provider AI. Fallback su errore: NON salva draft (RNF-9).
+  // Se la chiamata e' comunque avvenuta e ha consumato token (es. MAX_TOKENS,
+  // o risposta "TEMA_RICHIEDE_REVISIONE") il costo viene restituito al caller
+  // via `usage` affinche' lo logghi nel ledger — non lasciamo spesa invisibile.
   let result;
   try {
     result = await generateText({ systemPrompt, userMessage, maxTokens: 1024 });
   } catch (err) {
+    if (err instanceof AiMaxTokensError) {
+      return {
+        ok: false,
+        error: "Risposta AI troncata. Semplifica il tema o riprova.",
+        usage: {
+          model: err.model,
+          tokensIn: err.tokensIn,
+          tokensOut: err.tokensOut,
+          costUsd: err.costUsd,
+        },
+      };
+    }
     if (err instanceof AiTimeoutError) {
       return {
         ok: false,
@@ -162,15 +187,20 @@ export async function runGenerateSocialPost(
     throw err;
   }
 
-  // 6b. Sentinel di revisione umana: se il modello ha deciso che il tema
-  // richiede validazione (prompt lo istruisce a rispondere con la stringa
-  // esatta), NON salviamo una bozza ma ritorniamo errore all'utente.
+  // 6b. Sentinel di revisione umana: la chiamata AI e' comunque avvenuta,
+  // quindi riportiamo il costo nel ledger (il caller lo registra).
   const trimmedText = result.text.trim();
   if (trimmedText === "TEMA_RICHIEDE_REVISIONE" || trimmedText.startsWith("TEMA_RICHIEDE_REVISIONE")) {
     return {
       ok: false,
       error:
         "Questo tema richiede l'approvazione di una persona (promo, dato sensibile o non verificato). Riformula il tema con dati certi.",
+      usage: {
+        model: result.model,
+        tokensIn: result.tokensIn,
+        tokensOut: result.tokensOut,
+        costUsd: result.costUsd,
+      },
     };
   }
   // Strip residui di label tecniche vecchie [REVISIONE] dai testi (safety net).
