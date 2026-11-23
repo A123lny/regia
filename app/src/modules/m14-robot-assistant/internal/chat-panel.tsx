@@ -114,6 +114,10 @@ export function RobotChatPanel({
     actionId: string;
     toolName: string;
     summary: string;
+    // Testo da far rileggere all'utente prima di confermare (es. approveContentDraft).
+    // L'approvazione lato server e' legata a questo testo via hash: se il revisore
+    // non lo vede, non puo' dare consenso informato. Fail-visible by design.
+    reviewText?: string;
   } | null>(null);
   const [pendingBrandPicker, setPendingBrandPicker] = React.useState<{
     actionId: string;
@@ -234,6 +238,7 @@ export function RobotChatPanel({
     actionId?: string;
     toolName?: string;
     summary?: string;
+    toolInput?: unknown;
     brands?: Array<{ id: string; displayName: string; slug: string }>;
   }) {
     switch (event.type) {
@@ -248,10 +253,19 @@ export function RobotChatPanel({
         break;
       case "confirmation_required":
         if (event.actionId && event.toolName && event.summary) {
+          // Per approveContentDraft mostriamo il testo intero su cui il
+          // revisore sta per dare conferma. Lo prendiamo dallo snapshot
+          // server-side che ha viaggiato in toolInput.reviewedText.
+          let reviewText: string | undefined;
+          if (event.toolName === "approveContentDraft" && event.toolInput) {
+            const inp = event.toolInput as { reviewedText?: unknown };
+            if (typeof inp.reviewedText === "string") reviewText = inp.reviewedText;
+          }
           setPendingConfirm({
             actionId: event.actionId,
             toolName: event.toolName,
             summary: event.summary,
+            ...(reviewText !== undefined && { reviewText }),
           });
         }
         break;
@@ -534,6 +548,19 @@ export function RobotChatPanel({
           >
             <div className="mb-2 font-semibold">⚠️ Serve la tua conferma</div>
             <div className="mb-3">{pendingConfirm.summary}</div>
+            {pendingConfirm.reviewText !== undefined && (
+              <div className="mb-3">
+                <div className="mb-1 text-xs font-medium uppercase tracking-wider text-text-muted">
+                  Testo che stai approvando (rileggilo)
+                </div>
+                <pre
+                  className="max-h-60 overflow-auto whitespace-pre-wrap rounded border border-border bg-surface p-2 text-xs"
+                  data-testid="robot-confirm-review-text"
+                >
+                  {pendingConfirm.reviewText}
+                </pre>
+              </div>
+            )}
             <div className="flex gap-2">
               <button
                 type="button"
