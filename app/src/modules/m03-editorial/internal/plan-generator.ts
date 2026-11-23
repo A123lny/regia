@@ -10,7 +10,8 @@
 import { randomUUID } from "node:crypto";
 import { getBrandKitWithLists, formatBrandContextForAI } from "@/modules/m02-brand/public";
 import type { BrandPillar } from "@/modules/m02-brand/public";
-import { generateText, AiTimeoutError, AiRateLimitError, AiApiError } from "@/lib/ai/anthropic";
+import { generateText } from "@/lib/ai/gemini";
+import { AiTimeoutError, AiRateLimitError, AiApiError } from "@/lib/ai/anthropic";
 import { insertDraft } from "./content-drafts-repo";
 import type { ContentDraft } from "./content-drafts-types";
 

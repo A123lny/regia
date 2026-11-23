@@ -105,8 +105,30 @@ export function CatalogClient({ products, brands, canCrud, canManagePricing }: P
                   <td className="p-3 text-right font-mono text-sm">
                     {formatCents(p.priceCurrentCents)}
                   </td>
-                  <td className="p-3 text-xs text-text-muted">
-                    {p.minMarginPct !== null ? `${p.minMarginPct}%` : "—"}
+                  <td className="p-3 text-xs">
+                    {(() => {
+                      const price = p.priceCurrentCents;
+                      const cost = p.costCurrentCents;
+                      if (price !== null && cost !== null && price > 0) {
+                        const marginPct = Math.round(((price - cost) / price) * 100);
+                        const belowMin = p.minMarginPct !== null && marginPct < p.minMarginPct;
+                        return (
+                          <span className={belowMin ? "text-danger font-medium" : "text-text-muted"}>
+                            {marginPct}%
+                            {p.minMarginPct !== null && (
+                              <span className="ml-1 text-[10px] opacity-70">
+                                (min {p.minMarginPct}%)
+                              </span>
+                            )}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="text-text-muted">
+                          {p.minMarginPct !== null ? `min ${p.minMarginPct}%` : "—"}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="p-3">
                     {p.archivedAt ? (
@@ -470,38 +492,43 @@ function ProductDetailDrawer({
         {canCrud && (
           <div className="flex flex-wrap gap-2 border-t border-border pt-4">
             {product.archivedAt ? (
-              <form
-                action={async () => {
-                  await restoreProductAction(product.id);
-                  onClose();
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => {
+                  startTransition(async () => {
+                    try {
+                      await restoreProductAction(product.id);
+                      onClose();
+                    } catch (e) {
+                      window.alert(e instanceof Error ? e.message : "Errore ripristino");
+                    }
+                  });
                 }}
               >
-                <Button
-                  type="submit"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => startTransition(() => {})}
-                >
-                  <ArchiveRestore className="mr-1.5 h-3.5 w-3.5" /> Ripristina
-                </Button>
-              </form>
+                <ArchiveRestore className="mr-1.5 h-3.5 w-3.5" /> Ripristina
+              </Button>
             ) : (
-              <form
-                action={async () => {
-                  await archiveProductAction(product.id);
-                  onClose();
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                className="border-danger/40 text-danger hover:bg-danger/10"
+                onClick={() => {
+                  if (!window.confirm("Archiviare questo prodotto?")) return;
+                  startTransition(async () => {
+                    try {
+                      await archiveProductAction(product.id);
+                      onClose();
+                    } catch (e) {
+                      window.alert(e instanceof Error ? e.message : "Errore archiviazione");
+                    }
+                  });
                 }}
               >
-                <Button
-                  type="submit"
-                  variant="outline"
-                  disabled={pending}
-                  className="border-danger/40 text-danger hover:bg-danger/10"
-                  onClick={() => startTransition(() => {})}
-                >
-                  <Archive className="mr-1.5 h-3.5 w-3.5" /> Archivia
-                </Button>
-              </form>
+                <Archive className="mr-1.5 h-3.5 w-3.5" /> Archivia
+              </Button>
             )}
           </div>
         )}

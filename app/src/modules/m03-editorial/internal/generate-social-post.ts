@@ -7,7 +7,9 @@
 // La server action generateSocialPost in actions.ts chiama runGenerateSocialPost.
 
 import { getBrandKitWithLists, formatBrandContextForAI } from "@/modules/m02-brand/public";
-import { generateText, AiTimeoutError, AiRateLimitError, AiApiError } from "@/lib/ai/anthropic";
+// Provider testo: Gemini (free tier). anthropic.ts resta disponibile come fallback.
+import { generateText } from "@/lib/ai/gemini";
+import { AiTimeoutError, AiRateLimitError, AiApiError } from "@/lib/ai/anthropic";
 import { embedText, VoyageApiError, VoyageTimeoutError, VoyageConfigError } from "@/lib/ai/voyage";
 import { loadPromptTemplate, interpolate } from "./prompt-loader";
 import {

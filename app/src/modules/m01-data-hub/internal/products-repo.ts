@@ -137,7 +137,14 @@ export async function createProduct(input: CreateProductInput): Promise<BrandPro
     .insert(insertRow)
     .select(SELECT_COLS)
     .single();
-  if (error) throw new Error(`Errore creazione prodotto: ${error.message}`);
+  if (error) {
+    // 23505 = unique_violation (SKU duplicato nel brand). Messaggio leggibile
+    // invece dell'errore DB grezzo con dettagli constraint.
+    if ((error as { code?: string }).code === "23505") {
+      throw new Error(`Esiste gia' un prodotto con SKU "${input.sku.trim()}" in questo marchio.`);
+    }
+    throw new Error(`Errore creazione prodotto: ${error.message}`);
+  }
   return rowToProduct(data);
 }
 

@@ -62,10 +62,31 @@ export function CampaignsClient({ campaigns, segments, brands, canCrud, canMarkS
   const [editing, setEditing] = useState<CampaignRow | null>(null);
   const [markingSent, setMarkingSent] = useState<CampaignRow | null>(null);
   const [launching, setLaunching] = useState<CampaignRow | null>(null);
+  const [showCancelled, setShowCancelled] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  // Nasconde di default le campagne annullate (rumore in lista). Toggle sotto.
+  const visibleCampaigns = showCancelled
+    ? campaigns
+    : campaigns.filter((c) => c.status !== "cancelled");
+  const cancelledCount = campaigns.filter((c) => c.status === "cancelled").length;
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        {cancelledCount > 0 ? (
+          <label className="flex items-center gap-1.5 text-xs text-text-muted">
+            <input
+              type="checkbox"
+              checked={showCancelled}
+              onChange={(e) => setShowCancelled(e.target.checked)}
+            />
+            Mostra annullate ({cancelledCount})
+          </label>
+        ) : (
+          <span />
+        )}
+      </div>
       {canCrud && (
         <div className="flex justify-end">
           <Sheet
@@ -102,9 +123,11 @@ export function CampaignsClient({ campaigns, segments, brands, canCrud, canMarkS
         </div>
       )}
 
-      {campaigns.length === 0 ? (
+      {visibleCampaigns.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-surface p-10 text-center text-sm text-text-muted">
-          Nessuna campagna configurata.
+          {campaigns.length === 0
+            ? "Nessuna campagna configurata."
+            : "Nessuna campagna attiva (ci sono campagne annullate — mostrale col toggle qui sopra)."}
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
@@ -122,7 +145,7 @@ export function CampaignsClient({ campaigns, segments, brands, canCrud, canMarkS
               </tr>
             </thead>
             <tbody>
-              {campaigns.map((c) => (
+              {visibleCampaigns.map((c) => (
                 <tr
                   key={c.id}
                   className="border-b border-border/60 last:border-0 hover:bg-surface-muted"

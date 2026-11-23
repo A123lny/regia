@@ -489,38 +489,43 @@ function ContactDetailDrawer({
         {canCrud && (
           <div className="flex flex-wrap gap-2 border-t border-border pt-4">
             {contact.archivedAt ? (
-              <form
-                action={async () => {
-                  await restoreContactAction(contact.id);
-                  onClose();
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => {
+                  startTransition(async () => {
+                    try {
+                      await restoreContactAction(contact.id);
+                      onClose();
+                    } catch (e) {
+                      window.alert(e instanceof Error ? e.message : "Errore ripristino");
+                    }
+                  });
                 }}
               >
-                <Button
-                  type="submit"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => startTransition(() => {})}
-                >
-                  <ArchiveRestore className="mr-1.5 h-3.5 w-3.5" /> Ripristina
-                </Button>
-              </form>
+                <ArchiveRestore className="mr-1.5 h-3.5 w-3.5" /> Ripristina
+              </Button>
             ) : (
-              <form
-                action={async () => {
-                  await archiveContactAction(contact.id);
-                  onClose();
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                className="border-danger/40 text-danger hover:bg-danger/10"
+                onClick={() => {
+                  if (!window.confirm("Archiviare questo contatto? I voucher attivi verranno annullati.")) return;
+                  startTransition(async () => {
+                    try {
+                      await archiveContactAction(contact.id);
+                      onClose();
+                    } catch (e) {
+                      window.alert(e instanceof Error ? e.message : "Errore archiviazione");
+                    }
+                  });
                 }}
               >
-                <Button
-                  type="submit"
-                  variant="outline"
-                  disabled={pending}
-                  className="border-danger/40 text-danger hover:bg-danger/10"
-                  onClick={() => startTransition(() => {})}
-                >
-                  <Archive className="mr-1.5 h-3.5 w-3.5" /> Archivia
-                </Button>
-              </form>
+                <Archive className="mr-1.5 h-3.5 w-3.5" /> Archivia
+              </Button>
             )}
           </div>
         )}

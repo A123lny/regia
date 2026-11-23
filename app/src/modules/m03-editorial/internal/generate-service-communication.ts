@@ -3,7 +3,8 @@
 // Prompt dedicato: tono asciutto, zero linguaggio promozionale, max 3 righe.
 
 import { getBrandKitWithLists, formatBrandContextForAI } from "@/modules/m02-brand/public";
-import { generateText, AiTimeoutError, AiRateLimitError, AiApiError } from "@/lib/ai/anthropic";
+import { generateText } from "@/lib/ai/gemini";
+import { AiTimeoutError, AiRateLimitError, AiApiError } from "@/lib/ai/anthropic";
 import { loadPromptTemplate, interpolate } from "./prompt-loader";
 import { insertDraft } from "./content-drafts-repo";
 import type { ContentDraft } from "./content-drafts-types";

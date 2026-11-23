@@ -19,6 +19,7 @@ import {
 } from "./vouchers-repo";
 import {
   generateVoucherCode,
+  VOUCHER_STATUS_LABELS,
   type CounterKind,
   type CounterResetMode,
   type RewardKind,
@@ -409,9 +410,15 @@ export async function redeemVoucherByCodeAction(
 
   const updated = await redeemVoucherAtomic(voucher.id, session.organizationId, orderId ?? null);
   if (!updated) {
+    // Lo stato "effettivo" mostrato all'utente deve coincidere con quello della
+    // lista voucher: se status==='issued' ma scadenza passata, "Scaduto".
+    const now = Date.now();
+    const expired = new Date(voucher.expiresAt).getTime() < now;
+    const effective = voucher.status === "issued" && expired ? "expired" : voucher.status;
+    const label = VOUCHER_STATUS_LABELS[effective];
     return {
       ok: false,
-      error: `Voucher non riscattabile (stato attuale: ${voucher.status}, scadenza: ${new Date(voucher.expiresAt).toLocaleDateString("it-IT")}).`,
+      error: `Voucher non riscattabile (stato: ${label}, scadenza: ${new Date(voucher.expiresAt).toLocaleDateString("it-IT")}).`,
     };
   }
 

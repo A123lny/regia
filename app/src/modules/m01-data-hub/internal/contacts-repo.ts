@@ -96,10 +96,45 @@ export async function listContacts(input: ListContactsInput): Promise<ListContac
     if (uuidRe.test(raw)) {
       q = q.eq("id", raw);
     } else {
-      const term = `%${raw}%`;
-      q = q.or(
-        `first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`,
-      );
+      // Multi-parola: se la query contiene uno spazio (es. "Marco Romano"),
+      // la spezziamo in token e richiediamo che ciascuno matchi almeno uno
+      // dei campi testuali. Prima "Marco Romano" dava 0 risultati perche'
+      // cercava la stringa intera in first_name OR last_name. Supabase JS
+      // non supporta AND fra .or(): simuliamo con IN sugli id dopo dedup.
+      const tokens = raw.split(/\s+/).filter((t) => t.length > 0);
+      if (tokens.length >= 2) {
+        // Per ciascun token prendiamo gli id che matchano qualunque campo,
+        // poi intersechiamo (deduplicazione via Set).
+        let intersected: Set<string> | null = null;
+        for (const tok of tokens) {
+          const term = `%${tok}%`;
+          const { data: idRows } = await admin
+            .from("contacts")
+            .select("id")
+            .eq("organization_id", input.organizationId)
+            .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`);
+          const idArr = ((idRows ?? []) as { id: string }[]).map((r) => r.id);
+          const ids = new Set<string>(idArr);
+          if (intersected === null) {
+            intersected = ids;
+          } else {
+            const prev: Set<string> = intersected;
+            const filtered: string[] = [];
+            for (const x of prev) if (ids.has(x)) filtered.push(x);
+            intersected = new Set<string>(filtered);
+          }
+          if (intersected.size === 0) break;
+        }
+        if (!intersected || intersected.size === 0) {
+          return { items: [], totalCount: 0 };
+        }
+        q = q.in("id", Array.from(intersected));
+      } else {
+        const term = `%${raw}%`;
+        q = q.or(
+          `first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`,
+        );
+      }
     }
   }
 
@@ -289,6 +324,10 @@ export async function getContactsStats(organizationId: string): Promise<{
 }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
+  // Fix bug: i consent count non filtravano per contatto archiviato, quindi
+  // in UI si vedevano N email/SMS/WhatsApp granted che includevano contatti
+  // non piu' nel registro attivo. Ora join inner su contacts con
+  // archived_at IS NULL.
   const [totalRes, emailRes, phoneRes, wappRes] = await Promise.all([
     admin
       .from("contacts")
@@ -297,22 +336,25 @@ export async function getContactsStats(organizationId: string): Promise<{
       .is("archived_at", null),
     admin
       .from("contact_consents")
-      .select("*", { count: "exact", head: true })
+      .select("contact_id, contacts!inner(archived_at)", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("channel", "email")
-      .eq("status", "granted"),
+      .eq("status", "granted")
+      .is("contacts.archived_at", null),
     admin
       .from("contact_consents")
-      .select("*", { count: "exact", head: true })
+      .select("contact_id, contacts!inner(archived_at)", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("channel", "sms")
-      .eq("status", "granted"),
+      .eq("status", "granted")
+      .is("contacts.archived_at", null),
     admin
       .from("contact_consents")
-      .select("*", { count: "exact", head: true })
+      .select("contact_id, contacts!inner(archived_at)", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("channel", "whatsapp")
-      .eq("status", "granted"),
+      .eq("status", "granted")
+      .is("contacts.archived_at", null),
   ]);
   if (totalRes.error) throw new Error(`Errore conteggio contatti: ${totalRes.error.message}`);
   if (emailRes.error) throw new Error(`Errore conteggio email: ${emailRes.error.message}`);
