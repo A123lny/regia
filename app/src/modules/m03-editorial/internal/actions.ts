@@ -392,7 +392,11 @@ export async function generateEditorialPlan(
     excludedPillarIds: input.excludedPillarIds,
   });
 
-  // 4. Audit (anche partial: tracciamo cosa e stato creato)
+  // 4. Audit (anche partial: tracciamo cosa e stato creato).
+  // NOTA: logSpend non e' piu' chiamata qui. Plan-generator logga per-draft
+  // dentro il loop (anche in caso di MAX_TOKENS senza draft, con action
+  // "editorial.plan_item_truncated"). Questo garantisce che la spesa viaggi
+  // anche quando il piano si interrompe a meta'.
   if (result.ok) {
     await logAuditEvent({
       organizationId: session.organizationId,
@@ -406,16 +410,6 @@ export async function generateEditorialPlan(
         totalCostUsd: result.totalCostUsd,
       },
     });
-    // RF-11.5: log spesa aggregata piano
-    await logSpend({
-      organizationId: session.organizationId,
-      brandId: brand.id,
-      category: "gemini",
-      action: "editorial.plan",
-      costUsd: result.totalCostUsd,
-      targetType: "plan_batch",
-      targetId: result.planBatchId,
-    });
   } else if (result.partialBatchId) {
     await logAuditEvent({
       organizationId: session.organizationId,
@@ -426,6 +420,7 @@ export async function generateEditorialPlan(
       details: {
         planBatchId: result.partialBatchId,
         partialCount: result.partialDrafts?.length ?? 0,
+        partialCostUsd: result.totalCostUsd ?? 0,
         error: result.error,
       },
     });

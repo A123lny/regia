@@ -12,7 +12,19 @@ import { getBrandKitWithLists, formatBrandContextForAI } from "@/modules/m02-bra
 import type { BrandPillar } from "@/modules/m02-brand/public";
 import { listPartners } from "@/modules/m07-partners/public";
 import { generateText } from "@/lib/ai/gemini";
-import { AiTimeoutError, AiRateLimitError, AiApiError } from "@/lib/ai/anthropic";
+import {
+  AiTimeoutError,
+  AiRateLimitError,
+  AiApiError,
+  AiMaxTokensError,
+} from "@/lib/ai/anthropic";
+import {
+  logSpend,
+  assertAiEnabled,
+  AiKillSwitchError,
+  assertBudgetOk,
+  AiBudgetExceededError,
+} from "@/modules/m11-admin/public";
 import { insertDraft } from "./content-drafts-repo";
 import type { ContentDraft } from "./content-drafts-types";
 
@@ -36,7 +48,16 @@ export type PlanGenerationResult =
       drafts: ContentDraft[];
       totalCostUsd: number;
     }
-  | { ok: false; error: string; partialBatchId?: string; partialDrafts?: ContentDraft[] };
+  | {
+      ok: false;
+      error: string;
+      partialBatchId?: string;
+      partialDrafts?: ContentDraft[];
+      // Costo accumulato prima dello stop (incluso l'eventuale residuo di una
+      // chiamata fallita con usage noto, es. AiMaxTokensError). Il caller DEVE
+      // logSpend anche su questo path: non lasciamo spesa invisibile.
+      totalCostUsd?: number;
+    };
 
 /**
  * Weighted random pick di un pillar in base al suo weight.
@@ -223,7 +244,60 @@ export async function runGenerateEditorialPlan(
   const usedPartnerNames: string[] = [];
   let totalCostUsd = 0;
 
+  // Helper interno: logga la spesa di una singola chiamata AI. Non-blocking
+  // ma loggato se fallisce: non vogliamo che un errore su ai_spend_ledger
+  // rompa il piano, ma non vogliamo nemmeno perderlo.
+  const logDraftSpend = async (
+    cost: number,
+    tokensIn: number,
+    tokensOut: number,
+    targetDraftId: string | null,
+    action: string,
+  ) => {
+    try {
+      const spendInput: Parameters<typeof logSpend>[0] = {
+        organizationId: input.organizationId,
+        brandId: input.brandId,
+        category: "gemini",
+        action,
+        costUsd: cost,
+        tokensIn,
+        tokensOut,
+      };
+      if (targetDraftId) {
+        spendInput.targetType = "draft";
+        spendInput.targetId = targetDraftId;
+      }
+      await logSpend(spendInput);
+    } catch (err) {
+      console.warn("[plan-generator] logSpend fallito:", (err as Error).message);
+    }
+  };
+
   for (let i = 0; i < input.numDrafts; i++) {
+    // Re-check kill switch e budget prima di ogni draft: se l'owner spegne
+    // l'AI o esaurisce il budget a meta' piano, ci fermiamo subito invece di
+    // continuare a bruciare chiamate. Fail-closed su errore del check.
+    try {
+      await assertAiEnabled(input.organizationId);
+      await assertBudgetOk(input.organizationId, "gemini");
+    } catch (err) {
+      const madeCount = drafts.length;
+      const reason =
+        err instanceof AiKillSwitchError
+          ? "Interruttore AI attivato dall'owner"
+          : err instanceof AiBudgetExceededError
+            ? "Budget AI esaurito"
+            : "Controllo AI fallito";
+      return {
+        ok: false,
+        error: `Piano interrotto al draft ${i + 1}/${input.numDrafts}: ${reason}. ${madeCount} bozze gia' create restano in stato draft.`,
+        partialBatchId: planBatchId,
+        partialDrafts: drafts,
+        totalCostUsd,
+      };
+    }
+
     const pillar = pickWeightedPillar(usablePillars);
     const slotDate = addDays(input.startDateIso, i);
 
@@ -255,7 +329,19 @@ export async function runGenerateEditorialPlan(
       // -> servono qualche minuto di attesa (quota Gemini free-tier ~10 RPM).
       let errMsg = "Errore imprevisto";
       let suggestion = "";
-      if (err instanceof AiTimeoutError) {
+      if (err instanceof AiMaxTokensError) {
+        // Chiamata effettuata e billed: logga la spesa anche se non c'e' draft.
+        totalCostUsd += err.costUsd;
+        await logDraftSpend(
+          err.costUsd,
+          err.tokensIn,
+          err.tokensOut,
+          null,
+          "editorial.plan_item_truncated",
+        );
+        errMsg = "Risposta AI troncata";
+        suggestion = " Riprova con meno bozze o tema piu' corto.";
+      } else if (err instanceof AiTimeoutError) {
         errMsg = "Timeout servizio AI";
         suggestion = " Riprova tra qualche minuto.";
       } else if (err instanceof AiRateLimitError) {
@@ -274,6 +360,7 @@ export async function runGenerateEditorialPlan(
         error: `Piano interrotto al draft ${i + 1}/${input.numDrafts}: ${errMsg}.${suggestion} ${madeCount} bozze gia' create restano in stato draft (le vedi in /contenuti/${input.brandSlug}).`,
         partialBatchId: planBatchId,
         partialDrafts: drafts,
+        totalCostUsd,
       };
     }
 
@@ -300,6 +387,16 @@ export async function runGenerateEditorialPlan(
     drafts.push(draft);
     summary.push({ dayIndex: i, pillar: pillar.name, theme: parsed.theme });
     totalCostUsd += result.costUsd;
+
+    // logSpend per-draft: la spesa viaggia ANCHE se il loop si interrompe a
+    // meta'. Prima si loggava solo in blocco sul successo totale del piano.
+    await logDraftSpend(
+      result.costUsd,
+      result.tokensIn,
+      result.tokensOut,
+      draft.id,
+      "editorial.plan_item",
+    );
 
     // Se il post nomina esplicitamente uno dei partner, marchiamolo come usato
     // cosi' la prossima iterazione del pillar "ristorante" sceglie un altro.

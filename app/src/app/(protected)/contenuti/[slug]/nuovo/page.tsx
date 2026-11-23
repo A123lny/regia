@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { ArrowLeft } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";
@@ -16,18 +17,30 @@ import {
 } from "@/components/ui/select";
 import { generateSocialPost } from "@/modules/m03-editorial/public";
 
+const DRAFT_COOKIE_NAME = "m03_new_theme";
+
 export default async function NewContentPage({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ error?: string; theme?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const session = await getSessionOrRedirect();
   if (!hasCapability(session.role, "content.generate")) notFound();
 
   const { slug } = await params;
-  const { error: errorParam, theme: themeParam } = await searchParams;
+  const { error: errorParam } = await searchParams;
+
+  // Preserva il testo scritto dall'utente dopo un errore senza farlo passare
+  // dalla URL (verrebbe loggato da Vercel / proxy). Cookie HttpOnly scoped
+  // alla pagina, consumato subito (clear-on-read).
+  const cookieStore = await cookies();
+  const themeCookie = cookieStore.get(DRAFT_COOKIE_NAME);
+  const themeParam = themeCookie?.value ?? null;
+  if (themeCookie) {
+    cookieStore.delete(DRAFT_COOKIE_NAME);
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
@@ -73,11 +86,22 @@ export default async function NewContentPage({
           if (result.ok) {
             redirect(`/contenuti/${brandSlug}/${result.draftId}`);
           } else {
-            // Preserva il testo scritto dall'utente nel redirect: senza questo,
-            // l'errore AI cancellava quanto digitato e costringeva a riscrivere.
+            // Preserva il testo scritto nel redirect usando cookie HttpOnly
+            // breve (non URL -> no leak in log/CDN). La pagina lo legge e
+            // pulisce. L'errore invece passa via searchParams: e' innocuo.
             const theme = String(formData.get("themeInput") ?? "").slice(0, 2000);
+            const jar = await cookies();
+            jar.set({
+              name: DRAFT_COOKIE_NAME,
+              value: theme,
+              httpOnly: true,
+              secure: process.env["NODE_ENV"] === "production",
+              sameSite: "lax",
+              maxAge: 60, // 60s: solo il tempo di ricaricare la pagina
+              path: `/contenuti/${brandSlug}/nuovo`,
+            });
             redirect(
-              `/contenuti/${brandSlug}/nuovo?error=${encodeURIComponent(result.error)}&theme=${encodeURIComponent(theme)}`,
+              `/contenuti/${brandSlug}/nuovo?error=${encodeURIComponent(result.error)}`,
             );
           }
         }}
