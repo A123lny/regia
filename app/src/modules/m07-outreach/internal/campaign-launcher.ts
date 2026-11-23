@@ -115,7 +115,12 @@ export async function previewCampaignRecipients(
   const campaign = await getCampaign(campaignId, organizationId);
   if (!campaign) return { ok: false, error: "Campagna non trovata" };
   if (!campaign.segmentId) return { ok: false, error: "Campagna senza segmento" };
-  if (!campaign.contentDraftId) return { ok: false, error: "Campagna senza draft contenuto" };
+  if (!campaign.contentDraftId && !campaign.messageText) {
+    return {
+      ok: false,
+      error: "Campagna senza contenuto: compila 'Testo del messaggio' o associa una bozza.",
+    };
+  }
   if (campaign.channel !== "email") {
     return {
       ok: false,
@@ -126,8 +131,19 @@ export async function previewCampaignRecipients(
   const segment = await loadSegmentCriteria(campaign.segmentId, organizationId);
   if (!segment) return { ok: false, error: "Segmento non trovato" };
 
-  const draft = await loadContentDraft(campaign.contentDraftId, organizationId);
-  if (!draft) return { ok: false, error: "Draft contenuto non trovato" };
+  // Fonte contenuto: preferisce bozza esistente (ha subject strutturato),
+  // altrimenti usa message_text come body con subject fallback dal nome.
+  let draft: { subject: string; body: string };
+  if (campaign.contentDraftId) {
+    const loaded = await loadContentDraft(campaign.contentDraftId, organizationId);
+    if (!loaded) return { ok: false, error: "Draft contenuto non trovato" };
+    draft = loaded;
+  } else {
+    draft = {
+      subject: campaign.name,
+      body: campaign.messageText ?? "",
+    };
+  }
 
   const identity = await loadBrandEmailIdentity(organizationId, campaign.brandId);
 

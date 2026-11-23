@@ -3,7 +3,7 @@
 // Client per pagina fornitori: tabella + dialog CRUD.
 
 import { useState, useTransition } from "react";
-import { Plus, ShieldCheck, ShieldAlert, Phone, Mail } from "lucide-react";
+import { Plus, ShieldCheck, ShieldAlert, Phone, Mail, Archive, ArchiveRestore } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   upsertSupplyPartnerAction,
+  archiveSupplyPartnerAction,
+  restoreSupplyPartnerAction,
   INVOLVEMENT_LEVEL_LABELS,
   INVOLVEMENT_LEVEL_HINTS,
 } from "@/modules/m01-data-hub/public";
@@ -340,17 +342,56 @@ function PartnerForm({ initial, onDone }: { initial: SupplyPartner | null; onDon
       </div>
 
       {error && <p className="text-xs text-danger">{error}</p>}
-      <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="outline" onClick={onDone}>
-          Annulla
-        </Button>
-        <Button
-          type="submit"
-          disabled={pending}
-          className="bg-primary text-white hover:bg-primary-hover"
-        >
-          {pending ? "Salvo..." : "Salva"}
-        </Button>
+      <div className="flex items-center justify-between gap-2 pt-2">
+        {initial ? (
+          initial.archivedAt ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() => {
+                startTransition(async () => {
+                  const r = await restoreSupplyPartnerAction(initial.id);
+                  if (r.ok) onDone();
+                  else setError(r.error);
+                });
+              }}
+            >
+              <ArchiveRestore className="mr-1.5 h-3.5 w-3.5" /> Ripristina
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() => {
+                if (!window.confirm(`Archiviare il fornitore "${initial.name}"?`)) return;
+                startTransition(async () => {
+                  const r = await archiveSupplyPartnerAction(initial.id);
+                  if (r.ok) onDone();
+                  else setError(r.error);
+                });
+              }}
+              className="border-danger/40 text-danger hover:bg-danger/10"
+            >
+              <Archive className="mr-1.5 h-3.5 w-3.5" /> Archivia
+            </Button>
+          )
+        ) : (
+          <span />
+        )}
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" onClick={onDone}>
+            Annulla
+          </Button>
+          <Button
+            type="submit"
+            disabled={pending}
+            className="bg-primary text-white hover:bg-primary-hover"
+          >
+            {pending ? "Salvo..." : "Salva"}
+          </Button>
+        </div>
       </div>
     </form>
   );

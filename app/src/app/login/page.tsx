@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { login } from "./actions";
+import { getServerClient } from "@/lib/db/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +19,12 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
+  // Se gia' autenticato -> dashboard. Senza questo l'utente loggato che apre
+  // /login vede il form di accesso invece di proseguire alla app.
+  const supabase = await getServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) redirect("/dashboard");
+
   const params = await searchParams;
 
   return (

@@ -12,6 +12,7 @@ import {
   resolveAbandonmentSignalAction,
   ABANDONMENT_KIND_LABELS,
   ABANDONMENT_SEVERITY_STYLES,
+  ABANDONMENT_SEVERITY_LABELS,
 } from "@/modules/m09-reminders/public";
 import type { AbandonmentSignalRow } from "@/modules/m09-reminders/public";
 
@@ -96,7 +97,7 @@ function SignalRow({ signal, canResolve }: { signal: AbandonmentSignalRow; canRe
       <tr className="border-b border-border/60 last:border-0 hover:bg-surface-muted">
         <td className="p-3">
           <Badge className={`border ${ABANDONMENT_SEVERITY_STYLES[signal.severity]}`}>
-            {signal.severity.toUpperCase()}
+            {ABANDONMENT_SEVERITY_LABELS[signal.severity]}
           </Badge>
         </td>
         <td className="p-3">
@@ -230,7 +231,7 @@ function ResolveDialog({
                 </h2>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-muted">
                   <Badge className={`border ${ABANDONMENT_SEVERITY_STYLES[signal.severity]}`}>
-                    {signal.severity.toUpperCase()}
+                    {ABANDONMENT_SEVERITY_LABELS[signal.severity]}
                   </Badge>
                   <span>{ABANDONMENT_KIND_LABELS[signal.kind]}</span>
                   {signal.contactFullName && (

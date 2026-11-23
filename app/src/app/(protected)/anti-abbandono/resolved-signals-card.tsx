@@ -9,6 +9,7 @@ import { CheckCircle2, X as XIcon } from "lucide-react";
 import {
   ABANDONMENT_KIND_LABELS,
   ABANDONMENT_SEVERITY_STYLES,
+  formatResolvedReason,
 } from "@/modules/m09-reminders/public";
 import type { AbandonmentSignalRow } from "@/modules/m09-reminders/public";
 
@@ -148,7 +149,7 @@ export function ResolvedSignalsCard({ count, resolvedSignals }: Props) {
                         <td className="p-3 align-top">
                           {s.resolvedReason && (
                             <div className="text-sm text-text">
-                              <strong>Motivo:</strong> {s.resolvedReason}
+                              <strong>Motivo:</strong> {formatResolvedReason(s.resolvedReason)}
                             </div>
                           )}
                           {s.notes && (

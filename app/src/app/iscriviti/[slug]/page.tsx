@@ -22,6 +22,27 @@ export default async function IscrivitiPage({ params }: { params: Promise<{ slug
   const landing = await getPublicLandingBySlug(slug);
   if (!landing) notFound();
 
+  // Landing sospesa: pagina dedicata invece della 404 della app (che ha
+  // "Torna alla dashboard" — fuori luogo per un cliente esterno).
+  if (!landing.isActive) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-bg p-4">
+        <div className="max-w-md space-y-4 rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
+          <h1
+            className="text-2xl font-bold text-text"
+            style={{ fontFamily: "var(--font-bricolage)" }}
+          >
+            Iscrizioni chiuse
+          </h1>
+          <p className="text-sm text-text-muted">
+            Al momento questa iscrizione non è attiva. Riprova più tardi o rivolgiti
+            direttamente al nostro personale.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main
       className="flex min-h-screen items-center justify-center bg-bg p-4"

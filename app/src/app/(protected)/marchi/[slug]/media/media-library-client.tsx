@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 import { Upload, Search, Trash2, Tag as TagIcon, Loader2, Download } from "lucide-react";
 import type { MediaAsset } from "@/modules/m04-media/public";
 import {
-  uploadMediaAsset,
   deleteMediaAsset,
   updateMediaAssetCaption,
   updateMediaAssetTags,

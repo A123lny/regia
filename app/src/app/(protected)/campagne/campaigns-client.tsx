@@ -164,6 +164,11 @@ export function CampaignsClient({ campaigns, segments, brands, canCrud, canMarkS
                       }}
                     >
                       <div className="font-medium text-text">{c.name}</div>
+                      {c.messageText && (
+                        <div className="mt-0.5 line-clamp-2 text-xs text-text-muted/90 italic">
+                          {c.messageText}
+                        </div>
+                      )}
                       {c.notes && <div className="text-xs text-text-muted">{c.notes}</div>}
                     </div>
                   </td>

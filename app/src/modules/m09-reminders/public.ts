@@ -36,7 +36,12 @@ export type {
   AbandonmentSeverity,
   AbandonmentSignal,
 } from "./internal/abandonment-types";
-export { ABANDONMENT_KIND_LABELS, ABANDONMENT_SEVERITY_STYLES } from "./internal/abandonment-types";
+export {
+  ABANDONMENT_KIND_LABELS,
+  ABANDONMENT_SEVERITY_STYLES,
+  ABANDONMENT_SEVERITY_LABELS,
+  formatResolvedReason,
+} from "./internal/abandonment-types";
 export {
   listAbandonmentSignals,
   listResolvedAbandonmentSignals,

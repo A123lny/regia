@@ -151,6 +151,38 @@ export async function upsertSupplyPartner(input: UpsertSupplyPartnerInput): Prom
   }
 }
 
+export async function archiveSupplyPartner(
+  partnerId: string,
+  organizationId: string,
+): Promise<boolean> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { error, count } = await admin
+    .from("supply_partners")
+    .update({ archived_at: new Date().toISOString() }, { count: "exact" })
+    .eq("id", partnerId)
+    .eq("organization_id", organizationId)
+    .is("archived_at", null);
+  if (error) throw new Error(`Errore archiviazione fornitore: ${error.message}`);
+  return (count ?? 0) > 0;
+}
+
+export async function restoreSupplyPartner(
+  partnerId: string,
+  organizationId: string,
+): Promise<boolean> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { error, count } = await admin
+    .from("supply_partners")
+    .update({ archived_at: null }, { count: "exact" })
+    .eq("id", partnerId)
+    .eq("organization_id", organizationId)
+    .not("archived_at", "is", null);
+  if (error) throw new Error(`Errore ripristino fornitore: ${error.message}`);
+  return (count ?? 0) > 0;
+}
+
 /**
  * RF-6.19 · guardia: cerca prodotti con supply_partner nel brand spendibile
  * che NON hanno general_consent=true. Ritorna la lista dei prodotti bloccanti.

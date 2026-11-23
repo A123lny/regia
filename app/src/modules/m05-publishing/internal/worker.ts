@@ -5,7 +5,7 @@ import { reclaimOrphaned, claimBatch, markSent, markFailed, markDead } from "./p
 import { logSent, logFailed } from "./publish-log-repo";
 import { getAdapter } from "./adapter-registry";
 import { loadAdapterCredentials } from "./credentials-repo";
-import { gateConsent } from "./gates";
+import { gateConsent, gateRecipientMatchesContact } from "./gates";
 import type { SourceKind } from "./gates";
 import { ConsentMissingError, RecipientMismatchError } from "./types";
 import type { Channel } from "./types";
@@ -43,6 +43,22 @@ export async function tickBatch(batchSize = 20): Promise<TickResult> {
           job.channel as Channel,
           job.sourceKind as SourceKind,
         );
+        // Recipient binding: se l'owner ha aggiornato email/telefono del
+        // contatto dopo l'enqueue, il payload.to del job puo' non combaciare
+        // piu'. gateRecipientMatchesContact rilancia RecipientMismatchError
+        // (terminale -> markDead) se l'indirizzo non e' piu' quello del
+        // contatto per il canale corrente.
+        // Payload shape per canali contact-based: { to: string, ... }.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const payloadTo = (job.payload as any)?.to as string | undefined;
+        if (typeof payloadTo === "string" && payloadTo.length > 0) {
+          await gateRecipientMatchesContact(
+            job.organizationId,
+            job.recipientContactId,
+            job.channel as Channel,
+            payloadTo,
+          );
+        }
       }
 
       const loaded = await loadAdapterCredentials(job.organizationId, job.channel);

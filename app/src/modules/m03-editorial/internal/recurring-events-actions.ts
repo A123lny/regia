@@ -38,6 +38,18 @@ function validate(input: {
   if (input.dayOfMonth < 1 || input.dayOfMonth > 31) {
     throw new Error("Giorno fuori range (1-31)");
   }
+  // "31 febbraio" non esiste. new Date(y, mm, dd) normalizza silenziosamente
+  // 31/02 in 03/03: se dopo la costruzione mese/giorno non combaciano,
+  // l'input era invalido.
+  const checkDate = new Date(2024, input.monthOfYear - 1, input.dayOfMonth);
+  if (
+    checkDate.getMonth() !== input.monthOfYear - 1 ||
+    checkDate.getDate() !== input.dayOfMonth
+  ) {
+    throw new Error(
+      `Data non valida: il mese ${input.monthOfYear} non ha il giorno ${input.dayOfMonth}.`,
+    );
+  }
   if (input.leadTimeDays < 0 || input.leadTimeDays > 90) {
     throw new Error("Preavviso fuori range (0-90 giorni)");
   }

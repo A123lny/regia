@@ -40,6 +40,8 @@ export {
   deleteVehicleAction,
   mergeContactsAction,
   upsertSupplyPartnerAction,
+  archiveSupplyPartnerAction,
+  restoreSupplyPartnerAction,
 } from "./internal/actions";
 export type { UpsertSupplyPartnerActionInput } from "./internal/actions";
 

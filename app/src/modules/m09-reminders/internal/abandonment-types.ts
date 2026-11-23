@@ -35,3 +35,24 @@ export const ABANDONMENT_SEVERITY_STYLES: Record<AbandonmentSeverity, string> = 
   medium: "border-warning/40 bg-warning/15 text-warning",
   high: "border-danger/40 bg-danger/15 text-danger",
 };
+
+export const ABANDONMENT_SEVERITY_LABELS: Record<AbandonmentSeverity, string> = {
+  low: "Bassa",
+  medium: "Media",
+  high: "Alta",
+};
+
+// Mappa codici tecnici resolved_reason -> label leggibile.
+// Prima nel log storico apparivano codici come "contattato_e_tornato".
+const RESOLVED_REASON_LABELS: Record<string, string> = {
+  contattato_e_tornato: "Contattato, è tornato",
+  contattato_non_tornato: "Contattato, non è tornato",
+  non_piu_cliente: "Non è più cliente",
+  errore_segnalazione: "Segnalazione errata",
+  altro: "Altro",
+};
+
+export function formatResolvedReason(reason: string | null): string {
+  if (!reason) return "—";
+  return RESOLVED_REASON_LABELS[reason] ?? reason;
+}

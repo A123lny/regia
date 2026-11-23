@@ -8,8 +8,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  // Titolo pagina marchio: "Brand slug · Regìa" (il layout aggiunge Regìa).
-  return { title: `Marchio ${slug}` };
+  // Capitalize della prima lettera: "lenny" -> "Lenny", "eni-cafe" -> "Eni-cafe"
+  const pretty = slug.length > 0 ? slug.charAt(0).toUpperCase() + slug.slice(1) : slug;
+  return { title: `Marchio ${pretty}` };
 }
 import { ArrowLeft, Trash2, ChevronUp, ChevronDown, ImagePlus } from "lucide-react";
 import { getSessionOrRedirect } from "@/lib/auth/session";

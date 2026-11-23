@@ -84,11 +84,12 @@ export async function getPublicLandingBySlug(
 > {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
+  // Non filtriamo is_active qui: il caller distingue "landing non esiste"
+  // (null) da "landing sospesa" (isActive=false) per mostrare messaggi diversi.
   const { data, error } = await admin
     .from("signup_landings")
     .select(`${SELECT_COLS}, brands!inner(slug, display_name, color, is_archived)`)
     .eq("slug", slug)
-    .eq("is_active", true)
     .eq("brands.is_archived", false)
     .maybeSingle();
   if (error) throw new Error(`Errore lookup landing: ${error.message}`);
@@ -144,7 +145,12 @@ export async function upsertLanding(input: UpsertLandingInput): Promise<SignupLa
       .eq("organization_id", input.organizationId)
       .select(SELECT_COLS)
       .single();
-    if (error) throw new Error(`Errore update landing: ${error.message}`);
+    if (error) {
+      if ((error as { code?: string }).code === "23505") {
+        throw new Error(`Esiste gia' una landing con slug "${input.slug.trim().toLowerCase()}".`);
+      }
+      throw new Error(`Errore update landing: ${error.message}`);
+    }
     return rowToLanding(data);
   } else {
     const { data, error } = await admin
@@ -152,7 +158,12 @@ export async function upsertLanding(input: UpsertLandingInput): Promise<SignupLa
       .insert(row)
       .select(SELECT_COLS)
       .single();
-    if (error) throw new Error(`Errore insert landing: ${error.message}`);
+    if (error) {
+      if ((error as { code?: string }).code === "23505") {
+        throw new Error(`Esiste gia' una landing con slug "${input.slug.trim().toLowerCase()}".`);
+      }
+      throw new Error(`Errore insert landing: ${error.message}`);
+    }
     return rowToLanding(data);
   }
 }

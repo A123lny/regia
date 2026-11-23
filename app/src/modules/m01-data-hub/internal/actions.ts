@@ -21,6 +21,8 @@ import { createVehicle, updateVehicle, deleteVehicle } from "./vehicles-repo";
 import { mergeContacts, type MergeResult } from "./merge-repo";
 import {
   upsertSupplyPartner,
+  archiveSupplyPartner,
+  restoreSupplyPartner,
   createPartnerApprovalRequest,
   recordPartnerApprovalResponse,
   type PartnerInvolvementLevel,
@@ -448,6 +450,20 @@ export async function upsertSupplyPartnerAction(
       error: "Con assenso generale attivo serve indicare il motivo/scadenza dell'accordo",
     };
   }
+  // Validazione telefono: lettere/simboli non devono passare.
+  if (input.phone && input.phone.trim().length > 0) {
+    const phoneRe = /^[+]?[\d\s().-]{6,25}$/;
+    const digits = input.phone.replace(/\D/g, "");
+    if (!phoneRe.test(input.phone.trim()) || digits.length < 5) {
+      return { ok: false, error: "Numero di telefono non valido" };
+    }
+  }
+  // Validazione email: formato di base.
+  if (input.email && input.email.trim().length > 0) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
+      return { ok: false, error: "Email non valida" };
+    }
+  }
   try {
     const payload: Parameters<typeof upsertSupplyPartner>[0] = {
       organizationId: session.organizationId,
@@ -482,6 +498,50 @@ export async function upsertSupplyPartnerAction(
 
     revalidatePath("/fornitori");
     return { ok: true, partnerId: partner.id };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function archiveSupplyPartnerAction(
+  partnerId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireAuth("supply.crud");
+  try {
+    const ok = await archiveSupplyPartner(partnerId, session.organizationId);
+    if (!ok) return { ok: false, error: "Fornitore gia' archiviato o non trovato" };
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "supply.partner_archived",
+      target: `supply:${partnerId}`,
+      details: {},
+    });
+    revalidatePath("/fornitori");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+export async function restoreSupplyPartnerAction(
+  partnerId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await requireAuth("supply.crud");
+  try {
+    const ok = await restoreSupplyPartner(partnerId, session.organizationId);
+    if (!ok) return { ok: false, error: "Fornitore non archiviato o non trovato" };
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "supply.partner_restored",
+      target: `supply:${partnerId}`,
+      details: {},
+    });
+    revalidatePath("/fornitori");
+    return { ok: true };
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }

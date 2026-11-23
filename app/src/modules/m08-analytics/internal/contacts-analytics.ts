@@ -49,8 +49,9 @@ export async function getContactsAnalytics(
         .is("archived_at", null),
       admin
         .from("contact_consents")
-        .select("channel, status")
-        .eq("organization_id", organizationId),
+        .select("channel, status, contacts!inner(archived_at)")
+        .eq("organization_id", organizationId)
+        .is("contacts.archived_at", null),
     ]);
 
   if (totalActiveRes.error) throw new Error(`Contatti attivi: ${totalActiveRes.error.message}`);
