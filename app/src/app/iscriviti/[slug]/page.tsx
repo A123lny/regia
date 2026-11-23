@@ -19,7 +19,10 @@ export async function generateMetadata({
 
 export default async function IscrivitiPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const landing = await getPublicLandingBySlug(slug);
+  // includeInactive:true per distinguere "landing non esiste" (404) da
+  // "landing sospesa" (pagina dedicata). Il submit usa comunque il default
+  // fail-closed e rifiuta i POST su landing non attive.
+  const landing = await getPublicLandingBySlug(slug, { includeInactive: true });
   if (!landing) notFound();
 
   // Landing sospesa: pagina dedicata invece della 404 della app (che ha

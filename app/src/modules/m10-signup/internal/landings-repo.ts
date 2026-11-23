@@ -79,19 +79,23 @@ export async function getLandingById(
  */
 export async function getPublicLandingBySlug(
   slug: string,
+  opts: { includeInactive?: boolean } = {},
 ): Promise<
   (SignupLanding & { brandSlug: string; brandDisplayName: string; brandColor: string }) | null
 > {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  // Non filtriamo is_active qui: il caller distingue "landing non esiste"
-  // (null) da "landing sospesa" (isActive=false) per mostrare messaggi diversi.
-  const { data, error } = await admin
+  // Default fail-closed: filtriamo is_active=true. La pagina pubblica passa
+  // includeInactive:true SOLO per decidere se mostrare "Iscrizioni chiuse"
+  // invece della 404, MA il submit (submitPublicSignup) usa il default
+  // (is_active=true) quindi un POST su landing sospesa fallisce comunque.
+  let q = admin
     .from("signup_landings")
     .select(`${SELECT_COLS}, brands!inner(slug, display_name, color, is_archived)`)
     .eq("slug", slug)
-    .eq("brands.is_archived", false)
-    .maybeSingle();
+    .eq("brands.is_archived", false);
+  if (!opts.includeInactive) q = q.eq("is_active", true);
+  const { data, error } = await q.maybeSingle();
   if (error) throw new Error(`Errore lookup landing: ${error.message}`);
   if (!data) return null;
   return {

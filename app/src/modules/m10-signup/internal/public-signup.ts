@@ -173,9 +173,11 @@ export async function submitPublicSignup(input: PublicSignupInput): Promise<Publ
     }
   }
 
-  // 3. Lookup landing
+  // 3. Lookup landing. Default fail-closed (is_active=true). Difesa in
+  // profondita': anche se il filtro di default fosse rimosso per errore,
+  // ricontrolliamo esplicitamente isActive. Niente signup su landing sospesa.
   const landing = await getPublicLandingBySlug(input.landingSlug);
-  if (!landing) {
+  if (!landing || !landing.isActive) {
     return { ok: false, error: "Landing non trovata o non attiva", kind: "landing_missing" };
   }
 
