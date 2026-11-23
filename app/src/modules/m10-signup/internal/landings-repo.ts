@@ -89,15 +89,26 @@ export async function getPublicLandingBySlug(
   // includeInactive:true SOLO per decidere se mostrare "Iscrizioni chiuse"
   // invece della 404, MA il submit (submitPublicSignup) usa il default
   // (is_active=true) quindi un POST su landing sospesa fallisce comunque.
+  //
+  // Lo slug e' UNIQUE per (organization_id, slug) ma non globalmente. La
+  // rotta pubblica /iscriviti/[slug] e' anonima (no org context). Usiamo
+  // limit(2) per rilevare collisioni cross-tenant: se >1 row torniamo null
+  // (tratta come not-found) e logghiamo lato server.
+  // TODO: migration per UNIQUE globale su slug oppure rotta /iscriviti/[org]/[slug].
   let q = admin
     .from("signup_landings")
     .select(`${SELECT_COLS}, brands!inner(slug, display_name, color, is_archived)`)
     .eq("slug", slug)
     .eq("brands.is_archived", false);
   if (!opts.includeInactive) q = q.eq("is_active", true);
-  const { data, error } = await q.maybeSingle();
+  const { data: rows, error } = await q.limit(2);
   if (error) throw new Error(`Errore lookup landing: ${error.message}`);
-  if (!data) return null;
+  if (!rows || rows.length === 0) return null;
+  if (rows.length > 1) {
+    console.error("[m10] Collisione slug landing cross-tenant", { slug });
+    return null;
+  }
+  const data = rows[0];
   return {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...rowToLanding(data as any),
