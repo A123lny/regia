@@ -267,7 +267,7 @@ export async function archiveContact(contactId: string, organizationId: string):
   const archived = (count ?? 0) > 0;
   if (archived) {
     // Cancella voucher attivi del contatto.
-    await admin
+    const voucherRes = await admin
       .from("vouchers")
       .update({
         status: "cancelled",
@@ -277,10 +277,21 @@ export async function archiveContact(contactId: string, organizationId: string):
       .eq("contact_id", contactId)
       .eq("organization_id", organizationId)
       .eq("status", "issued");
+    if (voucherRes.error) {
+      // Side-effect fallita: la coerenza "archiviato -> niente voucher attivi"
+      // e' violata. Ripristina e fai fallire l'operazione (no transazione
+      // disponibile cross-table, facciamo compensating update).
+      await admin
+        .from("contacts")
+        .update({ archived_at: null })
+        .eq("id", contactId)
+        .eq("organization_id", organizationId);
+      throw new Error(`Archiviazione fallita (voucher): ${voucherRes.error.message}`);
+    }
     // Dismiss promemoria pending del contatto: un contatto archiviato non
     // riceve piu' comunicazioni, quindi non ha senso che continuino ad
     // apparire nella lista "da gestire".
-    await admin
+    const reminderRes = await admin
       .from("reminders")
       .update({
         status: "dismissed",
@@ -289,6 +300,18 @@ export async function archiveContact(contactId: string, organizationId: string):
       .eq("contact_id", contactId)
       .eq("organization_id", organizationId)
       .eq("status", "pending");
+    if (reminderRes.error) {
+      // Compensating rollback: ripristina contatto E voucher (best effort).
+      await admin
+        .from("contacts")
+        .update({ archived_at: null })
+        .eq("id", contactId)
+        .eq("organization_id", organizationId);
+      // I voucher annullati NON vengono ri-emessi (reward_kind + code unico);
+      // li lasciamo cancelled, meglio dover ri-emettere a mano che riscattare
+      // un voucher su un contatto da archiviare.
+      throw new Error(`Archiviazione fallita (reminders): ${reminderRes.error.message}`);
+    }
   }
   return archived;
 }

@@ -41,12 +41,15 @@ async function loadContact(organizationId: string, contactId: string): Promise<C
   const admin = getAdminClient() as any;
   const { data, error } = await admin
     .from("contacts")
-    .select("first_name, email, phone, whatsapp")
+    .select("first_name, email, phone, whatsapp, archived_at")
     .eq("organization_id", organizationId)
     .eq("id", contactId)
     .maybeSingle();
   if (error) throw new Error(`loadContact: ${error.message}`);
   if (!data) return null;
+  // Rifiuta esplicitamente contatti archiviati: nessun invio deve mai finire
+  // su un contatto che l'owner ha archiviato (consenso revocato de facto).
+  if (data.archived_at !== null) return null;
   return {
     firstName: data.first_name ?? null,
     email: data.email ?? null,
@@ -190,7 +193,11 @@ export async function sendReminderNow(
     }
     const config = getChannelForReminderKind(reminder.kind);
     const contact = await loadContact(organizationId, reminder.contactId);
-    if (!contact) return { ok: false, error: "Contatto associato al reminder non trovato" };
+    if (!contact) {
+      // loadContact ritorna null anche per contatti archiviati: non inviare
+      // comunicazioni su chi e' stato archiviato (consenso revocato).
+      return { ok: false, error: "Contatto non piu' disponibile (potrebbe essere archiviato)" };
+    }
 
     let payload: OutgoingMessage;
     if (config.channel === "email") {

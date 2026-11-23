@@ -214,6 +214,18 @@ export async function refreshCounterCloseReminders(
     .eq("organization_id", organizationId);
   if (eErr) throw new Error(`Events: ${eErr.message}`);
 
+  // Carica gli id dei contatti archiviati per filtrarli: un contatto
+  // archiviato non deve ricevere reminder "counter vicino alla soglia".
+  const { data: archivedContactsData, error: aErr } = await admin
+    .from("contacts")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .not("archived_at", "is", null);
+  if (aErr) throw new Error(`Archived contacts: ${aErr.message}`);
+  const archivedIds = new Set<string>(
+    ((archivedContactsData ?? []) as Array<{ id: string }>).map((c) => c.id),
+  );
+
   // Aggrega per (counter, contact)
   const progressMap = new Map<string, { count: number; valueCents: number }>();
   for (const e of (events ?? []) as Array<{
@@ -234,6 +246,10 @@ export async function refreshCounterCloseReminders(
   for (const [key, agg] of progressMap.entries()) {
     const [counterId, contactId] = key.split("|");
     if (!counterId || !contactId) continue;
+    if (archivedIds.has(contactId)) {
+      skipped++;
+      continue;
+    }
     const counter = countersList.find((c) => c.id === counterId);
     if (!counter) continue;
     const threshold =
