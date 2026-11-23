@@ -115,7 +115,7 @@ export async function generateSocialPost(
 
   // RF-11.5: tetti spesa
   try {
-    await assertBudgetOk(session.organizationId, "anthropic");
+    await assertBudgetOk(session.organizationId, "gemini");
   } catch (err) {
     if (err instanceof AiBudgetExceededError) return { ok: false, error: err.message };
     throw err;
@@ -141,7 +141,7 @@ export async function generateSocialPost(
   await logSpend({
     organizationId: session.organizationId,
     brandId: brand.id,
-    category: "anthropic",
+    category: "gemini",
     action: "editorial.social_post",
     costUsd: result.draft.costUsd,
     tokensIn: result.draft.tokensIn,
@@ -358,7 +358,7 @@ export async function generateEditorialPlan(
 
   // RF-11.5: tetti spesa (stima grossolana: numDrafts * 0.001)
   try {
-    await assertBudgetOk(session.organizationId, "anthropic", input.numDrafts * 0.001);
+    await assertBudgetOk(session.organizationId, "gemini", input.numDrafts * 0.001);
   } catch (err) {
     if (err instanceof AiBudgetExceededError) return { ok: false, error: err.message };
     throw err;
@@ -394,7 +394,7 @@ export async function generateEditorialPlan(
     await logSpend({
       organizationId: session.organizationId,
       brandId: brand.id,
-      category: "anthropic",
+      category: "gemini",
       action: "editorial.plan",
       costUsd: result.totalCostUsd,
       targetType: "plan_batch",
@@ -447,7 +447,7 @@ export async function generateRecurrenceDraft(
 
   // RF-11.5: tetti spesa
   try {
-    await assertBudgetOk(session.organizationId, "anthropic");
+    await assertBudgetOk(session.organizationId, "gemini");
   } catch (err) {
     if (err instanceof AiBudgetExceededError) return { ok: false, error: err.message };
     throw err;
@@ -468,7 +468,7 @@ export async function generateRecurrenceDraft(
   await logSpend({
     organizationId: session.organizationId,
     brandId: event.brandId,
-    category: "anthropic",
+    category: "gemini",
     action: "editorial.recurrence",
     costUsd: result.draft.costUsd,
     tokensIn: result.draft.tokensIn,
@@ -521,7 +521,7 @@ export async function generateServiceCommunication(
 
   // RF-11.5: tetti spesa
   try {
-    await assertBudgetOk(session.organizationId, "anthropic");
+    await assertBudgetOk(session.organizationId, "gemini");
   } catch (err) {
     if (err instanceof AiBudgetExceededError) return { ok: false, error: err.message };
     throw err;
@@ -553,7 +553,7 @@ export async function generateServiceCommunication(
     await logSpend({
       organizationId: session.organizationId,
       brandId: brand.id,
-      category: "anthropic",
+      category: "gemini",
       action: "editorial.service",
       costUsd: result.draft.costUsd,
       tokensIn: result.draft.tokensIn,

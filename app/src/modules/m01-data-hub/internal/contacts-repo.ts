@@ -90,47 +90,28 @@ export async function listContacts(input: ListContactsInput): Promise<ListContac
   if (contactIdsFilter) q = q.in("id", contactIdsFilter);
 
   if (input.query && input.query.trim().length > 0) {
-    const raw = input.query.trim();
-    // Se la query sembra un UUID, cerca per id esatto (usato dal link ordini → cliente).
+    // Cap difensivo: query lunga/fan-out oltre questi limiti indica abuso o
+    // input non intenzionale. Taglio prima di tokenizzare.
+    const raw = input.query.trim().slice(0, 100);
     const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidRe.test(raw)) {
       q = q.eq("id", raw);
     } else {
-      // Multi-parola: se la query contiene uno spazio (es. "Marco Romano"),
-      // la spezziamo in token e richiediamo che ciascuno matchi almeno uno
-      // dei campi testuali. Prima "Marco Romano" dava 0 risultati perche'
-      // cercava la stringa intera in first_name OR last_name. Supabase JS
-      // non supporta AND fra .or(): simuliamo con IN sugli id dopo dedup.
-      const tokens = raw.split(/\s+/).filter((t) => t.length > 0);
-      if (tokens.length >= 2) {
-        // Per ciascun token prendiamo gli id che matchano qualunque campo,
-        // poi intersechiamo (deduplicazione via Set).
-        let intersected: Set<string> | null = null;
-        for (const tok of tokens) {
-          const term = `%${tok}%`;
-          const { data: idRows } = await admin
-            .from("contacts")
-            .select("id")
-            .eq("organization_id", input.organizationId)
-            .or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`);
-          const idArr = ((idRows ?? []) as { id: string }[]).map((r) => r.id);
-          const ids = new Set<string>(idArr);
-          if (intersected === null) {
-            intersected = ids;
-          } else {
-            const prev: Set<string> = intersected;
-            const filtered: string[] = [];
-            for (const x of prev) if (ids.has(x)) filtered.push(x);
-            intersected = new Set<string>(filtered);
-          }
-          if (intersected.size === 0) break;
-        }
-        if (!intersected || intersected.size === 0) {
-          return { items: [], totalCount: 0 };
-        }
-        q = q.in("id", Array.from(intersected));
-      } else {
-        const term = `%${raw}%`;
+      // Multi-parola: ogni token deve matchare qualunque campo (AND fra token,
+      // OR fra campi). PostgREST ANDa le ripetizioni di `or=` sulla stessa
+      // query, quindi chainare .or() per ogni token sulla stessa `q` da il
+      // risultato giusto in una sola round-trip (niente fan-out a N query).
+      // Dedup + cap su max 5 token distinti: oltre e' comunque rumore.
+      const tokens = Array.from(
+        new Set(
+          raw
+            .split(/\s+/)
+            .map((t) => t.trim())
+            .filter((t) => t.length > 0),
+        ),
+      ).slice(0, 5);
+      for (const tok of tokens) {
+        const term = `%${tok}%`;
         q = q.or(
           `first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term},phone.ilike.${term}`,
         );
