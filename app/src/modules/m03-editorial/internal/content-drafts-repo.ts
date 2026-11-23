@@ -152,14 +152,25 @@ export async function listDraftsByPlanBatch(
   return ((data ?? []) as any[]).map(rowToDraft);
 }
 
-export async function markApproved(draftId: string): Promise<void> {
+/**
+ * Transizione draft -> approved atomica.
+ * Guardia status='draft': se qualcun altro ha gia' approvato/rifiutato nel
+ * frattempo, UPDATE restituisce 0 righe e noi segnaliamo errore. Protezione
+ * TOCTOU fra il check applicativo in approveContentDraft() e questa update.
+ * Ritorna true se la riga era in draft al momento dell'update, false altrimenti.
+ */
+export async function markApproved(draftId: string): Promise<boolean> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  const { error } = await admin
+  const { data, error } = await admin
     .from("content_drafts")
     .update({ status: "approved", approved_at: new Date().toISOString() })
-    .eq("id", draftId);
+    .eq("id", draftId)
+    .eq("status", "draft")
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(`Errore approvazione draft: ${error.message}`);
+  return !!data;
 }
 
 export type MarkRejectedInput = {
@@ -168,7 +179,10 @@ export type MarkRejectedInput = {
   reasonEmbedding: number[]; // array vuoto se Voyage down → salva null
 };
 
-export async function markRejected(input: MarkRejectedInput): Promise<void> {
+/**
+ * Transizione draft -> rejected atomica (stessa protezione TOCTOU di markApproved).
+ */
+export async function markRejected(input: MarkRejectedInput): Promise<boolean> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const patch: Record<string, unknown> = {
@@ -180,8 +194,15 @@ export async function markRejected(input: MarkRejectedInput): Promise<void> {
     // Supabase JS: pgvector accetta string "[v1,v2,...]" o array puro.
     patch["rejection_reason_embedding"] = input.reasonEmbedding;
   }
-  const { error } = await admin.from("content_drafts").update(patch).eq("id", input.draftId);
+  const { data, error } = await admin
+    .from("content_drafts")
+    .update(patch)
+    .eq("id", input.draftId)
+    .eq("status", "draft")
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(`Errore rifiuto draft: ${error.message}`);
+  return !!data;
 }
 
 export async function fetchRecentApprovedByBrand(

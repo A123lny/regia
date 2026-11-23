@@ -181,7 +181,10 @@ export default async function DraftDetailPage({
 
       {draft.status === "draft" && (
         <div className="flex flex-col gap-4 sm:flex-row">
-          <form action={approveContentDraft.bind(null, draft.id)} className="flex-1">
+          <form
+            action={approveContentDraft.bind(null, draft.id, draft.generatedText)}
+            className="flex-1"
+          >
             <Button type="submit" className="w-full bg-success text-white hover:bg-success/90">
               <Check className="mr-2 h-4 w-4" /> Approva
             </Button>
