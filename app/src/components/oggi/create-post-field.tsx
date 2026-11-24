@@ -3,23 +3,27 @@
 // Campo unico "Crea un post": textarea che apre la generazione per il brand
 // selezionato (o il primo disponibile). L'AI decide se il testo e' un avviso
 // di servizio o un post normale (prompt della Corsia veloce incluso).
+//
+// Il testo NON viaggia in query string: va via server action che imposta
+// un cookie HttpOnly short-lived (60s, path /contenuti/<slug>/nuovo).
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { Sparkles } from "lucide-react";
+import { startNewPostAction } from "./create-post-action";
 
 type BrandOpt = { slug: string; displayName: string };
 
 export function CreatePostField({ brands }: { brands: BrandOpt[] }) {
-  const router = useRouter();
   const [text, setText] = useState("");
   const [brandSlug, setBrandSlug] = useState(brands[0]?.slug ?? "");
+  const [pending, startTransition] = useTransition();
 
   function submit() {
     const trimmed = text.trim();
     if (!trimmed || !brandSlug) return;
-    const theme = encodeURIComponent(trimmed);
-    router.push(`/contenuti/${brandSlug}/nuovo?theme=${theme}`);
+    startTransition(async () => {
+      await startNewPostAction({ brandSlug, text: trimmed });
+    });
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -71,11 +75,11 @@ export function CreatePostField({ brands }: { brands: BrandOpt[] }) {
         <button
           type="button"
           onClick={submit}
-          disabled={!text.trim()}
+          disabled={!text.trim() || pending}
           className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
         >
           <Sparkles className="h-4 w-4" />
-          Genera
+          {pending ? "Apro..." : "Genera"}
         </button>
       </div>
       <p className="mt-2 text-xs text-text-muted">
