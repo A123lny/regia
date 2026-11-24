@@ -6,16 +6,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Wallet, AlertTriangle, Loader2, Pencil } from "lucide-react";
-import { saveAiBudget } from "@/modules/m11-admin/public";
-import type { SpendSummary, BudgetCategory } from "@/modules/m11-admin/public";
+import { saveAiBudget, SPEND_CATEGORY_LABELS } from "@/modules/m11-admin/public";
+import type { SpendSummary } from "@/modules/m11-admin/public";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-const CATEGORY_LABELS: Record<BudgetCategory, string> = {
-  anthropic: "Anthropic (Claude)",
-  gemini: "Gemini (Google)",
-  voyage: "Voyage (embeddings)",
-  all: "Tetto totale (tutte le AI)",
-};
+// Etichette centralizzate (incluso 'fal' per fal.ai immagini).
+const CATEGORY_LABELS = SPEND_CATEGORY_LABELS;
 
 export function AiBudgetsCard({ summaries }: { summaries: SpendSummary[] }) {
   return (

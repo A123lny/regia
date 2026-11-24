@@ -1,0 +1,288 @@
+"use server";
+
+// Server actions "Genera con AI" (fal.ai).
+// Due step:
+//  1) generateAiPreviews(draftId): 2–4 miniature con modello veloce (schnell)
+//  2) selectAiVariant(draftId, previewUrl): rigenera a qualità (flux-pro),
+//     salva nel bucket come brand_media_asset e aggancia alla bozza.
+//
+// Preflight obbligatori: capability, kill switch AI, budget cap, provider
+// media 'fal-ai' attivo con allowed_uses=['commercial'].
+
+import { revalidatePath } from "next/cache";
+import { getSessionOrRedirect } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/auth/permissions";
+import { logAuditEvent } from "@/lib/audit/log";
+import { assertAiEnabled, AiKillSwitchError } from "@/modules/m11-admin/public";
+import { assertBudgetOk, AiBudgetExceededError, logSpend } from "@/modules/m11-admin/public";
+import { getContentDraft } from "@/modules/m03-editorial/public";
+import { getBrandById } from "@/modules/m02-brand/public";
+import {
+  FAL_PREVIEW_COUNT,
+  FAL_PREVIEW_MODEL,
+  FAL_PROVIDER_SLUG,
+  FAL_QUALITY_MODEL,
+  type DraftChannelHint,
+} from "@/lib/ai/fal-config";
+import {
+  FalApiError,
+  FalConfigError,
+  FalContentRejectedError,
+  FalRateLimitError,
+  FalTimeoutError,
+} from "@/lib/ai/fal";
+import { getActiveProviderBySlug } from "./media-providers-repo";
+import { composePromptFromDraft, runFalGeneration, saveFalImageToBucket } from "./fal-generator";
+import { setDraftMediaAsset } from "./media-assets-repo";
+import type { MediaAsset } from "./media-assets-types";
+
+// ────────────────────────────────────────────────────────────────────────
+// Risultati pubblici
+// ────────────────────────────────────────────────────────────────────────
+
+export type AiPreviewItem = {
+  // URL temporaneo fornito da fal (scade in ~1h). Il client lo mostra come
+  // img src. Alla scelta, selectAiVariant rigenera a qualità (non salva le
+  // anteprime non scelte).
+  url: string;
+  width: number;
+  height: number;
+};
+
+export type AiPreviewsResult =
+  | {
+      ok: true;
+      items: AiPreviewItem[];
+      prompt: string;
+      channel: DraftChannelHint;
+      costUsd: number;
+    }
+  | { ok: false; error: string };
+
+export type AiVariantSavedResult = { ok: true; asset: MediaAsset } | { ok: false; error: string };
+
+// ────────────────────────────────────────────────────────────────────────
+// Helper preflight: kill switch + budget + provider attivo
+// ────────────────────────────────────────────────────────────────────────
+
+function mapFalError(err: unknown): string {
+  if (err instanceof FalConfigError) return err.message;
+  if (err instanceof FalRateLimitError) return err.message;
+  if (err instanceof FalContentRejectedError) return err.message;
+  if (err instanceof FalTimeoutError) return err.message;
+  if (err instanceof FalApiError) return err.message;
+  if (err instanceof AiKillSwitchError) return err.message;
+  if (err instanceof AiBudgetExceededError) return err.message;
+  if (err instanceof Error) return err.message;
+  return "Errore sconosciuto nella generazione immagine.";
+}
+
+async function preflight(
+  organizationId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await assertAiEnabled(organizationId);
+  } catch (err) {
+    if (err instanceof AiKillSwitchError) return { ok: false, error: err.message };
+    throw err;
+  }
+  try {
+    await assertBudgetOk(organizationId, "fal");
+  } catch (err) {
+    if (err instanceof AiBudgetExceededError) return { ok: false, error: err.message };
+    throw err;
+  }
+  const provider = await getActiveProviderBySlug(organizationId, FAL_PROVIDER_SLUG);
+  if (!provider) {
+    return {
+      ok: false,
+      error:
+        "Provider fal.ai non attivo in Impostazioni → Provider media. Registralo con diritti d'uso 'commercial' prima di generare immagini AI.",
+    };
+  }
+  if (!provider.allowedUses.includes("commercial")) {
+    return {
+      ok: false,
+      error:
+        "Il provider fal.ai registrato non consente l'uso commerciale. Aggiorna gli 'Usi consentiti' in Impostazioni → Provider media.",
+    };
+  }
+  return { ok: true };
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Azione 1: genera anteprime (modello veloce)
+// ────────────────────────────────────────────────────────────────────────
+
+export async function generateAiPreviews(input: {
+  draftId: string;
+  channel?: DraftChannelHint;
+}): Promise<AiPreviewsResult> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "content.generate");
+
+  const draft = await getContentDraft(input.draftId, session.organizationId);
+  if (!draft) return { ok: false, error: "Bozza non trovata." };
+  const brand = await getBrandById(session.organizationId, draft.brandId);
+  if (!brand) return { ok: false, error: "Marchio non trovato." };
+
+  const pre = await preflight(session.organizationId);
+  if (!pre.ok) return pre;
+
+  const channel: DraftChannelHint = input.channel ?? "instagram_post";
+
+  const { prompt, size } = await composePromptFromDraft({
+    organizationId: session.organizationId,
+    brandId: brand.id,
+    draftThemeInput: draft.themeInput,
+    draftGeneratedText: draft.generatedText,
+    channel,
+  });
+
+  try {
+    const result = await runFalGeneration({
+      modelId: FAL_PREVIEW_MODEL,
+      prompt,
+      size,
+      numImages: FAL_PREVIEW_COUNT,
+    });
+
+    // Log spesa + audit (anche in caso di anteprime: il modello gira comunque).
+    await logSpend({
+      organizationId: session.organizationId,
+      brandId: brand.id,
+      category: "fal",
+      action: "media.ai_previews_generated",
+      costUsd: result.estimatedCostUsd,
+      tokensIn: 0,
+      tokensOut: 0,
+      targetType: "draft",
+      targetId: input.draftId,
+    });
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "media.ai_previews_generated",
+      target: `draft:${input.draftId}`,
+      details: {
+        provider: "fal.ai",
+        model: FAL_PREVIEW_MODEL,
+        channel,
+        count: result.images.length,
+        costUsd: result.estimatedCostUsd,
+        latencyMs: result.latencyMs,
+      },
+    });
+
+    return {
+      ok: true,
+      items: result.images.map((im) => ({ url: im.url, width: im.width, height: im.height })),
+      prompt,
+      channel,
+      costUsd: result.estimatedCostUsd,
+    };
+  } catch (err) {
+    console.error("[fal] generateAiPreviews failed", {
+      draftId: input.draftId,
+      brandSlug: brand.slug,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return { ok: false, error: mapFalError(err) };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Azione 2: variante finale (modello di qualità) → bucket + attach
+// ────────────────────────────────────────────────────────────────────────
+
+export async function generateAndSaveAiVariant(input: {
+  draftId: string;
+  prompt: string;
+  channel: DraftChannelHint;
+  // Seed della variante preferita (opzionale): se fal lo onora, l'immagine
+  // finale sarà coerente con la miniatura scelta. Al primo giro lo omettiamo.
+  seed?: number;
+}): Promise<AiVariantSavedResult> {
+  const session = await getSessionOrRedirect();
+  requireCapability(session, "content.generate");
+
+  const draft = await getContentDraft(input.draftId, session.organizationId);
+  if (!draft) return { ok: false, error: "Bozza non trovata." };
+  const brand = await getBrandById(session.organizationId, draft.brandId);
+  if (!brand) return { ok: false, error: "Marchio non trovato." };
+
+  const pre = await preflight(session.organizationId);
+  if (!pre.ok) return pre;
+
+  try {
+    const { size } = await composePromptFromDraft({
+      organizationId: session.organizationId,
+      brandId: brand.id,
+      draftThemeInput: draft.themeInput,
+      draftGeneratedText: draft.generatedText,
+      channel: input.channel,
+    });
+
+    const result = await runFalGeneration({
+      modelId: FAL_QUALITY_MODEL,
+      prompt: input.prompt.slice(0, 2000),
+      size,
+      numImages: 1,
+    });
+    const image = result.images[0];
+    if (!image) {
+      return { ok: false, error: "fal.ai non ha restituito l'immagine finale. Riprova." };
+    }
+
+    const asset = await saveFalImageToBucket({
+      imageUrl: image.url,
+      organizationId: session.organizationId,
+      brandId: brand.id,
+      caption: `[AI] ${draft.themeInput.slice(0, 120)}`,
+      tags: ["ai-generated", "fal-ai", FAL_QUALITY_MODEL.split("/").pop() ?? "flux"],
+      uploadedBy: session.userId,
+      contentType: image.contentType,
+    });
+
+    await setDraftMediaAsset(session.organizationId, input.draftId, asset.id);
+
+    await logSpend({
+      organizationId: session.organizationId,
+      brandId: brand.id,
+      category: "fal",
+      action: "media.ai_variant_saved",
+      costUsd: result.estimatedCostUsd,
+      tokensIn: 0,
+      tokensOut: 0,
+      targetType: "draft",
+      targetId: input.draftId,
+    });
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "media.ai_variant_saved",
+      target: `draft:${input.draftId}`,
+      details: {
+        provider: "fal.ai",
+        model: FAL_QUALITY_MODEL,
+        channel: input.channel,
+        assetId: asset.id,
+        costUsd: result.estimatedCostUsd,
+        latencyMs: result.latencyMs,
+      },
+    });
+
+    revalidatePath(`/contenuti/${brand.slug}/${input.draftId}`);
+    revalidatePath(`/marchi/${brand.slug}/media`);
+    return { ok: true, asset };
+  } catch (err) {
+    console.error("[fal] generateAndSaveAiVariant failed", {
+      draftId: input.draftId,
+      brandSlug: brand.slug,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return { ok: false, error: mapFalError(err) };
+  }
+}

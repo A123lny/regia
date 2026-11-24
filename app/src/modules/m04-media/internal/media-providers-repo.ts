@@ -185,3 +185,26 @@ export async function hasActiveProviderForUse(
     return kindMatch && uses.includes(use);
   });
 }
+
+/**
+ * Trova un provider attivo per slug (es. "fal-ai"). Serve per attivare la
+ * generazione AI solo se l'Owner ha dichiarato il provider in Impostazioni →
+ * Provider media con diritti d'uso compatibili col commerciale.
+ */
+export async function getActiveProviderBySlug(
+  organizationId: string,
+  slug: string,
+): Promise<MediaProvider | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data, error } = await admin
+    .from("media_providers")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .eq("slug", slug)
+    .eq("is_active", true)
+    .is("archived_at", null)
+    .maybeSingle();
+  if (error) throw new Error(`getActiveProviderBySlug: ${error.message}`);
+  return data ? rowToProvider(data) : null;
+}

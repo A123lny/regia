@@ -2,8 +2,17 @@
 
 import { getAdminClient } from "@/lib/db/admin";
 
-export type SpendCategory = "anthropic" | "gemini" | "voyage";
+export type SpendCategory = "anthropic" | "gemini" | "voyage" | "fal";
 export type BudgetCategory = SpendCategory | "all";
+
+// Label leggibili in italiano per UI (tetti spesa, ledger, report).
+export const SPEND_CATEGORY_LABELS: Record<BudgetCategory, string> = {
+  anthropic: "Anthropic (Claude)",
+  gemini: "Google Gemini",
+  voyage: "Voyage AI (retrieval)",
+  fal: "fal.ai (immagini)",
+  all: "Tutte le AI (totale)",
+};
 
 export type AiSpendBudget = {
   id: string;
@@ -150,7 +159,7 @@ export async function logSpend(input: {
  */
 export async function getSpendSummaries(organizationId: string): Promise<SpendSummary[]> {
   const budgets = await listBudgets(organizationId);
-  const categories: BudgetCategory[] = ["anthropic", "gemini", "voyage", "all"];
+  const categories: BudgetCategory[] = ["anthropic", "gemini", "voyage", "fal", "all"];
   const summaries: SpendSummary[] = [];
   for (const cat of categories) {
     const spent = await sumSpendThisMonth(organizationId, cat);

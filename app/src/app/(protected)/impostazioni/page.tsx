@@ -100,6 +100,7 @@ export default async function ImpostazioniPage() {
   const anthropic = maskApiKey(process.env["ANTHROPIC_API_KEY"]);
   const voyage = maskApiKey(process.env["VOYAGE_API_KEY"]);
   const gemini = maskApiKey(process.env["GEMINI_API_KEY"]);
+  const falKey = maskApiKey(process.env["FAL_KEY"]);
 
   return (
     <div className="space-y-8">
@@ -344,9 +345,32 @@ export default async function ImpostazioniPage() {
                 </div>
               ) : (
                 <span className="text-sm text-danger">
-                  ❌ non configurata (opzionale — F1.5a degrada senza)
+                  non configurata (opzionale — F1.5a degrada senza)
                 </span>
               )}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                fal.ai (generazione immagini)
+              </span>
+              {falKey.present ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-success">chiave presente</span>
+                  <code className="rounded bg-surface-muted px-2 py-1 text-xs text-text">
+                    {falKey.masked}
+                  </code>
+                </div>
+              ) : (
+                <span className="text-sm text-danger">chiave non impostata</span>
+              )}
+              <span className="text-[11px] text-text-muted/80">
+                Oltre alla chiave serve un provider attivo con slug <code>fal-ai</code> in{" "}
+                <Link href="/impostazioni/provider-media" className="underline hover:no-underline">
+                  Provider media
+                </Link>
+                .
+              </span>
             </div>
 
             <p className="border-t border-border pt-3 text-xs text-text-muted">

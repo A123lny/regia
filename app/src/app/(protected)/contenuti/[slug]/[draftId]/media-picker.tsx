@@ -15,6 +15,7 @@ import {
   LayoutTemplate,
   Download,
   Wand2,
+  Wand,
 } from "lucide-react";
 import type { MediaAsset, TemplateDefinition } from "@/modules/m04-media/public";
 import {
@@ -24,6 +25,7 @@ import {
   suggestTemplateForDraft,
   autofillTemplateFields,
 } from "@/modules/m04-media/public";
+import { AiGeneratePanel } from "./ai-generate-panel";
 
 type DraftContext = {
   topicLabel: string | null;
@@ -40,7 +42,7 @@ type Props = {
   draftContext?: DraftContext;
 };
 
-type PickerMode = "library" | "template";
+type PickerMode = "library" | "template" | "ai";
 
 export function DraftMediaPicker({
   draftId,
@@ -147,7 +149,7 @@ export function DraftMediaPicker({
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setPickerOpen("library")}
@@ -163,6 +165,14 @@ export function DraftMediaPicker({
               className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
             >
               <LayoutTemplate className="h-3.5 w-3.5" /> Da template
+            </button>
+            <button
+              type="button"
+              onClick={() => setPickerOpen("ai")}
+              disabled={busy}
+              className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
+            >
+              <Wand className="h-3.5 w-3.5" /> Genera con AI
             </button>
           </div>
         )}
@@ -483,6 +493,12 @@ export function DraftMediaPicker({
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {pickerOpen === "ai" && !currentAsset && (
+        <div className="mt-3">
+          <AiGeneratePanel draftId={draftId} onClose={() => setPickerOpen(null)} />
         </div>
       )}
     </div>

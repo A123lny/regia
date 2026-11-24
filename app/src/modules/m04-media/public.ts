@@ -57,3 +57,14 @@ export {
   archiveMediaProviderAction,
 } from "./internal/media-providers-actions";
 export type { UpsertMediaProviderActionInput } from "./internal/media-providers-actions";
+
+// Generazione immagini AI (fal.ai).
+export { generateAiPreviews, generateAndSaveAiVariant } from "./internal/fal-actions";
+export type { AiPreviewItem, AiPreviewsResult, AiVariantSavedResult } from "./internal/fal-actions";
+export {
+  FAL_PREVIEW_MODEL,
+  FAL_QUALITY_MODEL,
+  FAL_PROVIDER_SLUG,
+  FAL_SIZE_BY_CHANNEL,
+} from "@/lib/ai/fal-config";
+export type { DraftChannelHint, FalImageModelId } from "@/lib/ai/fal-config";

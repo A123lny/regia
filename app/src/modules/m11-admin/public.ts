@@ -30,6 +30,7 @@ export {
   listBudgets,
   getSpendSummaries,
   AiBudgetExceededError,
+  SPEND_CATEGORY_LABELS,
 } from "./internal/ai-spend";
 export type {
   AiSpendBudget,
