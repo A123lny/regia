@@ -58,7 +58,11 @@ export const markReminderSentTool: RobotTool = {
     if (!parsed.success) return { error: "input_invalido", details: parsed.error.message };
     const result = await markReminderSentAction(parsed.data.reminderId);
     if (!result.ok) return { error: "marksent_fallito", message: result.error };
-    return { ok: true, reminderId: parsed.data.reminderId, message: "Promemoria marcato come inviato." };
+    return {
+      ok: true,
+      reminderId: parsed.data.reminderId,
+      message: "Promemoria marcato come inviato.",
+    };
   },
 };
 

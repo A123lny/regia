@@ -1,4 +1,4 @@
-// M9 · anti-abbandono types.
+// M9 · da recuperare types.
 
 export type AbandonmentKind = "skipped_week" | "dropped_frequency" | "silence_gap" | "inactivity";
 

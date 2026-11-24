@@ -91,7 +91,7 @@ export async function upsertPartnerAction(
   await requireOwnedBrand(input.brandId, session.organizationId);
 
   if (input.coolingFlag && (!input.coolingReason || input.coolingReason.trim().length === 0)) {
-    return { ok: false, error: "Con cooling attivo serve indicare il motivo" };
+    return { ok: false, error: "Con da risentire attivo serve indicare il motivo" };
   }
 
   try {
@@ -133,7 +133,7 @@ export async function upsertPartnerAction(
       details: {
         name: partner.name,
         status: partner.onboardingStatus,
-        cooling: partner.coolingFlag,
+        coolingFlag: partner.coolingFlag,
         launched,
       },
     });
@@ -235,7 +235,7 @@ export async function toggleCoolingAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const { session, partner } = await requireOwnedPartner(input.partnerId, "partner.crud");
   if (input.coolingFlag && (!input.coolingReason || input.coolingReason.trim().length === 0)) {
-    return { ok: false, error: "Attivando cooling serve indicare il motivo" };
+    return { ok: false, error: "Attivando da risentire serve indicare il motivo" };
   }
   try {
     const payload: Parameters<typeof upsertPartner>[0] = {

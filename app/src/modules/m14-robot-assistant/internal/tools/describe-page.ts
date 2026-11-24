@@ -12,7 +12,7 @@ const PAGE_DESCRIPTIONS: Record<string, string> = {
   "/marchi":
     "Marchi: gestione dei brand della tua organizzazione. Per ogni brand puoi configurare logo, tono di voce, orari di apertura, canali social, pillar editoriali.",
   "/segmenti":
-    "Segmenti: definizione di pubblici dinamici basati su criteri (consenso, ordini, inattività). Usati dalle campagne.",
+    "Gruppi: definizione di pubblici dinamici basati su criteri (consenso, ordini, inattività). Usati dalle campagne.",
   "/campagne":
     "Campagne: invii massivi a segmenti o liste di contatti, con tracking di consegna e aperture.",
   "/governance":
@@ -23,8 +23,7 @@ const PAGE_DESCRIPTIONS: Record<string, string> = {
     "Fornitori: anagrafica fornitori con categoria, partita IVA, contatti principali, note.",
   "/analytics":
     "Analytics: report e attribuzione contenuti-vendite, performance editoriali, metriche loyalty.",
-  "/fedelta":
-    "Fedeltà: catalogo premi, voucher emessi e riscattati, tier membri.",
+  "/fedelta": "Fedeltà: catalogo premi, voucher emessi e riscattati, tier membri.",
   "/iscrizioni":
     "Iscrizioni: landing QR per acquisire contatti nuovi, metriche di conversione per brand.",
   "/governance/tasks":

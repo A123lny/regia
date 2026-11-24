@@ -37,6 +37,7 @@ export type LandingRow = SignupLanding & {
 export async function listLandings(
   organizationId: string,
   includeInactive: boolean = false,
+  brandId?: string,
 ): Promise<LandingRow[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
@@ -46,6 +47,7 @@ export async function listLandings(
     .eq("organization_id", organizationId)
     .eq("brands.is_archived", false);
   if (!includeInactive) q = q.eq("is_active", true);
+  if (brandId) q = q.eq("brand_id", brandId);
   const { data, error } = await q.order("created_at", { ascending: false });
   if (error) throw new Error(`Errore lista landing: ${error.message}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

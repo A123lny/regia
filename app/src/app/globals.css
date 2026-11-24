@@ -10,8 +10,9 @@
   --border: #e4dbce;
   --text: #2c1810;
   --text-muted: #7a6857;
-  --primary: #c25a3b;
-  --primary-hover: #a34a2e;
+  /* Primario Regìa: terracotta scuro, contrasto ≥4.5:1 su --bg #faf7f2. */
+  --primary: #a84a2d;
+  --primary-hover: #7f3720;
   --secondary: #87a96b;
   --warning: #d89b4a;
   --danger: #b04a3c;

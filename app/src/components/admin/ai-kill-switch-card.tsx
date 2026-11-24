@@ -177,8 +177,8 @@ export function AiKillSwitchCard({ initialStatus }: { initialStatus: AiSafetySta
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-text-muted">
-              Interruttore di stop non attivo. Le generazioni AI sono consentite (lo stato
-              effettivo dipende anche dalle chiavi configurate e dal budget).
+              Interruttore di stop non attivo. Le generazioni AI sono consentite (lo stato effettivo
+              dipende anche dalle chiavi configurate e dal budget).
             </p>
             <button
               type="button"

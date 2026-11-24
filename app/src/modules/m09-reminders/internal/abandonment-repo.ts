@@ -58,6 +58,7 @@ export async function listAbandonmentSignals(
   organizationId: string,
   onlyActive: boolean = true,
   limit: number = 200,
+  brandId?: string,
 ): Promise<SignalRow[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
@@ -68,9 +69,10 @@ export async function listAbandonmentSignals(
     )
     .eq("organization_id", organizationId)
     .eq("brands.is_archived", false);
+  if (brandId) q = q.eq("brand_id", brandId);
   if (onlyActive) {
     q = q.is("resolved_at", null);
-    // Fix: le soglie anti-abbandono richiedono almeno 2 ordini. I signals
+    // Fix: le soglie da recuperare richiedono almeno 2 ordini. I signals
     // legacy con previous_orders_count<=1 (prima del rework) vengono
     // nascosti anche se la migration di cleanup non e' stata applicata.
     q = q.gte("previous_orders_count", 2);
@@ -105,19 +107,20 @@ export async function listAbandonmentSignals(
 export async function listResolvedAbandonmentSignals(
   organizationId: string,
   limit: number = 50,
+  brandId?: string,
 ): Promise<SignalRow[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  const { data, error } = await admin
+  let q = admin
     .from("abandonment_signals")
     .select(
       `${SELECT_COLS}, brands!inner(slug, display_name, color, is_archived), contacts!inner(first_name, last_name, email)`,
     )
     .eq("organization_id", organizationId)
     .eq("brands.is_archived", false)
-    .not("resolved_at", "is", null)
-    .order("resolved_at", { ascending: false })
-    .limit(limit);
+    .not("resolved_at", "is", null);
+  if (brandId) q = q.eq("brand_id", brandId);
+  const { data, error } = await q.order("resolved_at", { ascending: false }).limit(limit);
   if (error) throw new Error(`Errore lista signals risolti: ${error.message}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((data ?? []) as any[]).map((row): SignalRow => {
@@ -135,7 +138,10 @@ export async function listResolvedAbandonmentSignals(
   });
 }
 
-export async function getAbandonmentStats(organizationId: string): Promise<{
+export async function getAbandonmentStats(
+  organizationId: string,
+  brandId?: string,
+): Promise<{
   activeHigh: number;
   activeMedium: number;
   activeLow: number;
@@ -144,34 +150,44 @@ export async function getAbandonmentStats(organizationId: string): Promise<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const withBrand = <T extends { eq: (col: string, val: string) => T }>(q: T): T =>
+    brandId ? q.eq("brand_id", brandId) : q;
   const [hRes, mRes, lRes, rRes] = await Promise.all([
-    admin
-      .from("abandonment_signals")
-      .select("*", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .eq("severity", "high")
-      .is("resolved_at", null)
-      .gte("previous_orders_count", 2),
-    admin
-      .from("abandonment_signals")
-      .select("*", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .eq("severity", "medium")
-      .is("resolved_at", null)
-      .gte("previous_orders_count", 2),
-    admin
-      .from("abandonment_signals")
-      .select("*", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .eq("severity", "low")
-      .is("resolved_at", null)
-      .gte("previous_orders_count", 2),
-    admin
-      .from("abandonment_signals")
-      .select("*", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .not("resolved_at", "is", null)
-      .gte("resolved_at", thirtyDaysAgo),
+    withBrand(
+      admin
+        .from("abandonment_signals")
+        .select("*", { count: "exact", head: true })
+        .eq("organization_id", organizationId)
+        .eq("severity", "high")
+        .is("resolved_at", null)
+        .gte("previous_orders_count", 2),
+    ),
+    withBrand(
+      admin
+        .from("abandonment_signals")
+        .select("*", { count: "exact", head: true })
+        .eq("organization_id", organizationId)
+        .eq("severity", "medium")
+        .is("resolved_at", null)
+        .gte("previous_orders_count", 2),
+    ),
+    withBrand(
+      admin
+        .from("abandonment_signals")
+        .select("*", { count: "exact", head: true })
+        .eq("organization_id", organizationId)
+        .eq("severity", "low")
+        .is("resolved_at", null)
+        .gte("previous_orders_count", 2),
+    ),
+    withBrand(
+      admin
+        .from("abandonment_signals")
+        .select("*", { count: "exact", head: true })
+        .eq("organization_id", organizationId)
+        .not("resolved_at", "is", null)
+        .gte("resolved_at", thirtyDaysAgo),
+    ),
   ]);
   if (hRes.error) throw new Error(`Stats high: ${hRes.error.message}`);
   if (mRes.error) throw new Error(`Stats med: ${mRes.error.message}`);

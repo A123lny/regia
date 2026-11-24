@@ -42,10 +42,7 @@ function validate(input: {
   // 31/02 in 03/03: se dopo la costruzione mese/giorno non combaciano,
   // l'input era invalido.
   const checkDate = new Date(2024, input.monthOfYear - 1, input.dayOfMonth);
-  if (
-    checkDate.getMonth() !== input.monthOfYear - 1 ||
-    checkDate.getDate() !== input.dayOfMonth
-  ) {
+  if (checkDate.getMonth() !== input.monthOfYear - 1 || checkDate.getDate() !== input.dayOfMonth) {
     throw new Error(
       `Data non valida: il mese ${input.monthOfYear} non ha il giorno ${input.dayOfMonth}.`,
     );

@@ -120,13 +120,15 @@ export async function getConversationMessages(
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true });
   if (error) throw new Error(`[robot] getConversationMessages: ${error.message}`);
-  return ((data ?? []) as Array<{
-    id: string;
-    conversation_id: string;
-    role: "user" | "assistant";
-    content: string;
-    created_at: string;
-  }>).map((r) => ({
+  return (
+    (data ?? []) as Array<{
+      id: string;
+      conversation_id: string;
+      role: "user" | "assistant";
+      content: string;
+      created_at: string;
+    }>
+  ).map((r) => ({
     id: r.id,
     conversationId: r.conversation_id,
     role: r.role,

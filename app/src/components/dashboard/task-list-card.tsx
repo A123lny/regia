@@ -345,7 +345,8 @@ function formatDueLabel(
   const dayMonth = due.toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
   if (diffDays === 0) return { text: `oggi · ${dayMonth}`, isToday: true, isSoon: true };
   if (diffDays === 1) return { text: `domani · ${dayMonth}`, isToday: false, isSoon: true };
-  if (diffDays === -1) return { text: `ieri · ${dayMonth} (in ritardo)`, isToday: false, isSoon: false };
+  if (diffDays === -1)
+    return { text: `ieri · ${dayMonth} (in ritardo)`, isToday: false, isSoon: false };
   if (diffDays < -1) {
     return {
       text: `${Math.abs(diffDays)} giorni fa · ${dayMonth}`,
@@ -434,9 +435,7 @@ function CustomTaskRow({
         )}
       </button>
       <div className="min-w-0 flex-1">
-        <div className={`font-medium text-text ${isDone ? "line-through" : ""}`}>
-          {task.title}
-        </div>
+        <div className={`font-medium text-text ${isDone ? "line-through" : ""}`}>{task.title}</div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-text-muted">
           {dueLabel && (
             <span

@@ -53,17 +53,15 @@ export async function setRobotAccess(
   const admin = getAdminClient() as any;
   // Upsert per supportare anche organizzazioni appena create che non hanno
   // ancora le 4 righe seed.
-  const { error } = await admin
-    .from("robot_role_access")
-    .upsert(
-      {
-        organization_id: organizationId,
-        role,
-        enabled,
-        updated_at: new Date().toISOString(),
-        updated_by: updatedBy,
-      },
-      { onConflict: "organization_id,role" },
-    );
+  const { error } = await admin.from("robot_role_access").upsert(
+    {
+      organization_id: organizationId,
+      role,
+      enabled,
+      updated_at: new Date().toISOString(),
+      updated_by: updatedBy,
+    },
+    { onConflict: "organization_id,role" },
+  );
   if (error) throw new Error(`[robot] setRobotAccess failed: ${error.message}`);
 }

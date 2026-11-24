@@ -51,9 +51,7 @@ export async function gateConsent(
     throw new ConsentMissingError(`Contatto ${contactId} non trovato`);
   }
   if ((contactRow as { archived_at: string | null }).archived_at !== null) {
-    throw new ConsentMissingError(
-      `Contatto ${contactId} archiviato: nessun invio consentito`,
-    );
+    throw new ConsentMissingError(`Contatto ${contactId} archiviato: nessun invio consentito`);
   }
 
   const { data, error } = await admin

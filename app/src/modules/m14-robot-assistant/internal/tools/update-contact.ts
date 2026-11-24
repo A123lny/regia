@@ -50,9 +50,7 @@ export const updateContactTool: RobotTool = {
     }
 
     const p = parsed.data.patch;
-    const cleanPatch: NonNullable<
-      Parameters<typeof updateContactAction>[0]["patch"]
-    > = {
+    const cleanPatch: NonNullable<Parameters<typeof updateContactAction>[0]["patch"]> = {
       ...(p.firstName !== undefined && { firstName: p.firstName }),
       ...(p.lastName !== undefined && { lastName: p.lastName }),
       ...(p.email !== undefined && { email: p.email }),

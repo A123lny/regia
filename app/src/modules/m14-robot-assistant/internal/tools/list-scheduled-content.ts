@@ -1,10 +1,7 @@
 // RN-robot: tool listScheduledContent — contenuti editoriali in coda.
 
 import { z } from "zod";
-import {
-  listContentDraftsByStatus,
-  type ContentDraftStatus,
-} from "@/modules/m03-editorial/public";
+import { listContentDraftsByStatus, type ContentDraftStatus } from "@/modules/m03-editorial/public";
 import type { RobotTool } from "./tool-types";
 
 const InputSchema = z.object({

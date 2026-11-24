@@ -35,11 +35,7 @@ export const listCampaignsTool: RobotTool = {
       return { error: "input_invalido", details: parsed.error.message };
     }
     const brandId = parsed.data.brandId ?? ctx.pageContext.brandId ?? undefined;
-    const rows = await listCampaigns(
-      ctx.session.organizationId,
-      brandId,
-      parsed.data.status,
-    );
+    const rows = await listCampaigns(ctx.session.organizationId, brandId, parsed.data.status);
     return {
       total: rows.length,
       campaigns: rows.map((c) => ({

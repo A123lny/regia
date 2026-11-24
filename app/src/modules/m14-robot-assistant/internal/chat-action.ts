@@ -20,11 +20,7 @@ import {
 } from "@/modules/m11-admin/public";
 import type { RobotPageContext, RobotMessage } from "./types";
 import { buildSystemPrompt } from "./prompt-builder";
-import {
-  startConversation,
-  touchConversation,
-  getConversation,
-} from "./conversation-repo";
+import { startConversation, touchConversation, getConversation } from "./conversation-repo";
 import { listBrands } from "@/modules/m02-brand/public";
 import { getContentDraft } from "@/modules/m03-editorial/public";
 import { ROBOT_TOOLS, getToolsForRole, toAnthropicTools, type RobotTool } from "./tools/registry";
@@ -180,11 +176,7 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
 
   // 2. Tool set per ruolo (T8: esponiamo read + write + destructive; i write
   // e destructive passano dal confirm flow — non vengono eseguiti direttamente).
-  const availableTools = getToolsForRole(input.session.role, [
-    "read",
-    "write",
-    "destructive",
-  ]);
+  const availableTools = getToolsForRole(input.session.role, ["read", "write", "destructive"]);
   // Allowlist enforced a execution-time (defense-in-depth: anche se il modello
   // prova a invocare un tool fuori lista, lo rifiutiamo qui).
   const allowedNames = new Set(availableTools.map((t) => t.name));
@@ -351,9 +343,7 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
         // nuovo pending normale -> confirm standard.
         const toolInp = (tc.input ?? {}) as Record<string, unknown>;
         const needsBrand =
-          tc.name === "createContact" &&
-          !toolInp["brandId"] &&
-          !input.pageContext.brandId;
+          tc.name === "createContact" && !toolInp["brandId"] && !input.pageContext.brandId;
 
         if (needsBrand) {
           const brands = await listBrands(input.session.organizationId, "active");
@@ -442,9 +432,7 @@ export async function* runChat(input: RunChatInput): AsyncGenerator<ChatSseEvent
               ? Object.keys(tc.input as object)
               : [];
           const outputKeys =
-            typeof output === "object" && output !== null
-              ? Object.keys(output as object)
-              : [];
+            typeof output === "object" && output !== null ? Object.keys(output as object) : [];
           await logAuditEvent({
             organizationId: input.session.organizationId,
             actorUserId: input.session.userId,

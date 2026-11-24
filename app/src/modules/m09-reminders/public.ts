@@ -30,7 +30,7 @@ export type { RefreshAllRemindersResult } from "./internal/actions";
 // Nota: helper event-driven e M09->M05 bridge sono in ./server.ts
 // (barrel server-only, import da server component o server action).
 
-// M9 anti-abbandono (RN-40)
+// M9 da recuperare (RN-40)
 export type {
   AbandonmentKind,
   AbandonmentSeverity,

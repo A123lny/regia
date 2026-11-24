@@ -27,6 +27,7 @@ function rowToCounter(row: any): LoyaltyCounter {
 export async function listCounters(
   organizationId: string,
   includeInactive: boolean = false,
+  brandId?: string,
 ): Promise<
   Array<LoyaltyCounter & { brandSlug: string; brandDisplayName: string; brandColor: string }>
 > {
@@ -38,6 +39,7 @@ export async function listCounters(
     .eq("organization_id", organizationId)
     .eq("brands.is_archived", false);
   if (!includeInactive) q = q.eq("is_active", true);
+  if (brandId) q = q.eq("brand_id", brandId);
   const { data, error } = await q.order("created_at", { ascending: false });
   if (error) throw new Error(`Errore lista contatori: ${error.message}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

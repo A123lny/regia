@@ -26,15 +26,17 @@ export const PROMPT_VERSION = "social-post-v1";
  * (asterischi doppi/singoli, underscore, backtick). Conserva il testo.
  */
 export function stripMarkdown(text: string): string {
-  return text
-    // **bold** -> bold
-    .replace(/\*\*([^*]+)\*\*/g, "$1")
-    // *italic* -> italic (solo asterischi isolati, non operatori)
-    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1$2")
-    // _italic_ -> italic
-    .replace(/(^|\W)_([^_\n]+)_(?!_)/g, "$1$2")
-    // `code` -> code
-    .replace(/`([^`\n]+)`/g, "$1");
+  return (
+    text
+      // **bold** -> bold
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      // *italic* -> italic (solo asterischi isolati, non operatori)
+      .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1$2")
+      // _italic_ -> italic
+      .replace(/(^|\W)_([^_\n]+)_(?!_)/g, "$1$2")
+      // `code` -> code
+      .replace(/`([^`\n]+)`/g, "$1")
+  );
 }
 
 export type ComposePromptInput = {
@@ -206,7 +208,10 @@ export async function runGenerateSocialPost(
   // 6b. Sentinel di revisione umana: la chiamata AI e' comunque avvenuta,
   // quindi riportiamo il costo nel ledger (il caller lo registra).
   const trimmedText = result.text.trim();
-  if (trimmedText === "TEMA_RICHIEDE_REVISIONE" || trimmedText.startsWith("TEMA_RICHIEDE_REVISIONE")) {
+  if (
+    trimmedText === "TEMA_RICHIEDE_REVISIONE" ||
+    trimmedText.startsWith("TEMA_RICHIEDE_REVISIONE")
+  ) {
     return {
       ok: false,
       error:

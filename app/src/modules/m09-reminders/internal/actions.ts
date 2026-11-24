@@ -131,7 +131,7 @@ export async function refreshAllRemindersAction(): Promise<
 }
 
 // ============================================================================
-// M9 Anti-abbandono (RN-40)
+// M9 Da recuperare (RN-40)
 // ============================================================================
 
 export type DetectAbandonmentResult = {

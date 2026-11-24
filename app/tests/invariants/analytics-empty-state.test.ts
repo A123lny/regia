@@ -75,7 +75,7 @@ describe("M08 · empty state (nessun dato → no throw, valori zero)", () => {
   it("getPartnersAnalytics org vuota → tutti zero, byStatus vuoto", async () => {
     const a = await getPartnersAnalytics(emptyOrgId);
     expect(a.totalActive).toBe(0);
-    expect(a.cooling).toBe(0);
+    expect(a.daRisentire).toBe(0);
     expect(a.toContact).toBe(0);
     expect(a.byStatus).toEqual([]);
   });

@@ -45,7 +45,7 @@ const ACTION_LABELS: Record<string, string> = {
   "advertising.overrun_rejected": "Rifiutato sforamento",
   "advertising.budget_updated": "Aggiornato budget advertising",
   // M07 Partners — azioni non attivita (quelle sono gia' in listRecentContactActivities)
-  "partners.cooling_toggled": "Aggiornato stato cooling",
+  "partners.cooling_toggled": "Aggiornato stato da risentire",
   "partners.delivery_error_recorded": "Registrato errore consegna",
   // M01 Data hub
   "contacts.merged": "Unificati contatti duplicati",

@@ -15,15 +15,11 @@ export type BuildSystemPromptInput = {
 export function buildSystemPrompt(input: BuildSystemPromptInput): string {
   const toolList =
     input.availableTools.length > 0
-      ? input.availableTools
-          .map((t) => `- ${t.name}: ${t.description}`)
-          .join("\n")
+      ? input.availableTools.map((t) => `- ${t.name}: ${t.description}`).join("\n")
       : "(nessun tool disponibile in questa configurazione — rispondi solo in testo)";
 
   const capsList =
-    input.capabilities.length > 0
-      ? input.capabilities.join(", ")
-      : "(nessuna capability dominio)";
+    input.capabilities.length > 0 ? input.capabilities.join(", ") : "(nessuna capability dominio)";
 
   return `# Identità
 

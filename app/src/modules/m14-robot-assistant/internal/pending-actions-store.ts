@@ -59,10 +59,7 @@ export async function savePending(
  * Prende atomicamente (DELETE ... RETURNING) la pending valida (non scaduta).
  * Scoped sull'utente caller per difesa in profondita' oltre all'IDOR check.
  */
-export async function takePending(
-  id: string,
-  callerUserId: string,
-): Promise<PendingAction | null> {
+export async function takePending(id: string, callerUserId: string): Promise<PendingAction | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   // Atomic: delete + select = row ritornata solo se match (TTL + user).
@@ -109,5 +106,8 @@ export async function takePending(
 export async function clearPending(): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  await admin.from("robot_pending_actions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await admin
+    .from("robot_pending_actions")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000");
 }

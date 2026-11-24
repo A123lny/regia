@@ -21,14 +21,14 @@ export async function getPartnersAnalytics(organizationId: string): Promise<Part
   }>;
 
   const statusMap = new Map<string, number>();
-  let cooling = 0;
+  let daRisentire = 0;
   let totalActive = 0;
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   let toContact = 0;
 
   for (const r of rows) {
     statusMap.set(r.onboarding_status, (statusMap.get(r.onboarding_status) ?? 0) + 1);
-    if (r.cooling_flag) cooling++;
+    if (r.cooling_flag) daRisentire++;
     if (r.onboarding_status === "attivo") totalActive++;
     if (r.onboarding_status !== "uscito") {
       if (!r.last_contact_at || r.last_contact_at < cutoff) toContact++;
@@ -41,7 +41,7 @@ export async function getPartnersAnalytics(organizationId: string): Promise<Part
 
   return {
     byStatus,
-    cooling,
+    daRisentire,
     toContact,
     totalActive,
   };

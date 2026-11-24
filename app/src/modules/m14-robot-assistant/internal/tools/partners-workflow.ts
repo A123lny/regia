@@ -22,7 +22,7 @@ const ListSchema = z.object({
 export const listPartnersTool: RobotTool = {
   name: "listPartners",
   description:
-    "Lista i fornitori/partner (ristoranti). Richiede brandId (chiama prima listBrands se manca). Filtri opzionali: status (mai_partito/attivo/sospeso/uscito), coolingOnly (solo quelli in cooling).",
+    "Lista i fornitori/partner (ristoranti). Richiede brandId (chiama prima listBrands se manca). Filtri opzionali: status (mai_partito/attivo/sospeso/uscito), coolingOnly (solo quelli in da risentire).",
   input_schema: {
     type: "object",
     properties: {

@@ -11,9 +11,7 @@ const WINDOW_MS = 60_000;
 
 const bucket = new Map<string, number[]>();
 
-export type RateLimitCheck =
-  | { ok: true }
-  | { ok: false; retryAfterMs: number };
+export type RateLimitCheck = { ok: true } | { ok: false; retryAfterMs: number };
 
 export function checkRateLimit(userId: string): RateLimitCheck {
   const now = Date.now();

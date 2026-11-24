@@ -7,6 +7,7 @@ import { DesktopSidebar, MobileBottomBar } from "@/components/layout/sidebar";
 import { AreaTabBar } from "@/components/layout/area-tabs";
 import { BrandFilterBanner } from "@/components/layout/brand-filter-banner";
 import { Header } from "@/components/layout/header";
+import { ConfirmProvider } from "@/components/ui/confirm-dialog";
 import type { Role } from "@/lib/auth/permissions";
 import { getAiSafetyStatus, getPlatformBranding } from "@/modules/m11-admin/public";
 import { listBrands } from "@/modules/m02-brand/public";
@@ -45,42 +46,44 @@ export async function AppShell({
     : undefined;
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg" style={rootStyle}>
-      <Header
-        email={email}
-        role={role}
-        organizationId={organizationId}
-        platformName={branding.platformName}
-        platformLogoUrl={branding.platformLogoUrl}
-        brands={brands}
-        currentBrand={currentBrand}
-      />
-      <BrandFilterBanner currentBrand={currentBrand} brands={brands} />
-      {aiSafety.killSwitchOn && (
-        <div className="border-b border-danger bg-danger/10 px-4 py-2 text-center text-sm text-danger">
-          <PowerOff className="mr-1 inline-block h-4 w-4" />
-          <strong>Generazioni AI sospese</strong>
-          {aiSafety.killSwitchReason && <> — {aiSafety.killSwitchReason}</>}
-          {role === "owner" && (
-            <>
-              {" — "}
-              <Link href="/impostazioni" className="underline hover:no-underline">
-                Riattiva
-              </Link>
-            </>
-          )}
+    <ConfirmProvider>
+      <div className="flex min-h-screen flex-col bg-bg" style={rootStyle}>
+        <Header
+          email={email}
+          role={role}
+          organizationId={organizationId}
+          platformName={branding.platformName}
+          platformLogoUrl={branding.platformLogoUrl}
+          brands={brands}
+          currentBrand={currentBrand}
+        />
+        <BrandFilterBanner currentBrand={currentBrand} brands={brands} />
+        {aiSafety.killSwitchOn && (
+          <div className="border-b border-danger bg-danger/10 px-4 py-2 text-center text-sm text-danger">
+            <PowerOff className="mr-1 inline-block h-4 w-4" />
+            <strong>Generazioni AI sospese</strong>
+            {aiSafety.killSwitchReason && <> — {aiSafety.killSwitchReason}</>}
+            {role === "owner" && (
+              <>
+                {" — "}
+                <Link href="/impostazioni" className="underline hover:no-underline">
+                  Riattiva
+                </Link>
+              </>
+            )}
+          </div>
+        )}
+        <div className="flex flex-1">
+          <DesktopSidebar role={role} brands={brands} currentBrand={currentBrand} />
+          <main className="flex-1 px-4 py-6 pb-20 md:px-6 md:pb-6 lg:mx-auto lg:max-w-6xl lg:px-8">
+            <AreaTabBar />
+            {children}
+          </main>
         </div>
-      )}
-      <div className="flex flex-1">
-        <DesktopSidebar role={role} brands={brands} currentBrand={currentBrand} />
-        <main className="flex-1 px-4 py-6 pb-20 md:px-6 md:pb-6 lg:mx-auto lg:max-w-6xl lg:px-8">
-          <AreaTabBar />
-          {children}
-        </main>
+        <MobileBottomBar role={role} />
+        {/* Assistente AI fluttuante (gated per ruolo). */}
+        <RobotWidget />
       </div>
-      <MobileBottomBar role={role} />
-      {/* Assistente AI fluttuante (gated per ruolo). */}
-      <RobotWidget />
-    </div>
+    </ConfirmProvider>
   );
 }

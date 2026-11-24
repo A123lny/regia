@@ -108,7 +108,9 @@ export async function uploadMediaAsset(brandId: string, formData: FormData): Pro
       msg: uploadError.message,
     });
     // Messaggio generico al client, nessun leak di bucket name / path.
-    throw new Error("Impossibile salvare l'immagine. Verifica che il bucket di storage sia configurato.");
+    throw new Error(
+      "Impossibile salvare l'immagine. Verifica che il bucket di storage sia configurato.",
+    );
   }
 
   // Signed URL ~1 anno (prima era 10 anni, URL piu' pesante nel body del

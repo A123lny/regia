@@ -1,4 +1,4 @@
-// M9 · rilevatore anti-abbandono.
+// M9 · rilevatore da recuperare.
 // Genera signal quando i pattern sono rilevati. Idempotente via UNIQUE parziale
 // (contact, kind) where resolved_at is null.
 

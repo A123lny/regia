@@ -194,10 +194,7 @@ export async function generateSocialPost(
  * reviewedText obbligatorio = fail-closed: una chiamata sbagliata non approva
  * silenziosamente senza binding al contenuto.
  */
-export async function approveContentDraft(
-  draftId: string,
-  reviewedText: string,
-): Promise<void> {
+export async function approveContentDraft(draftId: string, reviewedText: string): Promise<void> {
   if (typeof reviewedText !== "string") {
     throw new Error("reviewedText obbligatorio: lega l'approvazione al contenuto letto");
   }
@@ -216,9 +213,7 @@ export async function approveContentDraft(
 
   const approved = await markApproved(draftId, session.organizationId, reviewedText);
   if (!approved) {
-    throw new Error(
-      "Il testo e' cambiato o la bozza e' gia' stata approvata/rifiutata. Ricarica.",
-    );
+    throw new Error("Il testo e' cambiato o la bozza e' gia' stata approvata/rifiutata. Ricarica.");
   }
 
   await logAuditEvent({

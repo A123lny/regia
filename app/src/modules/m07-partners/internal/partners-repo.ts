@@ -57,7 +57,7 @@ export async function listPartners(input: ListPartnersInput): Promise<PartnerRes
   if (!input.includeArchived) q = q.is("archived_at", null);
   if (input.status) q = q.eq("onboarding_status", input.status);
   if (input.coolingOnly) {
-    // "cooling" significa: flag manuale oppure silenzio >30gg (allineato alla
+    // "da risentire" significa: flag manuale oppure silenzio >30gg (allineato alla
     // dashboard "ristoranti da chiamare"). Prima era solo flag manuale e la
     // pagina elencava 1 partner mentre la Home ne mostrava 5.
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -234,7 +234,7 @@ export async function getPartnerStats(
 
   if (totalRes.error) throw new Error(`Errore stats total: ${totalRes.error.message}`);
   if (attiviRes.error) throw new Error(`Errore stats attivi: ${attiviRes.error.message}`);
-  if (coolingRes.error) throw new Error(`Errore stats cooling: ${coolingRes.error.message}`);
+  if (coolingRes.error) throw new Error(`Errore stats da risentire: ${coolingRes.error.message}`);
   if (maiPartitiRes.error)
     throw new Error(`Errore stats mai partiti: ${maiPartitiRes.error.message}`);
 

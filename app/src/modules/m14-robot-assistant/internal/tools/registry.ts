@@ -43,11 +43,7 @@ import {
   markReminderSentTool,
   sendReminderNowTool,
 } from "./reminders-workflow";
-import {
-  listSegmentsTool,
-  listVouchersTool,
-  issueVoucherTool,
-} from "./segments-vouchers";
+import { listSegmentsTool, listVouchersTool, issueVoucherTool } from "./segments-vouchers";
 import {
   createBrandTool,
   updateBrandTool,
@@ -105,10 +101,7 @@ export const ROBOT_TOOLS: Record<string, RobotTool> = {
   getAnalytics: getAnalyticsTool,
 };
 
-export function getToolsForRole(
-  role: Session["role"],
-  kinds: RobotToolKind[],
-): RobotTool[] {
+export function getToolsForRole(role: Session["role"], kinds: RobotToolKind[]): RobotTool[] {
   // T6: la capability check avviene in execute (requireCapability lato tool).
   // Qui filtriamo solo per kind. Il role per ora non restringe la lista a
   // priori — ma la execute rifiuta se mancano le capability dominio.

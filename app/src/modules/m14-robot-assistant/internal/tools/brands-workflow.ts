@@ -15,9 +15,7 @@ const CreateSchema = z.object({
     .min(2)
     .max(40)
     .regex(/^[a-z0-9-]+$/, "slug: solo lowercase, numeri e trattini"),
-  color: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/, "color: formato hex #RRGGBB"),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "color: formato hex #RRGGBB"),
 });
 
 export const createBrandTool: RobotTool = {
@@ -72,7 +70,10 @@ const UpdateSchema = z.object({
       .max(40)
       .regex(/^[a-z0-9-]+$/)
       .optional(),
-    color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    color: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .optional(),
     emailFromAddress: z.string().email().nullable().optional(),
     emailFromDisplayName: z.string().max(100).nullable().optional(),
     emailReplyTo: z.string().email().nullable().optional(),
@@ -164,8 +165,7 @@ export const archiveBrandTool: RobotTool = {
 // ============================================================
 export const restoreBrandTool: RobotTool = {
   name: "restoreBrand",
-  description:
-    "Ripristina un marchio precedentemente archiviato. Torna attivo nelle liste.",
+  description: "Ripristina un marchio precedentemente archiviato. Torna attivo nelle liste.",
   input_schema: {
     type: "object",
     properties: { brandId: { type: "string", description: "UUID del brand" } },

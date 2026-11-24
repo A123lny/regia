@@ -69,10 +69,7 @@ export function ThisWeekCard({
           {waitingForDate > 0 && (
             <p>
               Hai <strong>{waitingForDate}</strong> post approvati che aspettano una data.{" "}
-              <Link
-                href="/contenuti?status=approved"
-                className="text-primary hover:underline"
-              >
+              <Link href="/contenuti?status=approved" className="text-primary hover:underline">
                 Distribuiscili →
               </Link>
             </p>

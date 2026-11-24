@@ -185,9 +185,7 @@ export type StreamToolsEvent =
  * system prompt (ephemeral) per ridurre costi dei turn ripetuti con system
  * stabile.
  */
-export async function* streamWithTools(
-  input: StreamToolsInput,
-): AsyncGenerator<StreamToolsEvent> {
+export async function* streamWithTools(input: StreamToolsInput): AsyncGenerator<StreamToolsEvent> {
   const client = getClient();
   const model = input.model ?? "claude-sonnet-4-6";
 
@@ -216,10 +214,7 @@ export async function* streamWithTools(
 
     // Fase 1: text_delta in streaming
     for await (const event of stream) {
-      if (
-        event.type === "content_block_delta" &&
-        event.delta.type === "text_delta"
-      ) {
+      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
         yield { type: "text_delta", text: event.delta.text };
       }
     }
@@ -240,8 +235,7 @@ export async function* streamWithTools(
     const tokensIn = final.usage.input_tokens;
     const tokensOut = final.usage.output_tokens;
     const costUsd =
-      (tokensIn * PRICE_INPUT_PER_M_USD + tokensOut * PRICE_OUTPUT_PER_M_USD) /
-      1_000_000;
+      (tokensIn * PRICE_INPUT_PER_M_USD + tokensOut * PRICE_OUTPUT_PER_M_USD) / 1_000_000;
 
     yield {
       type: "done",

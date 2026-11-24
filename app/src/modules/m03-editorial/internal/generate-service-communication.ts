@@ -1,4 +1,4 @@
-// M03 — RF-3.4 Corsia veloce comunicazioni di servizio.
+// M03 — RF-3.4 Avviso rapido comunicazioni di servizio.
 // Genera un post di servizio da poche parole del titolare.
 // Prompt dedicato: tono asciutto, zero linguaggio promozionale, max 3 righe.
 

@@ -263,14 +263,12 @@ function toGeminiTools(
   if (tools.length === 0) return [];
   return [
     {
-      functionDeclarations: tools.map(
-        (t): FunctionDeclaration => ({
-          name: t.name,
-          description: t.description,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          parameters: t.input_schema as any,
-        }),
-      ),
+      functionDeclarations: tools.map((t): FunctionDeclaration => ({
+        name: t.name,
+        description: t.description,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        parameters: t.input_schema as any,
+      })),
     },
   ];
 }
@@ -283,9 +281,7 @@ function toGeminiTools(
  * li emettiamo appena disponibili. Usiamo un id sintetico `${name}-${index}`
  * perche' Gemini non assegna id ai tool call.
  */
-export async function* streamWithTools(
-  input: StreamToolsInput,
-): AsyncGenerator<StreamToolsEvent> {
+export async function* streamWithTools(input: StreamToolsInput): AsyncGenerator<StreamToolsEvent> {
   const client = getClient();
   const model = input.model ?? DEFAULT_MODEL;
 
@@ -341,8 +337,7 @@ export async function* streamWithTools(
     }
 
     const costUsd =
-      (totalTokensIn * PRICE_INPUT_PER_M_USD + totalTokensOut * PRICE_OUTPUT_PER_M_USD) /
-      1_000_000;
+      (totalTokensIn * PRICE_INPUT_PER_M_USD + totalTokensOut * PRICE_OUTPUT_PER_M_USD) / 1_000_000;
 
     yield {
       type: "done",

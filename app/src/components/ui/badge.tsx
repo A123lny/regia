@@ -15,6 +15,12 @@ const badgeVariants = cva(
         outline: "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost: "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
+        // Varianti con significato fisso (Fase 5 design system):
+        // success=cosa fatta, attention=da guardare, urgent=urgente/errore, neutral=info.
+        success: "border-success/30 bg-success/10 text-success",
+        attention: "border-warning/30 bg-warning/10 text-warning",
+        urgent: "border-danger/30 bg-danger/10 text-danger",
+        neutral: "border-border bg-surface-muted text-text-muted",
       },
     },
     defaultVariants: {

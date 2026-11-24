@@ -5,13 +5,31 @@
 
 ## Adesso
 
-- **Allineamento capitolato — 5 gap MEDIA chiusi** (RF-6.9, RN-76, RN-70,
-  RF-4.2, RN-74). Da audit profondo 29 ott con 4 agent paralleli emersi 9 gap
-  MEDIA/BASSA + 1 ALTA ricalibrata (§8.2 enforcement = aspirazionale per
-  contenuti semantici, non actionable). Fatti i 5 autonomi ad alto valore,
-  resta RN-45 (stagionale Lenny estate ~4-6h), RN-53/54 (eventi locali
-  ~3-5h), RN-4.4 (raccolta foto strutturata 50 locali ~5-7h), RF-3.1/3.2
-  (cross-marchio aggregato ~4-6h) + deferred noti (M14/M8b/connettori).
+- **Refactor UI 5 fasi — F1/F2/F4/F5 chiuse, F3 parziale.** Grande cantiere
+  cosmetico+UX: navigazione in 5 aree (Oggi/Contenuti/Clienti/Rete/Impostazioni)
+  con TabBar + selettore marchio globale (cookie `regia_brand`); nuova Home
+  "Oggi" (greeting + crea-post + "Da fare" 3 livelli + "Questa settimana");
+  linguaggio ripulito (niente codici RF-/RN-/M0x, cooling→Da risentire,
+  Anti-abbandono→Da recuperare, Segmenti→Gruppi, Audit→Registro attività,
+  Governance→Regole, HIGH/MEDIUM/LOW→Alta/Media/Bassa); palette #a84a2d
+  con hover #7f3720; Badge varianti fissate (success/attention/urgent/neutral);
+  nuovo size `cta` h-11 per CTA touch ≥44px WCAG; `<EmptyState>` component;
+  `<ConfirmDialog>` + `useConfirm()` hook mount in AppShell e 3 swap chiave
+  (voucher cancel reason, archivia contatto, annulla campagna). Filtro marchio
+  globale wirato a 8 pagine lista (promemoria/anti-abbandono/fedelta/campagne/
+  segmenti/iscrizioni/contatti/ordini/recensioni) e a 7 repo con `brandId?`
+  opzionale. Typecheck+lint+boundaries verdi.
+- **Residuo F3**: 7 chiamate `window.confirm` da migrare a `useConfirm`
+  (fornitori/provider-media/catalogo/day-view/task-list-card); bulk checkboxes
+  su drafts/reminders/signals/contatti non ancora fatti; editor+anteprima
+  side-by-side nel draft detail ancora da affiancare; "Opzioni avanzate"
+  collapse sui form non implementato. Fare in prossima sessione.
+- **Doc `docs/integrazioni-ia.md`** scritto su richiesta utente: 8 capacita'
+  AI che servono alla piattaforma (text, agente conversazionale, classificazione,
+  RAG, sentiment, immagini, audio, suggerimenti proattivi), 6 decisioni aperte
+  (budget, audio on/off, provider per capacita, deployment agente, vector store,
+  GDPR off-EU). Nessun vendor citato — scelta deliberata post feedback utente
+  "no dimmi che tipo di ia servono, inutile mettere voyage".
 - **RF-8.8 M09→M08 bridge chiuso.** Deferred da F0 M08 ora implementato:
   checkbox "Chiedi recensione" nel resolve dialog anti-abbandono schedula
   reminder `review_request` idempotente. 2 nuovi invariant test. Zero migration
@@ -69,6 +87,25 @@
 
 ## Fatto
 
+- **24 nov 2026 — Refactor UI 5 fasi.** Fase 1 navigazione (sidebar 5 aree
+  + AreaTabBar + BrandPicker cookie + BrandFilterBanner), Fase 2 Home Oggi
+  (`/oggi` greeting + CreatePostField via server action + TodayTaskList 3
+  livelli + ThisWeekCard), Fase 4 linguaggio (rimossi RF-x.x/RN-xx/M0x da
+  tutte le pagine, rinomi visibili `cooling`→`Da risentire`,
+  `anti-abbandono`→`Da recuperare`, `Segmenti`→`Gruppi`, `Audit`→`Registro
+  attività`, `Governance`→`Regole`, severity Alta/Media/Bassa), Fase 5
+  design system (palette primario #a84a2d / hover #7f3720, Badge varianti
+  semantiche fisse, button `cta` size h-11, `<EmptyState>` component),
+  Fase 3 parziale (`ConfirmProvider` + `useConfirm` + 3 swap: voucher
+  cancel, archive contact, cancel campaign). Filtro marchio globale
+  cablato a 8 pagine lista con fallback cookie, 7 repo signatures estese
+  con `brandId?` opzionale (listCounters/listOffers/listSegments/
+  listAbandonmentSignals/listResolvedAbandonmentSignals/getAbandonmentStats/
+  listLandings). Fix collaterali: `coolingPartners`→`daRisentire` nelle
+  analytics, path `/anti-abbandono` preservato come URL (etichetta UI "Da
+  recuperare"). Test invarianti verdi, boundaries verdi, zero regressione
+  schema DB o API esterne. 1 nuova doc `docs/integrazioni-ia.md` con 8
+  capacita' AI e 6 decisioni aperte (no provider citati).
 - **30 ott 2026 — Allineamento capitolato: 5 gap MEDIA chiusi** (`a3b8a10`..`c7bd4e5` + RN-74).
   Audit sistematico 29 ott (4 agent paralleli su M1-M14 + RS/RA/RNF/RQ) ha
   mappato scostamenti reali post-M08. Implementati:
@@ -321,6 +358,11 @@
 
 ## Prossimo (in ordine)
 
+0. **Chiudere F3 del refactor UI**: 7 `window.confirm`/`prompt` residui
+   (fornitori, provider-media, catalogo, day-view, task-list-card) da migrare
+   a `useConfirm`; bulk checkboxes su drafts/reminders/signals/contatti; editor
+   bozza con anteprima side-by-side (oggi full-width); "Opzioni avanzate"
+   collapsed sui form lunghi. 1-2 ore.
 1. **RN-69 WhatsApp foto dal campo** — ultimo P3 scoperto. Webhook Twilio
    incoming numero dedicato -> genera draft M03 nel tono del marchio. Richiede
    setup Twilio sandbox prima.

@@ -201,10 +201,7 @@ export function RobotChatPanel({
           try {
             const event = JSON.parse(line) as { type: string; text?: string };
             if (event.type === "text_delta" && event.text) gotAnyText = true;
-            if (
-              event.type === "confirmation_required" ||
-              event.type === "brand_picker_required"
-            ) {
+            if (event.type === "confirmation_required" || event.type === "brand_picker_required") {
               gotInteraction = true;
             }
             handleEvent(event as Parameters<typeof handleEvent>[0]);
@@ -484,9 +481,7 @@ export function RobotChatPanel({
                   {new Date(c.lastMessageAt).toLocaleString("it-IT")}
                   {c.toolCallsCount > 0 && ` · ${c.toolCallsCount} azioni`}
                 </div>
-                <div className="line-clamp-2">
-                  {c.firstUserMessage ?? "(conversazione vuota)"}
-                </div>
+                <div className="line-clamp-2">{c.firstUserMessage ?? "(conversazione vuota)"}</div>
               </button>
             ))}
           </div>

@@ -69,7 +69,7 @@ export type OutreachAnalytics = {
 // ---- Partner Lenny ----
 export type PartnersAnalytics = {
   byStatus: Array<{ status: string; count: number }>;
-  cooling: number;
+  daRisentire: number;
   toContact: number; // >30gg senza contatto
   totalActive: number;
 };

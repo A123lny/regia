@@ -11,41 +11,42 @@ import { RecurrencesAdminClient } from "./recurrences-admin-client";
 import { HelpButton } from "@/components/help/help-button";
 
 export default async function RicorrenzePage() {
- const session = await getSessionOrRedirect();
- if (!hasCapability(session.role, "content.generate")) notFound();
+  const session = await getSessionOrRedirect();
+  if (!hasCapability(session.role, "content.generate")) notFound();
 
- const [recurrences, brands] = await Promise.all([
- listAllRecurrences(session.organizationId),
- listBrands(session.organizationId, "active"),
- ]);
+  const [recurrences, brands] = await Promise.all([
+    listAllRecurrences(session.organizationId),
+    listBrands(session.organizationId, "active"),
+  ]);
 
- return (
- <div className="space-y-6">
- <header className="space-y-2">
- <Link
- href="/impostazioni"
- className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-primary"
- >
- <ArrowLeft className="h-3.5 w-3.5" /> Impostazioni
- </Link>
- <div className="flex items-start justify-between gap-3">
- <div className="flex items-center gap-3">
- <CalendarClock className="h-7 w-7 text-primary" />
- <h1
- className="text-3xl font-extrabold uppercase tracking-[0.04em] text-text"
- style={{ fontFamily: "var(--font-bricolage)" }}
- >
- Ricorrenze annuali
- </h1>
- </div>
- <HelpButton pageKey="ricorrenze" />
- </div>
- <p className="text-sm text-text-muted">: eventi che tornano ogni anno (Natale, cambio gomme, chiusure ferie). Il sistema
- li propone in dashboard quando arriva il periodo (today + preavviso).
- </p>
- </header>
+  return (
+    <div className="space-y-6">
+      <header className="space-y-2">
+        <Link
+          href="/impostazioni"
+          className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-primary"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Impostazioni
+        </Link>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <CalendarClock className="h-7 w-7 text-primary" />
+            <h1
+              className="text-3xl font-extrabold uppercase tracking-[0.04em] text-text"
+              style={{ fontFamily: "var(--font-bricolage)" }}
+            >
+              Ricorrenze annuali
+            </h1>
+          </div>
+          <HelpButton pageKey="ricorrenze" />
+        </div>
+        <p className="text-sm text-text-muted">
+          : eventi che tornano ogni anno (Natale, cambio gomme, chiusure ferie). Il sistema li
+          propone in dashboard quando arriva il periodo (today + preavviso).
+        </p>
+      </header>
 
- <RecurrencesAdminClient recurrences={recurrences} brands={brands} />
- </div>
- );
+      <RecurrencesAdminClient recurrences={recurrences} brands={brands} />
+    </div>
+  );
 }

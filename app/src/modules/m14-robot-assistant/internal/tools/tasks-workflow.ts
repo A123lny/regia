@@ -173,7 +173,10 @@ export const updateTaskTool: RobotTool = {
           title: { type: "string" },
           description: { type: "string" },
           priority: { type: "string", enum: ["urgent", "important", "opportunity"] },
-          dueAt: { type: ["string", "null"], description: "ISO 8601 o YYYY-MM-DD, null per rimuovere" },
+          dueAt: {
+            type: ["string", "null"],
+            description: "ISO 8601 o YYYY-MM-DD, null per rimuovere",
+          },
         },
         additionalProperties: false,
       },

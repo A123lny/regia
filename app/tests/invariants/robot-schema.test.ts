@@ -70,7 +70,9 @@ describe("RN-robot T1 · schema robot_assistant", () => {
   });
 
   it("robot_role_access rifiuta ruoli non validi (CHECK constraint)", async () => {
-    const { error } = await admin.from("robot_role_access").insert({ role: "supervisor", enabled: true });
+    const { error } = await admin
+      .from("robot_role_access")
+      .insert({ role: "supervisor", enabled: true });
     expect(error).not.toBeNull();
     expect(error?.message.toLowerCase()).toMatch(/check|constraint|violat/);
   });

@@ -35,7 +35,7 @@ export const HELP_TEXTS: Record<string, HelpEntry> = {
     body:
       "Vista principale: scegli un marchio per generare, approvare, programmare contenuti.\n\n" +
       "Filtri rapidi dalla sidebar: Bozze / Approvate / Programmate / Pubblicate / Archivio.\n\n" +
-      "Da /contenuti/[marchio] hai 4 bottoni: Nuovo contenuto (single-shot), Piano 14gg (batch AI multi-post), Corsia veloce (avviso di servizio), Calendario (vista per-marchio).",
+      "Da /contenuti/[marchio] hai 4 bottoni: Nuovo contenuto (single-shot), Pianifica settimane (batch AI multi-post), Avviso rapido (avviso di servizio), Calendario (vista per-marchio).",
   },
   "contenuti-archivio": {
     title: "Archivio contenuti",
@@ -65,7 +65,7 @@ export const HELP_TEXTS: Record<string, HelpEntry> = {
       "Il piano crea bozze in stato 'draft': approvale poi col wizard Sessione.",
   },
   servizio: {
-    title: "Corsia veloce",
+    title: "Avviso rapido",
     body: "Per comunicazioni di servizio (chiusure, orari straordinari, avvisi). Poche parole in ingresso → post pronto in tono asciutto, senza linguaggio promozionale (RF-3.4).",
   },
   "libreria-media": {
@@ -99,7 +99,7 @@ export const HELP_TEXTS: Record<string, HelpEntry> = {
       'Le API key sono cifrate in Supabase Vault: dopo il salvataggio non le vedi più. Test invia un ping al provider; se ok, il canale diventa 🟢 Verificato. Attiva lo switch "Abilitato" per aprire il canale al motore invii.',
   },
   audit: {
-    title: "Audit log",
+    title: "Registro attività",
     body:
       "Registro di TUTTE le azioni: chi ha fatto cosa, quando.\n\n" +
       "Filtri per tipo di attore:\n" +
@@ -108,8 +108,8 @@ export const HELP_TEXTS: Record<string, HelpEntry> = {
       "• Sistema: automazioni non attribuibili (cron, cleanup).\n\n" +
       "Solo Owner ha accesso.",
   },
-  "anti-abbandono": {
-    title: "Anti-abbandono",
+  "da recuperare": {
+    title: "Da recuperare",
     body:
       "RN-40: nella spesa a domicilio, perdere un abituale vale più di un ordine mancato.\n\n" +
       "**Segnali automatici:**\n" +
@@ -189,14 +189,14 @@ export const HELP_TEXTS: Record<string, HelpEntry> = {
     title: "Ristoranti Lenny",
     body:
       "I ~50 ristoranti come rete di micro-partner (RF-7.1). Non è una lista destinatari: sono relazioni una a una.\n\n" +
-      "• KPI in alto: attivi · in raffreddamento · da contattare (>30gg) · mai partiti.\n" +
+      "• KPI in alto: attivi · in da risentire · da contattare (>30gg) · mai partiti.\n" +
       "• Cooling flag (RF-7.4): quando un ristorante 'si sta raffreddando' — ordini in calo, incidenti, cliente insoddisfatto. Motivo obbligatorio.\n" +
       "• Timeline attività: log cronologico dei contatti (chiamate, incontri, follow-up) con esito. Ogni voce aggiorna last_contact_at.\n" +
       "• Tempo medio ordine→ritiro (RF-7.5): base per conversazioni coi ristoratori sui tempi reali.\n\n" +
       "Perdere un ristorante costa più di una promozione — priorità RF-7.4 sulla acquisizione.",
   },
   segmenti: {
-    title: "Segmenti",
+    title: "Gruppi",
     body:
       "Insiemi di contatti per marchio, definiti da criteri (RF-1.8).\n\n" +
       "Criteri disponibili:\n" +
@@ -274,7 +274,7 @@ export const HELP_TEXTS: Record<string, HelpEntry> = {
       "• Tipo: neve, pioggia, evento, chiusura stradale, altro.\n" +
       "• Inizio obbligatorio + fine opzionale (lascia vuoto se non sai).\n" +
       "• Guard applicativo: finche c'e' un blackout attivo su una zona, le promo food/consegna per i contatti di quella zona vengono bloccate dal motore M07/campagne.\n\n" +
-      "**Chiudi blackout** appena il problema rientra: libera di nuovo gli invii. Audit log tiene traccia di tutto.",
+      "**Chiudi blackout** appena il problema rientra: libera di nuovo gli invii. Registro attività tiene traccia di tutto.",
   },
   "contatti-dati-personali": {
     title: "Richieste dati personali (GDPR)",
@@ -287,7 +287,7 @@ export const HELP_TEXTS: Record<string, HelpEntry> = {
       "• Nullifica recapiti (email/telefono/WhatsApp), revoca consensi, archivia il contatto.\n" +
       "• Voucher gia' emessi restano in DB (storicita' commerciale) ma non piu' agganciati ai recapiti.\n" +
       "• Snapshot dossier conservato come prova dell'adempimento.\n\n" +
-      "Entrambe le operazioni sono Owner-only (materia legale). Audit log completo.",
+      "Entrambe le operazioni sono Owner-only (materia legale). Registro attività completo.",
   },
   "ristoranti-mercato": {
     title: "Analisi mercato rete",

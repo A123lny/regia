@@ -96,9 +96,7 @@ export async function confirmPendingAction(
         ? Object.keys(pending.toolInput as object)
         : [];
     const outputKeys =
-      typeof output === "object" && output !== null
-        ? Object.keys(output as object)
-        : [];
+      typeof output === "object" && output !== null ? Object.keys(output as object) : [];
     await logAuditEvent({
       organizationId: session.organizationId,
       actorUserId: session.userId,

@@ -1,6 +1,6 @@
 // RN-robot: segmenti (lettura) + voucher (lista, emissione).
 // Due domini accoppiati perche' entrambi legati a contatti:
-// - Segmenti M07: gruppi dinamici di contatti (filtri su consensi/ordini/attivita').
+// - Gruppi M07: gruppi dinamici di contatti (filtri su consensi/ordini/attivita').
 // - Voucher M06: emissione agganciata a contatto + offer.
 
 import { z } from "zod";

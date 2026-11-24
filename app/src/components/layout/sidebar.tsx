@@ -7,15 +7,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home,
-  FileText,
-  Users as UsersIcon,
-  Network,
-  Settings,
-  LogOut,
-  Menu,
-} from "lucide-react";
+import { Home, FileText, Users as UsersIcon, Network, Settings, LogOut, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/app/(protected)/logout-action";

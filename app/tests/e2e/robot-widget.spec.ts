@@ -42,7 +42,7 @@ test("robottino: input + pulsante Invia presenti nel pannello", async ({ page })
 test("governance: toggle 'Assistente Regia' visibile per owner", async ({ page }) => {
   await page.goto("/governance");
   // La section "Assistente Regia (robottino)" è alla fine della pagina
-  await page.locator('section').last().scrollIntoViewIfNeeded();
+  await page.locator("section").last().scrollIntoViewIfNeeded();
   await expect(page.getByText(/Assistente Regia|robottino/i)).toBeVisible();
 
   // I 4 toggle per ruolo (owner, editor, delegate, agent) devono esserci
