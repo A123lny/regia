@@ -139,6 +139,18 @@ async function logSpendBestEffort(
   }
 }
 
+/**
+ * Estrae costo stimato da errori fal che "potrebbero aver addebitato"
+ * (timeout, 5xx dopo accettazione, empty response). 401/403/429 sono
+ * pre-accettazione e ritornano 0. Usato per loggare la spesa anche sui
+ * percorsi di errore e chiudere lo spend-cap bypass sibling-path.
+ */
+function possiblyChargedCost(err: unknown): number {
+  if (err instanceof FalTimeoutError) return err.estimatedCostUsd;
+  if (err instanceof FalApiError && err.possiblyCharged) return err.estimatedCostUsd;
+  return 0;
+}
+
 // ────────────────────────────────────────────────────────────────────────
 // Azione 1: genera anteprime (modello veloce)
 // ────────────────────────────────────────────────────────────────────────
@@ -183,6 +195,26 @@ export async function generateAiPreviews(input: {
       brandSlug: brand.slug,
       err: err instanceof Error ? err.message : String(err),
     });
+    // Sibling-path parity: su timeout o 5xx post-accettazione, fal potrebbe
+    // aver addebitato comunque. Logghiamo lo spent stimato per non lasciare
+    // buco nello spend-cap.
+    const chargedCost = possiblyChargedCost(err);
+    if (chargedCost > 0) {
+      await logSpendBestEffort(
+        {
+          organizationId: session.organizationId,
+          brandId: brand.id,
+          category: "fal",
+          action: "media.ai_previews_errored_possibly_charged",
+          costUsd: chargedCost,
+          tokensIn: 0,
+          tokensOut: 0,
+          targetType: "draft",
+          targetId: input.draftId,
+        },
+        { draftId: input.draftId, phase: "previews-error" },
+      );
+    }
     return { ok: false, error: mapFalError(err) };
   }
 
@@ -277,6 +309,24 @@ export async function generateAndSaveAiVariant(input: {
       brandSlug: brand.slug,
       err: err instanceof Error ? err.message : String(err),
     });
+    // Stesso pattern di generateAiPreviews: loggo lo spent su timeout/5xx post-call.
+    const chargedCost = possiblyChargedCost(err);
+    if (chargedCost > 0) {
+      await logSpendBestEffort(
+        {
+          organizationId: session.organizationId,
+          brandId: brand.id,
+          category: "fal",
+          action: "media.ai_variant_errored_possibly_charged",
+          costUsd: chargedCost,
+          tokensIn: 0,
+          tokensOut: 0,
+          targetType: "draft",
+          targetId: input.draftId,
+        },
+        { draftId: input.draftId, phase: "variant-error" },
+      );
+    }
     return { ok: false, error: mapFalError(err) };
   }
 

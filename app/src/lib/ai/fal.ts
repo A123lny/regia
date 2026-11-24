@@ -36,19 +36,34 @@ export class FalContentRejectedError extends Error {
   }
 }
 
+// Timeout lato nostro mentre fal è ancora in esecuzione: il job potrebbe
+// essere comunque addebitato. Il chiamante usa `possiblyCharged` per loggare
+// lo spent stimato anche in questo caso (vedi fal-actions.ts).
 export class FalTimeoutError extends Error {
-  constructor(message = "La generazione immagine ha superato il tempo massimo. Riprova.") {
+  possiblyCharged = true;
+  estimatedCostUsd: number;
+  constructor(
+    estimatedCostUsd = 0,
+    message = "La generazione immagine ha superato il tempo massimo. Riprova.",
+  ) {
     super(message);
     this.name = "FalTimeoutError";
+    this.estimatedCostUsd = estimatedCostUsd;
   }
 }
 
 export class FalApiError extends Error {
   status: number;
-  constructor(status: number, message?: string) {
+  // 5xx dopo accettazione della request = fal potrebbe aver addebitato.
+  // 401/403/429 pre-accettazione = non addebitato.
+  possiblyCharged: boolean;
+  estimatedCostUsd: number;
+  constructor(status: number, message?: string, estimatedCostUsd = 0) {
     super(message ?? `fal.ai ha risposto con errore ${status}. Riprova tra qualche minuto.`);
     this.name = "FalApiError";
     this.status = status;
+    this.possiblyCharged = status >= 500;
+    this.estimatedCostUsd = estimatedCostUsd;
   }
 }
 
@@ -119,6 +134,7 @@ function describeError(err: unknown): { status: number; message: string } {
 export async function generateImages(input: GenerateImagesInput): Promise<GenerateImagesResult> {
   ensureConfigured();
   const start = Date.now();
+  const fullEstimate = FAL_COST_USD[input.modelId] * input.numImages;
 
   let lastErr: unknown = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -135,7 +151,7 @@ export async function generateImages(input: GenerateImagesInput): Promise<Genera
           logs: false,
         }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new FalTimeoutError()), PER_CALL_TIMEOUT_MS),
+          setTimeout(() => reject(new FalTimeoutError(fullEstimate)), PER_CALL_TIMEOUT_MS),
         ),
       ]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -153,11 +169,12 @@ export async function generateImages(input: GenerateImagesInput): Promise<Genera
       if (images.length === 0) {
         // fal può rifiutare silenziosamente immagini NSFW restituendo list vuota
         // o has_nsfw_concepts=[true]. Lo trattiamo come content rejected.
+        // In entrambi i casi fal ha già processato la request: possiblyCharged.
         const nsfw = (data?.has_nsfw_concepts ?? []) as Array<boolean>;
         if (Array.isArray(nsfw) && nsfw.some(Boolean)) {
           throw new FalContentRejectedError();
         }
-        throw new FalApiError(502, "fal.ai non ha restituito immagini.");
+        throw new FalApiError(502, "fal.ai non ha restituito immagini.", fullEstimate);
       }
       return {
         images,
@@ -189,9 +206,9 @@ export async function generateImages(input: GenerateImagesInput): Promise<Genera
         throw new FalRateLimitError();
       }
       // Fallback generico.
-      throw new FalApiError(status || 500, message);
+      throw new FalApiError(status || 500, message, fullEstimate);
     }
   }
   // Non raggiungibile ma TypeScript vuole il return.
-  throw lastErr instanceof Error ? lastErr : new FalApiError(500);
+  throw lastErr instanceof Error ? lastErr : new FalApiError(500, undefined, fullEstimate);
 }
