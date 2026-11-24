@@ -32,6 +32,7 @@ import {
   FalError,
   FalRateLimitError,
   FalTimeoutError,
+  isFalKeyPresent,
 } from "@/lib/ai/fal";
 import { getActiveProviderBySlug } from "./media-providers-repo";
 import { composePromptFromDraft, runFalGeneration, saveFalImageToBucket } from "./fal-generator";
@@ -83,18 +84,21 @@ async function preflight(
   organizationId: string,
   estimatedCostUsd: number,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  // Check FAL_KEY PRIMA di tutto: senza chiave non c'è nessuna integrazione,
+  // il messaggio deve essere chiaro invece che guidare verso Provider media.
+  if (!isFalKeyPresent()) {
+    return {
+      ok: false,
+      error:
+        "Chiave fal.ai non impostata. Chiedi all'amministratore di configurare FAL_KEY nelle variabili d'ambiente (Impostazioni → /impostazioni).",
+    };
+  }
   try {
     await assertAiEnabled(organizationId);
   } catch (err) {
     if (err instanceof AiKillSwitchError) return { ok: false, error: err.message };
     throw err;
   }
-  // Passiamo il costo stimato della chiamata al check: altrimenti il cap
-  // verrebbe superato se spent < cap ma spent + estimated >= cap (bypass
-  // classico fail-open). Il check resta "check-then-act": c'è ancora una race
-  // window tra preflight e logSpend post-generazione; su volumi singolo-utente
-  // di Regìa (una generazione alla volta per Owner) è accettabile. Per volumi
-  // concorrenti servirebbe una RPC che riserva atomicamente in ledger.
   try {
     await assertBudgetOk(organizationId, "fal", estimatedCostUsd);
   } catch (err) {
@@ -106,14 +110,14 @@ async function preflight(
     return {
       ok: false,
       error:
-        "Provider fal.ai non attivo in Impostazioni → Provider media. Registralo con diritti d'uso 'commercial' prima di generare immagini AI.",
+        "Provider fal.ai non attivo. Attivalo in Impostazioni → Provider media (/impostazioni/provider-media) con uso 'Commerciale'.",
     };
   }
   if (!provider.allowedUses.includes("commercial")) {
     return {
       ok: false,
       error:
-        "Il provider fal.ai registrato non consente l'uso commerciale. Aggiorna gli 'Usi consentiti' in Impostazioni → Provider media.",
+        "Il provider fal.ai non ha 'Commerciale' tra gli usi consentiti. Aggiornalo in /impostazioni/provider-media.",
     };
   }
   return { ok: true };
