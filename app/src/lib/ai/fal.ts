@@ -218,6 +218,13 @@ export async function generateImages(input: GenerateImagesInput): Promise<Genera
       // Importante: cattura anche il FalApiError(502) throwato quando images
       // è vuota, altrimenti il catch lo riprocesserebbe perdendo totalCharged.
       if (err instanceof FalError) throw err;
+      // Tradeoff: usiamo lo status HTTP come approssimazione di "fal ha
+      // accettato la request" (status>=500 || status===0 = sì). Se vogliamo
+      // fare meglio bisogna hookare `onEnqueue` del client fal (se esposto
+      // da SDK v1.x — da verificare) e, su retry dopo accettazione, invece
+      // di riemettere, riprendere il polling dello stesso requestId per non
+      // addebitare due volte. Non implementato: su fal.subscribe gli errori
+      // post-accettazione vengono già normalizzati a 5xx o empty-response.
       lastErr = err;
       const { status, message } = describeError(err);
       const retryable = isRetryableStatus(status);
