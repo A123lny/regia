@@ -257,84 +257,122 @@ export async function attachMediaAssetToDraft(
  * RF-4.2: genera un'immagine da un template, la salva in libreria e l'attach al draft.
  * Sequenziale: render server-side (~500-2000ms), upload, insert asset, attach.
  */
+export type GenerateFromTemplateResult =
+  | { ok: true; assetId: string }
+  | { ok: false; error: string };
+
 export async function generateFromTemplate(input: {
   draftId: string;
   brandSlug: string;
   templateId: string;
   fields: Record<string, string>;
-}): Promise<MediaAsset> {
-  const session = await getSessionOrRedirect();
-  requireCapability(session, "content.generate");
-
-  const brand = await getBrandBySlug(session.organizationId, input.brandSlug);
-  if (!brand) throw new Error("Marchio non trovato");
-
-  const def = getTemplateDefinition(input.templateId);
-  if (!def) throw new Error(`Template "${input.templateId}" non trovato`);
-
-  // Validation campi required
-  for (const f of def.fields) {
-    if (f.required && !(input.fields[f.key] ?? "").trim()) {
-      throw new Error(`Campo obbligatorio mancante: ${f.label}`);
+}): Promise<GenerateFromTemplateResult> {
+  try {
+    const session = await getSessionOrRedirect();
+    try {
+      requireCapability(session, "content.generate");
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "Non autorizzato." };
     }
+
+    const brand = await getBrandBySlug(session.organizationId, input.brandSlug);
+    if (!brand) return { ok: false, error: "Marchio non trovato." };
+
+    const def = getTemplateDefinition(input.templateId);
+    if (!def) return { ok: false, error: `Template "${input.templateId}" non trovato.` };
+
+    for (const f of def.fields) {
+      if (f.required && !(input.fields[f.key] ?? "").trim()) {
+        return { ok: false, error: `Campo obbligatorio mancante: ${f.label}` };
+      }
+    }
+
+    const { pngBytes, width, height } = await renderTemplateToPng(input.templateId, {
+      brandDisplayName: brand.displayName,
+      brandColor: brand.color,
+      brandLogoUrl: brand.logoUrl,
+      fields: input.fields,
+    });
+
+    const assetId = randomUUID();
+    const storagePath = pathForAsset(session.organizationId, brand.id, assetId, "png");
+    const admin = getAdminClient();
+    const { error: uploadError } = await admin.storage
+      .from(MEDIA_BUCKET)
+      .upload(storagePath, pngBytes, { contentType: "image/png", upsert: false });
+    if (uploadError) {
+      console.error("[media] template upload failed", {
+        path: storagePath,
+        msg: uploadError.message,
+      });
+      return {
+        ok: false,
+        error: "Impossibile salvare il template. Verifica la configurazione del bucket.",
+      };
+    }
+    const { data: signed, error: signError } = await admin.storage
+      .from(MEDIA_BUCKET)
+      .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
+    if (signError || !signed) {
+      await admin.storage.from(MEDIA_BUCKET).remove([storagePath]);
+      return { ok: false, error: "Immagine salvata ma URL firmato non disponibile." };
+    }
+
+    const caption = `[template:${input.templateId}] ${(
+      input.fields["title"] ||
+      input.fields["headline"] ||
+      input.fields["service"] ||
+      input.fields["name"] ||
+      def.name
+    ).slice(0, 150)}`;
+
+    const asset = await insertMediaAsset({
+      organizationId: session.organizationId,
+      brandId: brand.id,
+      storagePath,
+      signedUrl: signed.signedUrl,
+      contentType: "image/png",
+      sizeBytes: pngBytes.byteLength,
+      width,
+      height,
+      tags: ["template", "auto-generated", input.templateId],
+      caption,
+      uploadedBy: session.userId,
+    });
+
+    await setDraftMediaAsset(session.organizationId, input.draftId, asset.id);
+    await logAuditEvent({
+      organizationId: session.organizationId,
+      actorUserId: session.userId,
+      actorKind: "user",
+      action: "media.template_generated",
+      target: `draft:${input.draftId}`,
+      details: {
+        assetId: asset.id,
+        templateId: input.templateId,
+        sizeBytes: pngBytes.byteLength,
+      },
+    });
+
+    revalidatePath(`/contenuti/${input.brandSlug}/${input.draftId}`);
+    revalidatePath(`/marchi/${input.brandSlug}/media`);
+    return { ok: true, assetId: asset.id };
+  } catch (err) {
+    // Rete di sicurezza: nessuna action deve lanciare un errore React
+    // grezzo (#441 "Returning an unserializable value from a Server Function").
+    console.error("[media] generateFromTemplate failed", {
+      draftId: input.draftId,
+      templateId: input.templateId,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Errore sconosciuto nella generazione del template.",
+    };
   }
-
-  // Render server-side
-  const { pngBytes, width, height } = await renderTemplateToPng(input.templateId, {
-    brandDisplayName: brand.displayName,
-    brandColor: brand.color,
-    brandLogoUrl: brand.logoUrl,
-    fields: input.fields,
-  });
-
-  // Upload
-  const assetId = randomUUID();
-  const storagePath = pathForAsset(session.organizationId, brand.id, assetId, "png");
-  const admin = getAdminClient();
-  const { error: uploadError } = await admin.storage
-    .from(MEDIA_BUCKET)
-    .upload(storagePath, pngBytes, { contentType: "image/png", upsert: false });
-  if (uploadError) throw new Error(`Errore upload template: ${uploadError.message}`);
-
-  const { data: signed, error: signError } = await admin.storage
-    .from(MEDIA_BUCKET)
-    .createSignedUrl(storagePath, 60 * 60 * 24 * 365 * 10);
-  if (signError || !signed) {
-    await admin.storage.from(MEDIA_BUCKET).remove([storagePath]);
-    throw new Error(`Errore URL: ${signError?.message ?? ""}`);
-  }
-
-  const caption = `[template:${input.templateId}] ${(input.fields["title"] || input.fields["headline"] || input.fields["service"] || input.fields["name"] || def.name).slice(0, 150)}`;
-
-  const asset = await insertMediaAsset({
-    organizationId: session.organizationId,
-    brandId: brand.id,
-    storagePath,
-    signedUrl: signed.signedUrl,
-    contentType: "image/png",
-    sizeBytes: pngBytes.byteLength,
-    width,
-    height,
-    tags: ["template", "auto-generated", input.templateId],
-    caption,
-    uploadedBy: session.userId,
-  });
-
-  // Attach al draft
-  await setDraftMediaAsset(session.organizationId, input.draftId, asset.id);
-
-  await logAuditEvent({
-    organizationId: session.organizationId,
-    actorUserId: session.userId,
-    actorKind: "user",
-    action: "media.template_generated",
-    target: `draft:${input.draftId}`,
-    details: { assetId: asset.id, templateId: input.templateId, sizeBytes: pngBytes.byteLength },
-  });
-
-  revalidatePath(`/contenuti/${input.brandSlug}/${input.draftId}`);
-  revalidatePath(`/marchi/${input.brandSlug}/media`);
-  return asset;
 }
 
 export async function detachMediaAssetFromDraft(draftId: string, brandSlug: string): Promise<void> {

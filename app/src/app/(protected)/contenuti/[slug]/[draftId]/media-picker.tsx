@@ -103,18 +103,23 @@ export function DraftMediaPicker({
     setError(null);
     startTransition(async () => {
       try {
-        await generateFromTemplate({
+        const r = await generateFromTemplate({
           draftId,
           brandSlug,
           templateId: selectedTemplate.id,
           fields: templateFields,
         });
+        if (!r.ok) {
+          setError(r.error);
+          return;
+        }
         setPickerOpen(null);
         setSelectedTemplate(null);
         setTemplateFields({});
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Errore generazione");
+        // Rete di sicurezza: se qualcosa esplode comunque, cattura.
+        setError(e instanceof Error ? e.message : "Errore nella generazione.");
       }
     });
   }

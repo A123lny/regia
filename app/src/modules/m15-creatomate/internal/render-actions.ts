@@ -31,6 +31,7 @@ import {
 import { getActiveProviderBySlug } from "@/modules/m04-media/internal/media-providers-repo";
 import { insertCreatomateRender, getRenderById } from "./creatomate-renders-repo";
 import { applySucceededRenderByExternalId } from "./apply-succeeded";
+import { listBrandTemplates } from "./brand-templates-repo";
 
 export type StartRenderResult =
   | { ok: true; renderId: string; externalId: string; status: string }
@@ -51,13 +52,32 @@ export type RenderStatusResult =
 // ────────────────────────────────────────────────────────────────────────
 // Validazione modifications: evitiamo che l'input nascosto influenzi
 // qualità/dimensione (anti abuse sul cap crediti) e tagliamo valori lunghi.
+// Policy:
+//  - normalizza chiave: trim + case-sensitive (Creatomate matcha case-exact
+//    sui placeholder); rigetta se vuota / troppo lunga / contiene prefissi
+//    riservati
+//  - rigetta le chiavi che corrispondono a dimensioni/durata/formato: queste
+//    vanno in top-level body, non dentro modifications
+//  - accetta solo proprietà finali safe: senza suffisso, o che terminano in
+//    .text, .fill_color, .source, .src, .color — pattern tipici di
+//    placeholder di template Creatomate. Altri path (.width, .duration,
+//    .frame_rate, .background_color root) sono bloccati
 // ────────────────────────────────────────────────────────────────────────
-const BLOCKED_MOD_KEYS = new Set<string>([
+const BLOCKED_MOD_FINAL_KEYS = new Set<string>([
   "width",
   "height",
   "frame_rate",
   "duration",
   "output_format",
+  "trim_start",
+  "trim_duration",
+]);
+const ALLOWED_MOD_SUFFIXES = new Set<string>([
+  "text",
+  "fill_color",
+  "source",
+  "src",
+  "color",
 ]);
 const MAX_MOD_KEYS = 40;
 const MAX_MOD_VALUE_LEN = 2000;
@@ -65,12 +85,26 @@ const MAX_MOD_VALUE_LEN = 2000;
 function sanitizeModifications(raw: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {};
   let n = 0;
-  for (const [k, v] of Object.entries(raw)) {
+  for (const [rawKey, v] of Object.entries(raw)) {
     if (n >= MAX_MOD_KEYS) break;
-    if (typeof k !== "string" || k.length === 0 || k.length > 120) continue;
-    if (BLOCKED_MOD_KEYS.has(k.toLowerCase())) continue;
+    if (typeof rawKey !== "string") continue;
+    const k = rawKey.trim();
+    if (k.length === 0 || k.length > 120) continue;
+    if (k.startsWith("__") || k.startsWith(".")) continue;
+    const parts = k.split(".");
+    const last = (parts[parts.length - 1] ?? "").toLowerCase();
+    if (BLOCKED_MOD_FINAL_KEYS.has(last)) continue;
+    // Chiavi semplici (es. "Title") sono ammesse.
+    // Chiavi puntate (es. "Button.text") sono ammesse SOLO se il suffisso è
+    // nella allowlist. Previene input tipo "Clip.width", "Timeline.duration".
+    if (parts.length > 1 && !ALLOWED_MOD_SUFFIXES.has(last)) continue;
     if (v === null || v === undefined) continue;
-    const val = typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : "";
+    const val =
+      typeof v === "string"
+        ? v
+        : typeof v === "number" || typeof v === "boolean"
+          ? String(v)
+          : "";
     if (!val) continue;
     out[k] = val.slice(0, MAX_MOD_VALUE_LEN);
     n++;
@@ -160,6 +194,19 @@ export async function startCreatomateRender(input: {
   const brand = await getBrandById(session.organizationId, input.brandId);
   if (!brand) return { ok: false, error: "Marchio non trovato." };
 
+  // Template allowlist: il templateId deve essere fra quelli registrati per
+  // il brand (sezione "Template Creatomate" nel marchio). Blocca che un
+  // utente autenticato lanci render su qualunque template globale del
+  // progetto Creatomate, incluso di un altro tenant se gli slippa l'ID.
+  const allowedTemplates = await listBrandTemplates(session.organizationId, brand.id, true);
+  if (!allowedTemplates.some((t) => t.templateId === input.templateId)) {
+    return {
+      ok: false,
+      error:
+        "Template non registrato per questo marchio. Aggiungilo in Marchio → Template Creatomate.",
+    };
+  }
+
   // Ownership draft: se passato, deve essere della stessa org e dello
   // stesso brand del render.
   if (input.draftId) {
@@ -211,6 +258,31 @@ export async function startCreatomateRender(input: {
       templateId: input.templateId,
       err: err instanceof Error ? err.message : String(err),
     });
+    // Sibling-path parity con fal: errori post-accettazione (timeout, 5xx)
+    // possono comunque aver addebitato crediti. Il wrapper client fa retry
+    // su 429/5xx, quindi in worst-case addebiti multipli non bloccanti dal
+    // nostro lato. Loggo lo stimato una volta per non lasciare buco nel cap.
+    const status = err instanceof CreatomateError ? err.status : 0;
+    const possiblyCharged = status === 0 || status >= 500 || status === 504;
+    if (possiblyCharged) {
+      try {
+        await logSpend({
+          organizationId: session.organizationId,
+          brandId: brand.id,
+          category: "creatomate",
+          action: "creatomate.render_errored_possibly_charged",
+          costUsd: estimatedUsd,
+          tokensIn: 0,
+          tokensOut: 0,
+          targetType: "draft",
+          ...(input.draftId ? { targetId: input.draftId } : {}),
+        });
+      } catch (logErr) {
+        console.error("[creatomate] logSpend on error fail", {
+          err: logErr instanceof Error ? logErr.message : String(logErr),
+        });
+      }
+    }
     return { ok: false, error: mapCreatomateError(err) };
   }
 
