@@ -18,6 +18,7 @@ import { assertBudgetOk, AiBudgetExceededError, logSpend } from "@/modules/m11-a
 import { getContentDraft } from "@/modules/m03-editorial/public";
 import { getBrandById } from "@/modules/m02-brand/public";
 import {
+  FAL_COST_USD,
   FAL_PREVIEW_COUNT,
   FAL_PREVIEW_MODEL,
   FAL_PROVIDER_SLUG,
@@ -79,6 +80,7 @@ function mapFalError(err: unknown): string {
 
 async function preflight(
   organizationId: string,
+  estimatedCostUsd: number,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     await assertAiEnabled(organizationId);
@@ -86,8 +88,14 @@ async function preflight(
     if (err instanceof AiKillSwitchError) return { ok: false, error: err.message };
     throw err;
   }
+  // Passiamo il costo stimato della chiamata al check: altrimenti il cap
+  // verrebbe superato se spent < cap ma spent + estimated >= cap (bypass
+  // classico fail-open). Il check resta "check-then-act": c'è ancora una race
+  // window tra preflight e logSpend post-generazione; su volumi singolo-utente
+  // di Regìa (una generazione alla volta per Owner) è accettabile. Per volumi
+  // concorrenti servirebbe una RPC che riserva atomicamente in ledger.
   try {
-    await assertBudgetOk(organizationId, "fal");
+    await assertBudgetOk(organizationId, "fal", estimatedCostUsd);
   } catch (err) {
     if (err instanceof AiBudgetExceededError) return { ok: false, error: err.message };
     throw err;
@@ -110,6 +118,27 @@ async function preflight(
   return { ok: true };
 }
 
+/**
+ * Registra una spesa fal in modo best-effort: se il log fallisce (es. DB
+ * momentaneamente irraggiungibile), la generazione comunque va a buon fine
+ * ma NON silenziamo l'errore: lo scriviamo a log server così l'Owner può
+ * ricostruire la spesa reale dal pannello fal.ai in caso di inconsistenza.
+ */
+async function logSpendBestEffort(
+  input: Parameters<typeof logSpend>[0],
+  ctx: { draftId: string; phase: string },
+): Promise<void> {
+  try {
+    await logSpend(input);
+  } catch (err) {
+    console.error("[fal] logSpend fallito — spesa reale potrebbe non essere tracciata", {
+      ...ctx,
+      costUsd: input.costUsd,
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────────
 // Azione 1: genera anteprime (modello veloce)
 // ────────────────────────────────────────────────────────────────────────
@@ -126,10 +155,11 @@ export async function generateAiPreviews(input: {
   const brand = await getBrandById(session.organizationId, draft.brandId);
   if (!brand) return { ok: false, error: "Marchio non trovato." };
 
-  const pre = await preflight(session.organizationId);
-  if (!pre.ok) return pre;
-
   const channel: DraftChannelHint = input.channel ?? "instagram_post";
+  const estimatedCost = FAL_COST_USD[FAL_PREVIEW_MODEL] * FAL_PREVIEW_COUNT;
+
+  const pre = await preflight(session.organizationId, estimatedCost);
+  if (!pre.ok) return pre;
 
   const { prompt, size } = await composePromptFromDraft({
     organizationId: session.organizationId,
@@ -139,16 +169,28 @@ export async function generateAiPreviews(input: {
     channel,
   });
 
+  let result: Awaited<ReturnType<typeof runFalGeneration>>;
   try {
-    const result = await runFalGeneration({
+    result = await runFalGeneration({
       modelId: FAL_PREVIEW_MODEL,
       prompt,
       size,
       numImages: FAL_PREVIEW_COUNT,
     });
+  } catch (err) {
+    console.error("[fal] generateAiPreviews failed", {
+      draftId: input.draftId,
+      brandSlug: brand.slug,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return { ok: false, error: mapFalError(err) };
+  }
 
-    // Log spesa + audit (anche in caso di anteprime: il modello gira comunque).
-    await logSpend({
+  // Log spesa + audit SUBITO dopo il round-trip fal: anche se l'anteprima è
+  // stata rifiutata o il caller aborta, fal ha comunque consumato credito.
+  // Best-effort: se il DB fallisce, non blocchiamo l'utente ma scriviamo a log.
+  await logSpendBestEffort(
+    {
       organizationId: session.organizationId,
       brandId: brand.id,
       category: "fal",
@@ -158,38 +200,32 @@ export async function generateAiPreviews(input: {
       tokensOut: 0,
       targetType: "draft",
       targetId: input.draftId,
-    });
-    await logAuditEvent({
-      organizationId: session.organizationId,
-      actorUserId: session.userId,
-      actorKind: "user",
-      action: "media.ai_previews_generated",
-      target: `draft:${input.draftId}`,
-      details: {
-        provider: "fal.ai",
-        model: FAL_PREVIEW_MODEL,
-        channel,
-        count: result.images.length,
-        costUsd: result.estimatedCostUsd,
-        latencyMs: result.latencyMs,
-      },
-    });
-
-    return {
-      ok: true,
-      items: result.images.map((im) => ({ url: im.url, width: im.width, height: im.height })),
-      prompt,
+    },
+    { draftId: input.draftId, phase: "previews" },
+  );
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "media.ai_previews_generated",
+    target: `draft:${input.draftId}`,
+    details: {
+      provider: "fal.ai",
+      model: FAL_PREVIEW_MODEL,
       channel,
+      count: result.images.length,
       costUsd: result.estimatedCostUsd,
-    };
-  } catch (err) {
-    console.error("[fal] generateAiPreviews failed", {
-      draftId: input.draftId,
-      brandSlug: brand.slug,
-      err: err instanceof Error ? err.message : String(err),
-    });
-    return { ok: false, error: mapFalError(err) };
-  }
+      latencyMs: result.latencyMs,
+    },
+  });
+
+  return {
+    ok: true,
+    items: result.images.map((im) => ({ url: im.url, width: im.width, height: im.height })),
+    prompt,
+    channel,
+    costUsd: result.estimatedCostUsd,
+  };
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -212,30 +248,67 @@ export async function generateAndSaveAiVariant(input: {
   const brand = await getBrandById(session.organizationId, draft.brandId);
   if (!brand) return { ok: false, error: "Marchio non trovato." };
 
-  const pre = await preflight(session.organizationId);
+  const estimatedCost = FAL_COST_USD[FAL_QUALITY_MODEL]; // 1 immagine
+  const pre = await preflight(session.organizationId, estimatedCost);
   if (!pre.ok) return pre;
 
-  try {
-    const { size } = await composePromptFromDraft({
-      organizationId: session.organizationId,
-      brandId: brand.id,
-      draftThemeInput: draft.themeInput,
-      draftGeneratedText: draft.generatedText,
-      channel: input.channel,
-    });
+  const { size } = await composePromptFromDraft({
+    organizationId: session.organizationId,
+    brandId: brand.id,
+    draftThemeInput: draft.themeInput,
+    draftGeneratedText: draft.generatedText,
+    channel: input.channel,
+  });
 
-    const result = await runFalGeneration({
+  // Step A: chiamata fal. Se arriva qui, fal ha già fatto il lavoro (e
+  // addebitato). Da qui in poi dobbiamo loggare la spesa anche se il
+  // salvataggio nel bucket fallisce.
+  let result: Awaited<ReturnType<typeof runFalGeneration>>;
+  try {
+    result = await runFalGeneration({
       modelId: FAL_QUALITY_MODEL,
       prompt: input.prompt.slice(0, 2000),
       size,
       numImages: 1,
     });
-    const image = result.images[0];
-    if (!image) {
-      return { ok: false, error: "fal.ai non ha restituito l'immagine finale. Riprova." };
-    }
+  } catch (err) {
+    console.error("[fal] generateAndSaveAiVariant: fal call failed", {
+      draftId: input.draftId,
+      brandSlug: brand.slug,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return { ok: false, error: mapFalError(err) };
+  }
 
-    const asset = await saveFalImageToBucket({
+  const image = result.images[0];
+  // Log spesa SUBITO: la call è andata a buon fine, fal ha addebitato.
+  // Facciamolo prima di scaricare l'immagine, caricarla nel bucket, attaccarla
+  // alla bozza: se qualsiasi di quei passi fallisce, la spesa è comunque
+  // registrata e non c'è spend-cap bypass.
+  await logSpendBestEffort(
+    {
+      organizationId: session.organizationId,
+      brandId: brand.id,
+      category: "fal",
+      action: "media.ai_variant_generated",
+      costUsd: result.estimatedCostUsd,
+      tokensIn: 0,
+      tokensOut: 0,
+      targetType: "draft",
+      targetId: input.draftId,
+    },
+    { draftId: input.draftId, phase: "variant-generated" },
+  );
+
+  if (!image) {
+    return { ok: false, error: "fal.ai non ha restituito l'immagine finale. Riprova." };
+  }
+
+  // Step B: salvataggio in bucket + attach. Se fallisce, la spesa è già
+  // registrata ma l'asset no.
+  let asset;
+  try {
+    asset = await saveFalImageToBucket({
       imageUrl: image.url,
       organizationId: session.organizationId,
       brandId: brand.id,
@@ -244,45 +317,33 @@ export async function generateAndSaveAiVariant(input: {
       uploadedBy: session.userId,
       contentType: image.contentType,
     });
-
     await setDraftMediaAsset(session.organizationId, input.draftId, asset.id);
-
-    await logSpend({
-      organizationId: session.organizationId,
-      brandId: brand.id,
-      category: "fal",
-      action: "media.ai_variant_saved",
-      costUsd: result.estimatedCostUsd,
-      tokensIn: 0,
-      tokensOut: 0,
-      targetType: "draft",
-      targetId: input.draftId,
-    });
-    await logAuditEvent({
-      organizationId: session.organizationId,
-      actorUserId: session.userId,
-      actorKind: "user",
-      action: "media.ai_variant_saved",
-      target: `draft:${input.draftId}`,
-      details: {
-        provider: "fal.ai",
-        model: FAL_QUALITY_MODEL,
-        channel: input.channel,
-        assetId: asset.id,
-        costUsd: result.estimatedCostUsd,
-        latencyMs: result.latencyMs,
-      },
-    });
-
-    revalidatePath(`/contenuti/${brand.slug}/${input.draftId}`);
-    revalidatePath(`/marchi/${brand.slug}/media`);
-    return { ok: true, asset };
   } catch (err) {
-    console.error("[fal] generateAndSaveAiVariant failed", {
+    console.error("[fal] generateAndSaveAiVariant: save/attach failed (fal already charged)", {
       draftId: input.draftId,
       brandSlug: brand.slug,
       err: err instanceof Error ? err.message : String(err),
     });
     return { ok: false, error: mapFalError(err) };
   }
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "media.ai_variant_saved",
+    target: `draft:${input.draftId}`,
+    details: {
+      provider: "fal.ai",
+      model: FAL_QUALITY_MODEL,
+      channel: input.channel,
+      assetId: asset.id,
+      costUsd: result.estimatedCostUsd,
+      latencyMs: result.latencyMs,
+    },
+  });
+
+  revalidatePath(`/contenuti/${brand.slug}/${input.draftId}`);
+  revalidatePath(`/marchi/${brand.slug}/media`);
+  return { ok: true, asset };
 }
