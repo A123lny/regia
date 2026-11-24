@@ -8,62 +8,77 @@ import type { FalImageModelId, FalImageSize } from "./fal-config";
 import { FAL_COST_USD } from "./fal-config";
 
 // ────────────────────────────────────────────────────────────────────────
-// Errori tipati (mapping testo IT lo fa chi consuma).
+// Errori tipati — base class con `possiblyCharged` + `estimatedCostUsd`
+// (accumulato across retry quando il tentativo era addebitabile).
+// Il chiamante in fal-actions.ts legge questi campi per loggare lo spent
+// anche sui percorsi di errore (sibling-path spend-cap bypass closure).
 // ────────────────────────────────────────────────────────────────────────
 
-export class FalConfigError extends Error {
-  constructor(message = "Chiave fal.ai non impostata. Contatta l'amministratore.") {
+export class FalError extends Error {
+  possiblyCharged: boolean;
+  /** Costo stimato totale: su error post-retry include la somma dei
+   *  tentativi addebitabili (5xx post-accettazione, empty response). */
+  estimatedCostUsd: number;
+  constructor(message: string, possiblyCharged: boolean, estimatedCostUsd: number) {
     super(message);
+    this.name = "FalError";
+    this.possiblyCharged = possiblyCharged;
+    this.estimatedCostUsd = estimatedCostUsd;
+  }
+}
+
+export class FalConfigError extends FalError {
+  constructor(message = "Chiave fal.ai non impostata. Contatta l'amministratore.") {
+    super(message, false, 0);
     this.name = "FalConfigError";
   }
 }
 
-export class FalRateLimitError extends Error {
+export class FalRateLimitError extends FalError {
   constructor(
+    accumulatedCostUsd = 0,
     message = "fal.ai ha rifiutato la richiesta (limite di frequenza). Riprova tra un minuto.",
   ) {
-    super(message);
+    // Rate limit = pre-accettazione per il tentativo corrente, ma i retry
+    // precedenti possono aver addebitato (es. 502 → retry → 429).
+    super(message, accumulatedCostUsd > 0, accumulatedCostUsd);
     this.name = "FalRateLimitError";
   }
 }
 
-export class FalContentRejectedError extends Error {
+export class FalContentRejectedError extends FalError {
   constructor(
+    possiblyCharged = false,
+    estimatedCostUsd = 0,
     message = "Il contenuto è stato rifiutato dai filtri di sicurezza di fal.ai. Prova con un prompt diverso.",
   ) {
-    super(message);
+    super(message, possiblyCharged, estimatedCostUsd);
     this.name = "FalContentRejectedError";
   }
 }
 
-// Timeout lato nostro mentre fal è ancora in esecuzione: il job potrebbe
-// essere comunque addebitato. Il chiamante usa `possiblyCharged` per loggare
-// lo spent stimato anche in questo caso (vedi fal-actions.ts).
-export class FalTimeoutError extends Error {
-  possiblyCharged = true;
-  estimatedCostUsd: number;
+export class FalTimeoutError extends FalError {
   constructor(
     estimatedCostUsd = 0,
     message = "La generazione immagine ha superato il tempo massimo. Riprova.",
   ) {
-    super(message);
+    // Timeout = la richiesta è stata accettata, il job può essere in corso: addebitato.
+    super(message, true, estimatedCostUsd);
     this.name = "FalTimeoutError";
-    this.estimatedCostUsd = estimatedCostUsd;
   }
 }
 
-export class FalApiError extends Error {
+export class FalApiError extends FalError {
   status: number;
-  // 5xx dopo accettazione della request = fal potrebbe aver addebitato.
-  // 401/403/429 pre-accettazione = non addebitato.
-  possiblyCharged: boolean;
-  estimatedCostUsd: number;
   constructor(status: number, message?: string, estimatedCostUsd = 0) {
-    super(message ?? `fal.ai ha risposto con errore ${status}. Riprova tra qualche minuto.`);
+    // 5xx = fal ha processato: addebitato. 401/403/429 = pre-accettazione, 0.
+    super(
+      message ?? `fal.ai ha risposto con errore ${status}. Riprova tra qualche minuto.`,
+      status >= 500 || estimatedCostUsd > 0,
+      estimatedCostUsd,
+    );
     this.name = "FalApiError";
     this.status = status;
-    this.possiblyCharged = status >= 500;
-    this.estimatedCostUsd = estimatedCostUsd;
   }
 }
 
@@ -134,7 +149,11 @@ function describeError(err: unknown): { status: number; message: string } {
 export async function generateImages(input: GenerateImagesInput): Promise<GenerateImagesResult> {
   ensureConfigured();
   const start = Date.now();
-  const fullEstimate = FAL_COST_USD[input.modelId] * input.numImages;
+  const perCallEstimate = FAL_COST_USD[input.modelId] * input.numImages;
+  // Accumulatore cross-retry: ogni tentativo che era addebitabile (5xx dopo
+  // accettazione o empty response = fal ha processato) viene sommato. Il
+  // chiamante vedrà il totale in error.estimatedCostUsd e lo logga una volta.
+  let accumulatedChargedCost = 0;
 
   let lastErr: unknown = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -151,7 +170,10 @@ export async function generateImages(input: GenerateImagesInput): Promise<Genera
           logs: false,
         }),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new FalTimeoutError(fullEstimate)), PER_CALL_TIMEOUT_MS),
+          setTimeout(
+            () => reject(new FalTimeoutError(accumulatedChargedCost + perCallEstimate)),
+            PER_CALL_TIMEOUT_MS,
+          ),
         ),
       ]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -167,48 +189,60 @@ export async function generateImages(input: GenerateImagesInput): Promise<Genera
           contentType: String(im.content_type ?? "image/jpeg"),
         }));
       if (images.length === 0) {
-        // fal può rifiutare silenziosamente immagini NSFW restituendo list vuota
-        // o has_nsfw_concepts=[true]. Lo trattiamo come content rejected.
-        // In entrambi i casi fal ha già processato la request: possiblyCharged.
+        // fal ha PROCESSATO la request (siamo qui dopo subscribe success).
+        // NSFW filtered o response vuota → addebitato. NON retry: non sarebbe
+        // transiente, rischierebbe di addebitare N volte lo stesso prompt.
+        const totalCharged = accumulatedChargedCost + perCallEstimate;
         const nsfw = (data?.has_nsfw_concepts ?? []) as Array<boolean>;
         if (Array.isArray(nsfw) && nsfw.some(Boolean)) {
-          throw new FalContentRejectedError();
+          throw new FalContentRejectedError(true, totalCharged);
         }
-        throw new FalApiError(502, "fal.ai non ha restituito immagini.", fullEstimate);
+        throw new FalApiError(502, "fal.ai non ha restituito immagini.", totalCharged);
       }
       return {
         images,
         modelId: input.modelId,
-        estimatedCostUsd: FAL_COST_USD[input.modelId] * images.length,
+        // Includo anche l'eventuale spesa "in più" dei tentativi precedenti:
+        // il successo finale non annulla gli addebiti dei retry.
+        estimatedCostUsd: FAL_COST_USD[input.modelId] * images.length + accumulatedChargedCost,
         latencyMs: Date.now() - start,
       };
     } catch (err) {
       if (err instanceof FalTimeoutError || err instanceof FalContentRejectedError) {
+        // Fal-own errors (già enriched con accumulated) bypassano il loop.
         throw err;
       }
       lastErr = err;
       const { status, message } = describeError(err);
-      // 429 e 5xx: retry con backoff esponenziale.
-      if (isRetryableStatus(status) && attempt < MAX_ATTEMPTS) {
+      const retryable = isRetryableStatus(status);
+      // 5xx = request accettata e processata ma errore server-side: addebitato.
+      // 429 (rate limit) = pre-accettazione: NON addebitato per quel tentativo.
+      if (retryable && status >= 500) {
+        accumulatedChargedCost += perCallEstimate;
+      }
+      if (retryable && attempt < MAX_ATTEMPTS) {
         await wait(BASE_DELAY_MS * Math.pow(2, attempt - 1));
         continue;
       }
-      // 401/403: chiave mancante o revocata.
+      // 401/403: chiave mancante o revocata (pre-accettazione, 0 cost).
       if (status === 401 || status === 403) {
         throw new FalConfigError("Chiave fal.ai non valida o revocata.");
       }
-      // 400/422 spesso significa prompt rifiutato dai filtri.
+      // 400/422 = prompt rifiutato in validation (pre-accettazione, 0 cost).
       if (status === 400 || status === 422) {
-        throw new FalContentRejectedError();
+        throw new FalContentRejectedError(false, accumulatedChargedCost);
       }
-      // 429 dopo esaurimento retry: errore dedicato.
+      // 429 dopo esaurimento retry: il tentativo corrente non ha addebitato,
+      // ma i retry 5xx precedenti sì.
       if (status === 429) {
-        throw new FalRateLimitError();
+        throw new FalRateLimitError(accumulatedChargedCost);
       }
-      // Fallback generico.
-      throw new FalApiError(status || 500, message, fullEstimate);
+      // Fallback generico 5xx o status 0.
+      throw new FalApiError(status || 500, message, accumulatedChargedCost);
     }
   }
-  // Non raggiungibile ma TypeScript vuole il return.
-  throw lastErr instanceof Error ? lastErr : new FalApiError(500, undefined, fullEstimate);
+  // Non raggiungibile: il loop o ritorna o throwa. Difensivo per TypeScript.
+  throw lastErr instanceof Error
+    ? lastErr
+    : new FalApiError(500, undefined, accumulatedChargedCost);
 }

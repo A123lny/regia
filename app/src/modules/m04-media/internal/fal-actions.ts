@@ -29,6 +29,7 @@ import {
   FalApiError,
   FalConfigError,
   FalContentRejectedError,
+  FalError,
   FalRateLimitError,
   FalTimeoutError,
 } from "@/lib/ai/fal";
@@ -140,14 +141,13 @@ async function logSpendBestEffort(
 }
 
 /**
- * Estrae costo stimato da errori fal che "potrebbero aver addebitato"
- * (timeout, 5xx dopo accettazione, empty response). 401/403/429 sono
- * pre-accettazione e ritornano 0. Usato per loggare la spesa anche sui
- * percorsi di errore e chiudere lo spend-cap bypass sibling-path.
+ * Costo cumulativo addebitato tra i retry prima dell'errore finale.
+ * Base class FalError espone `possiblyCharged` + `estimatedCostUsd` per tutti
+ * i sottotipi (timeout, 5xx post-accettazione, empty response, content
+ * rejected post-process con NSFW, rate limit dopo retry 5xx).
  */
 function possiblyChargedCost(err: unknown): number {
-  if (err instanceof FalTimeoutError) return err.estimatedCostUsd;
-  if (err instanceof FalApiError && err.possiblyCharged) return err.estimatedCostUsd;
+  if (err instanceof FalError && err.possiblyCharged) return err.estimatedCostUsd;
   return 0;
 }
 
@@ -168,7 +168,11 @@ export async function generateAiPreviews(input: {
   if (!brand) return { ok: false, error: "Marchio non trovato." };
 
   const channel: DraftChannelHint = input.channel ?? "instagram_post";
-  const estimatedCost = FAL_COST_USD[FAL_PREVIEW_MODEL] * FAL_PREVIEW_COUNT;
+  // Preflight copre il worst case: 3 tentativi * N immagini. Se l'utente ha
+  // cap stretto (quasi esaurito), fermiamoci prima invece che addebitare N
+  // retry possibilmente 5xx-5xx-5xx. Costa poco essere pessimisti qui.
+  const MAX_ATTEMPTS = 3;
+  const estimatedCost = FAL_COST_USD[FAL_PREVIEW_MODEL] * FAL_PREVIEW_COUNT * MAX_ATTEMPTS;
 
   const pre = await preflight(session.organizationId, estimatedCost);
   if (!pre.ok) return pre;
@@ -280,7 +284,8 @@ export async function generateAndSaveAiVariant(input: {
   const brand = await getBrandById(session.organizationId, draft.brandId);
   if (!brand) return { ok: false, error: "Marchio non trovato." };
 
-  const estimatedCost = FAL_COST_USD[FAL_QUALITY_MODEL]; // 1 immagine
+  // Preflight worst case: 3 tentativi (vedi nota su generateAiPreviews).
+  const estimatedCost = FAL_COST_USD[FAL_QUALITY_MODEL] * 3;
   const pre = await preflight(session.organizationId, estimatedCost);
   if (!pre.ok) return pre;
 
