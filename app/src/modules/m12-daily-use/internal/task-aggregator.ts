@@ -10,7 +10,7 @@ import { findDuplicateGroups } from "@/modules/m01-data-hub/public";
 export type TaskPriority = "urgent" | "important" | "opportunity";
 
 // Dettaglio singolo elemento che ha triggerato un segnale (es. un ristorante
-// in cooling specifico, un contatto con segnale abbandono alta gravita').
+// in da risentire specifico, un contatto con segnale abbandono alta gravita').
 // Mostrato nel SignalDetailSheet quando l'utente clicca sul task.
 export type TaskDetailItem = {
   // id dell'entita' (partner_restaurant.id, abandonment_signal.id, etc.)
@@ -19,7 +19,7 @@ export type TaskDetailItem = {
   title: string;
   // Sottotitolo opzionale: es. "pizzeria · 47900"
   subtitle?: string;
-  // Info descrittiva: motivo cooling / tipo segnale / etc.
+  // Info descrittiva: motivo da risentire / tipo segnale / etc.
   reason?: string;
   // Contatto rapido: telefono/email per rendere l'azione immediata
   phone?: string;
@@ -40,7 +40,7 @@ export type TaskListItem = {
   href: string;
   // Modulo/area responsabile, usato come fallback secondario e per filtri futuri.
   module: string;
-  // Lista dettagliata degli elementi (es. ristoranti specifici in cooling).
+  // Lista dettagliata degli elementi (es. ristoranti specifici in da risentire).
   // Se presente, il click apre un drawer invece di navigare al modulo.
   items?: TaskDetailItem[];
   // Tipo del task per routing dell'azione contestuale (es. "cooling_partner"
@@ -63,13 +63,31 @@ async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
   }
 }
 
-export async function buildDashboardTasks(organizationId: string): Promise<DashboardTaskList> {
+export async function buildDashboardTasks(
+  organizationId: string,
+  brandId?: string,
+): Promise<DashboardTaskList> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
+  // Helper per applicare il filtro brand_id solo quando c'è un marchio selezionato.
+  const withBrand = <T extends { eq: (col: string, val: string) => T }>(q: T): T =>
+    brandId ? q.eq("brand_id", brandId) : q;
   const nowIso = new Date().toISOString();
   const in10Days = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Se c'è un filtro brand, pre-risolvo gli offer_id validi (issuer o spendable):
+  // la tabella `vouchers` non ha brand_id diretto, lo ha solo `voucher_offers`.
+  let voucherOfferIds: string[] | null = null;
+  if (brandId) {
+    const offersRes = await admin
+      .from("voucher_offers")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .or(`issuer_brand_id.eq.${brandId},spendable_brand_id.eq.${brandId}`);
+    voucherOfferIds = ((offersRes.data ?? []) as Array<{ id: string }>).map((r) => r.id);
+  }
 
   const [
     abandonmentHigh,
@@ -87,45 +105,50 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
   ] = await Promise.all([
     // Segnali abbandono gravita' alta (urgent) + data del piu' recente
     safe(
-      admin
-        .from("abandonment_signals")
-        .select("id, signal_at")
-        .eq("organization_id", organizationId)
-        .eq("severity", "high")
-        .is("resolved_at", null)
-        .gte("previous_orders_count", 2)
-        .order("signal_at", { ascending: false }),
+      withBrand(
+        admin
+          .from("abandonment_signals")
+          .select("id, signal_at")
+          .eq("organization_id", organizationId)
+          .eq("severity", "high")
+          .is("resolved_at", null)
+          .gte("previous_orders_count", 2),
+      ).order("signal_at", { ascending: false }),
       { data: [] as Array<{ id: string; signal_at: string }> },
     ),
     // Segnali abbandono gravita' media (opportunity) + data del piu' recente
     safe(
-      admin
-        .from("abandonment_signals")
-        .select("id, signal_at")
-        .eq("organization_id", organizationId)
-        .eq("severity", "medium")
-        .is("resolved_at", null)
-        .gte("previous_orders_count", 2)
-        .order("signal_at", { ascending: false }),
+      withBrand(
+        admin
+          .from("abandonment_signals")
+          .select("id, signal_at")
+          .eq("organization_id", organizationId)
+          .eq("severity", "medium")
+          .is("resolved_at", null)
+          .gte("previous_orders_count", 2),
+      ).order("signal_at", { ascending: false }),
       { data: [] as Array<{ id: string; signal_at: string }> },
     ),
     // Overrun advertising pending (urgent)
     safe(
-      admin
-        .from("advertising_overrun_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", organizationId)
-        .eq("status", "pending"),
+      withBrand(
+        admin
+          .from("advertising_overrun_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", organizationId)
+          .eq("status", "pending"),
+      ),
       { count: 0 },
     ),
     // Bozze da approvare (important) + data piu' vecchia
     safe(
-      admin
-        .from("content_drafts")
-        .select("id, created_at")
-        .eq("organization_id", organizationId)
-        .eq("status", "draft")
-        .order("created_at", { ascending: true }),
+      withBrand(
+        admin
+          .from("content_drafts")
+          .select("id, created_at")
+          .eq("organization_id", organizationId)
+          .eq("status", "draft"),
+      ).order("created_at", { ascending: true }),
       { data: [] as Array<{ id: string; created_at: string }> },
     ),
     // Promemoria "da gestire oggi" (important): scheduled fino a end-of-today,
@@ -136,26 +159,40 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
         const todayEnd = new Date();
         todayEnd.setHours(23, 59, 59, 999);
         const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
-        return admin
-          .from("reminders")
-          .select("id, contacts!inner(archived_at)", { count: "exact", head: true })
-          .eq("organization_id", organizationId)
-          .eq("status", "pending")
-          .is("contacts.archived_at", null)
-          .lte("scheduled_at", todayEnd.toISOString())
-          .gte("scheduled_at", twoDaysAgo.toISOString());
+        return withBrand(
+          admin
+            .from("reminders")
+            .select("id, contacts!inner(archived_at)", { count: "exact", head: true })
+            .eq("organization_id", organizationId)
+            .eq("status", "pending")
+            .is("contacts.archived_at", null)
+            .lte("scheduled_at", todayEnd.toISOString())
+            .gte("scheduled_at", twoDaysAgo.toISOString()),
+        );
       })(),
       { count: 0 },
     ),
-    // Voucher in scadenza nei prossimi 10gg (important)
+    // Voucher in scadenza nei prossimi 10gg (important).
+    // Il brand sta sulla tabella voucher_offers (issuer/spendable): pre-risolti
+    // gli offer_id sopra, qui filtriamo vouchers.offer_id IN (...).
     safe(
-      admin
-        .from("vouchers")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", organizationId)
-        .eq("status", "issued")
-        .gt("expires_at", nowIso)
-        .lt("expires_at", in10Days),
+      (() => {
+        let q = admin
+          .from("vouchers")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", organizationId)
+          .eq("status", "issued")
+          .gt("expires_at", nowIso)
+          .lt("expires_at", in10Days);
+        if (voucherOfferIds !== null) {
+          if (voucherOfferIds.length === 0) {
+            // Nessuna offerta per questo brand → zero voucher.
+            return Promise.resolve({ count: 0, error: null });
+          }
+          q = q.in("offer_id", voucherOfferIds);
+        }
+        return q;
+      })(),
       { count: 0 },
     ),
     // Contatti duplicati pending (important). Prima contava solo i gruppi
@@ -164,11 +201,13 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
     safe(findDuplicateGroups(organizationId), []),
     // Ricorrenze in arrivo (opportunity)
     safe(
-      admin
-        .from("brand_recurring_events")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", organizationId)
-        .eq("is_active", true),
+      withBrand(
+        admin
+          .from("brand_recurring_events")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", organizationId)
+          .eq("is_active", true),
+      ),
       { count: 0 },
     ),
     // Ristoranti da chiamare (urgent). Include:
@@ -179,25 +218,29 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
     safe(
       (async () => {
         const [coolRes, silentRes] = await Promise.all([
-          admin
-            .from("partner_restaurants")
-            .select("id, name, phone, cuisine_category, cooling_reason, last_contact_at, address_cap")
-            .eq("organization_id", organizationId)
-            .is("archived_at", null)
-            .eq("cooling_flag", true)
-            .or(`last_contact_at.is.null,last_contact_at.lt.${sevenDaysAgo}`),
-          admin
-            .from("partner_restaurants")
-            .select("id, name, phone, cuisine_category, cooling_reason, last_contact_at, address_cap")
-            .eq("organization_id", organizationId)
-            .is("archived_at", null)
-            .not("last_contact_at", "is", null)
-            .lt("last_contact_at", thirtyDaysAgo),
+          withBrand(
+            admin
+              .from("partner_restaurants")
+              .select(
+                "id, name, phone, cuisine_category, cooling_reason, last_contact_at, address_cap",
+              )
+              .eq("organization_id", organizationId)
+              .is("archived_at", null)
+              .eq("cooling_flag", true),
+          ).or(`last_contact_at.is.null,last_contact_at.lt.${sevenDaysAgo}`),
+          withBrand(
+            admin
+              .from("partner_restaurants")
+              .select(
+                "id, name, phone, cuisine_category, cooling_reason, last_contact_at, address_cap",
+              )
+              .eq("organization_id", organizationId)
+              .is("archived_at", null)
+              .not("last_contact_at", "is", null)
+              .lt("last_contact_at", thirtyDaysAgo),
+          ),
         ]);
-        const errObj =
-          coolRes.error || silentRes.error
-            ? coolRes.error ?? silentRes.error
-            : null;
+        const errObj = coolRes.error || silentRes.error ? (coolRes.error ?? silentRes.error) : null;
         type Row = {
           id: string;
           name: string;
@@ -233,32 +276,40 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
       },
     ),
     // Partner con errori consegna in allarme (>=3 ultimi 30gg) — urgent.
-    // Query SQL inline: group by partner, count >= 3.
+    // La tabella non ha brand_id (join via partner_restaurants.id): quando il
+    // filtro brand è attivo rinunciamo a questo task (è Lenny-only in F1 ed è
+    // un best-effort, non vale una JOIN in più sulla Home).
     safe(
-      admin
-        .from("partner_delivery_errors")
-        .select("partner_id")
-        .eq("organization_id", organizationId)
-        .gte("occurred_at", thirtyDaysAgo),
+      brandId
+        ? Promise.resolve({ data: [] as { partner_id: string }[], error: null })
+        : admin
+            .from("partner_delivery_errors")
+            .select("partner_id")
+            .eq("organization_id", organizationId)
+            .gte("occurred_at", thirtyDaysAgo),
       { data: [] as { partner_id: string }[] },
     ),
     // Material requests aperti (opportunity)
     safe(
-      admin
-        .from("content_material_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", organizationId)
-        .eq("status", "open"),
+      withBrand(
+        admin
+          .from("content_material_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", organizationId)
+          .eq("status", "open"),
+      ),
       { count: 0 },
     ),
     // Ristoranti in fase di lancio (opportunity: sorveglianza 30gg)
     safe(
-      admin
-        .from("partner_restaurants")
-        .select("id, launched_at")
-        .eq("organization_id", organizationId)
-        .is("archived_at", null)
-        .not("launched_at", "is", null),
+      withBrand(
+        admin
+          .from("partner_restaurants")
+          .select("id, launched_at")
+          .eq("organization_id", organizationId)
+          .is("archived_at", null)
+          .not("launched_at", "is", null),
+      ),
       { data: [] as { id: string; launched_at: string }[] },
     ),
   ]);
@@ -338,7 +389,7 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
     });
   }
 
-  // Ristoranti cooling: usiamo la lista completa (data) e costruiamo items[]
+  // Ristoranti da risentire: usiamo la lista completa (data) e costruiamo items[]
   // per rendere il task azionabile senza passare dalla pagina ristoranti.
   type CoolingRow = {
     id: string;
@@ -394,9 +445,9 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
       id: "cooling-partners",
       priority: "urgent",
       iconName: "PhoneOutgoing",
-      label: `${coolingCount} ristorant${coolingCount === 1 ? "e" : "i"} in cooling da contattare${coolingSuffix}`,
+      label: `${coolingCount} ristorant${coolingCount === 1 ? "e" : "i"} da risentire da contattare${coolingSuffix}`,
       instructions:
-        "Sono partner in raffreddamento non contattati da 7+ giorni. Chiamali uno a uno: " +
+        "Sono partner da risentire non contattati da 7+ giorni. Chiamali uno a uno: " +
         "quando parli con il referente usa 'Marca come contattato' per loggare la chiamata e " +
         "aggiornare l'ultimo contatto. Perdere un ristorante costa piu' di una promozione (RF-7.4).",
       count: coolingCount,
@@ -416,7 +467,8 @@ export async function buildDashboardTasks(organizationId: string): Promise<Dashb
     if (oldestIso) {
       const days = Math.floor((Date.now() - new Date(oldestIso).getTime()) / (24 * 3600 * 1000));
       if (days >= 1) {
-        suffix = days === 1 ? " (la piu' vecchia da 1 giorno)" : ` (la piu' vecchia da ${days} giorni)`;
+        suffix =
+          days === 1 ? " (la piu' vecchia da 1 giorno)" : ` (la piu' vecchia da ${days} giorni)`;
       }
     }
     important.push({

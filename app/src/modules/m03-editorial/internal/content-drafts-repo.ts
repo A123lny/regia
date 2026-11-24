@@ -436,6 +436,7 @@ export async function listContentDraftsByStatus(
   organizationId: string,
   status: ContentDraftStatus,
   limit: number = 100,
+  brandId?: string,
 ): Promise<
   Array<
     ContentDraft & {
@@ -447,14 +448,14 @@ export async function listContentDraftsByStatus(
 > {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  const { data, error } = await admin
+  let q = admin
     .from("content_drafts")
     .select(`${SELECT_COLS}, brands!inner(slug, display_name, color, is_archived)`)
     .eq("organization_id", organizationId)
     .eq("status", status)
-    .eq("brands.is_archived", false)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+    .eq("brands.is_archived", false);
+  if (brandId) q = q.eq("brand_id", brandId);
+  const { data, error } = await q.order("created_at", { ascending: false }).limit(limit);
   if (error) throw new Error(`Errore lettura drafts per stato: ${error.message}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((data ?? []) as any[]).map((row) => ({

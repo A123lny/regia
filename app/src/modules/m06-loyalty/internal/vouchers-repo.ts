@@ -44,6 +44,9 @@ export type ListVouchersInput = {
   contactId?: string;
   status?: VoucherStatus;
   offerId?: string;
+  // Filtra per marchio: include voucher la cui offerta ha issuer O spendable
+  // uguale al brand (il marchio "tocca" il voucher in uno dei due ruoli).
+  brandId?: string;
   query?: string; // ricerca codice
   limit?: number;
   offset?: number;
@@ -54,6 +57,24 @@ export async function listVouchers(
 ): Promise<{ items: VoucherRow[]; totalCount: number }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
+
+  // Se filtro brand attivo: pre-risolvo gli offer_id validi via voucher_offers
+  // (tabella con issuer/spendable brand). Due step perché PostgREST non filtra
+  // in modo affidabile sulla tabella joined annidata con .or().
+  let offerIdsForBrand: string[] | null = null;
+  if (input.brandId) {
+    const offersRes = await admin
+      .from("voucher_offers")
+      .select("id")
+      .eq("organization_id", input.organizationId)
+      .or(`issuer_brand_id.eq.${input.brandId},spendable_brand_id.eq.${input.brandId}`);
+    if (offersRes.error) throw new Error(`Errore filtro brand voucher: ${offersRes.error.message}`);
+    offerIdsForBrand = ((offersRes.data ?? []) as Array<{ id: string }>).map((r) => r.id);
+    if (offerIdsForBrand.length === 0) {
+      return { items: [], totalCount: 0 };
+    }
+  }
+
   let q = admin
     .from("vouchers")
     .select(
@@ -65,6 +86,7 @@ export async function listVouchers(
   if (input.contactId) q = q.eq("contact_id", input.contactId);
   if (input.status) q = q.eq("status", input.status);
   if (input.offerId) q = q.eq("offer_id", input.offerId);
+  if (offerIdsForBrand) q = q.in("offer_id", offerIdsForBrand);
   if (input.query && input.query.trim().length > 0) {
     q = q.ilike("code", `%${input.query.trim()}%`);
   }
@@ -234,7 +256,10 @@ export async function cancelVoucher(
 /**
  * Statistiche riepilogo per pagina.
  */
-export async function getVoucherStats(organizationId: string): Promise<{
+export async function getVoucherStats(
+  organizationId: string,
+  brandId?: string,
+): Promise<{
   activeIssued: number;
   redeemedTotal: number;
   expiringNext7d: number;
@@ -243,25 +268,48 @@ export async function getVoucherStats(organizationId: string): Promise<{
   const admin = getAdminClient() as any;
   const now = new Date().toISOString();
   const in7 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Filtro brand: pre-risolvo gli offer_id validi (issuer o spendable = brand).
+  let offerIdsForBrand: string[] | null = null;
+  if (brandId) {
+    const offersRes = await admin
+      .from("voucher_offers")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .or(`issuer_brand_id.eq.${brandId},spendable_brand_id.eq.${brandId}`);
+    offerIdsForBrand = ((offersRes.data ?? []) as Array<{ id: string }>).map((r) => r.id);
+    if (offerIdsForBrand.length === 0) {
+      return { activeIssued: 0, redeemedTotal: 0, expiringNext7d: 0 };
+    }
+  }
+  const withBrand = <T extends { in: (col: string, vals: string[]) => T }>(q: T): T =>
+    offerIdsForBrand ? q.in("offer_id", offerIdsForBrand) : q;
+
   const [aRes, rRes, eRes] = await Promise.all([
-    admin
-      .from("vouchers")
-      .select("*", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .eq("status", "issued")
-      .gt("expires_at", now),
-    admin
-      .from("vouchers")
-      .select("*", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .eq("status", "redeemed"),
-    admin
-      .from("vouchers")
-      .select("*", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .eq("status", "issued")
-      .gt("expires_at", now)
-      .lt("expires_at", in7),
+    withBrand(
+      admin
+        .from("vouchers")
+        .select("*", { count: "exact", head: true })
+        .eq("organization_id", organizationId)
+        .eq("status", "issued")
+        .gt("expires_at", now),
+    ),
+    withBrand(
+      admin
+        .from("vouchers")
+        .select("*", { count: "exact", head: true })
+        .eq("organization_id", organizationId)
+        .eq("status", "redeemed"),
+    ),
+    withBrand(
+      admin
+        .from("vouchers")
+        .select("*", { count: "exact", head: true })
+        .eq("organization_id", organizationId)
+        .eq("status", "issued")
+        .gt("expires_at", now)
+        .lt("expires_at", in7),
+    ),
   ]);
   if (aRes.error) throw new Error(`Errore stats voucher: ${aRes.error.message}`);
   if (rRes.error) throw new Error(`Errore stats redeemed: ${rRes.error.message}`);
