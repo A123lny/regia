@@ -27,9 +27,12 @@ export {
 export {
   startCreatomateRender,
   getCreatomateRenderStatus,
-  applySucceededRender,
 } from "./internal/render-actions";
 export type { StartRenderResult, RenderStatusResult } from "./internal/render-actions";
+
+// Non è una server action: funzione server-only chiamata dal webhook handler
+// e dal polling. Deriva ownership + outputUrl dal DB/API, non da input.
+export { applySucceededRenderByExternalId } from "./internal/apply-succeeded";
 
 export { prefillModifications, splitDraftText } from "./internal/prefill";
 
