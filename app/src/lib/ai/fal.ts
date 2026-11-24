@@ -28,8 +28,13 @@ export class FalError extends Error {
 }
 
 export class FalConfigError extends FalError {
-  constructor(message = "Chiave fal.ai non impostata. Contatta l'amministratore.") {
-    super(message, false, 0);
+  constructor(
+    message = "Chiave fal.ai non impostata. Contatta l'amministratore.",
+    accumulatedCostUsd = 0,
+  ) {
+    // La chiave rotta per il tentativo corrente non addebita, ma i retry
+    // 5xx precedenti sì — propaga l'accumulato.
+    super(message, accumulatedCostUsd > 0, accumulatedCostUsd);
     this.name = "FalConfigError";
   }
 }
@@ -208,32 +213,42 @@ export async function generateImages(input: GenerateImagesInput): Promise<Genera
         latencyMs: Date.now() - start,
       };
     } catch (err) {
-      if (err instanceof FalTimeoutError || err instanceof FalContentRejectedError) {
-        // Fal-own errors (già enriched con accumulated) bypassano il loop.
-        throw err;
-      }
+      // Qualsiasi errore della nostra libreria (già enriched con accumulated
+      // e possiblyCharged corretto) bypassa il loop senza ricontare.
+      // Importante: cattura anche il FalApiError(502) throwato quando images
+      // è vuota, altrimenti il catch lo riprocesserebbe perdendo totalCharged.
+      if (err instanceof FalError) throw err;
       lastErr = err;
       const { status, message } = describeError(err);
       const retryable = isRetryableStatus(status);
       // 5xx = request accettata e processata ma errore server-side: addebitato.
+      // status 0 = errore di rete / unclassified: conservativo, trattato come
+      // potenzialmente addebitato (fal potrebbe aver ricevuto la request).
       // 429 (rate limit) = pre-accettazione: NON addebitato per quel tentativo.
-      if (retryable && status >= 500) {
+      const chargedThisAttempt = status >= 500 || status === 0;
+      if (chargedThisAttempt) {
         accumulatedChargedCost += perCallEstimate;
       }
       if (retryable && attempt < MAX_ATTEMPTS) {
         await wait(BASE_DELAY_MS * Math.pow(2, attempt - 1));
         continue;
       }
-      // 401/403: chiave mancante o revocata (pre-accettazione, 0 cost).
+      // Da qui in poi, nessun retry: emettere errore terminale che preserva
+      // accumulatedChargedCost accumulato dai tentativi precedenti addebitabili.
       if (status === 401 || status === 403) {
-        throw new FalConfigError("Chiave fal.ai non valida o revocata.");
+        throw new FalConfigError(
+          "Chiave fal.ai non valida o revocata.",
+          accumulatedChargedCost,
+        );
       }
-      // 400/422 = prompt rifiutato in validation (pre-accettazione, 0 cost).
       if (status === 400 || status === 422) {
-        throw new FalContentRejectedError(false, accumulatedChargedCost);
+        // Prompt rifiutato in validation: pre-accettazione per questo tentativo,
+        // ma i retry precedenti possono aver addebitato (possiblyCharged auto).
+        throw new FalContentRejectedError(
+          accumulatedChargedCost > 0,
+          accumulatedChargedCost,
+        );
       }
-      // 429 dopo esaurimento retry: il tentativo corrente non ha addebitato,
-      // ma i retry 5xx precedenti sì.
       if (status === 429) {
         throw new FalRateLimitError(accumulatedChargedCost);
       }
