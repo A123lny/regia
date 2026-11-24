@@ -14,9 +14,16 @@ import {
 import type { ReminderKind, ReminderStatus } from "@/modules/m09-reminders/public";
 import { listBrands } from "@/modules/m02-brand/public";
 import { HelpButton } from "@/components/help/help-button";
+import { getBrandFilter } from "@/lib/ui/brand-filter";
 import { RemindersClient } from "./reminders-client";
 
-type SearchParams = { brand?: string; kind?: string; status?: string; showAll?: string };
+type SearchParams = {
+  brand?: string;
+  marchio?: string;
+  kind?: string;
+  status?: string;
+  showAll?: string;
+};
 
 function isKind(s: string | undefined): s is ReminderKind {
   return (
@@ -43,7 +50,10 @@ export default async function PromemoriaPage({
   if (!hasCapability(session.role, "reminders.read")) notFound();
 
   const params = await searchParams;
-  const brandFilter = params.brand ?? "";
+  // Filtro marchio: query locale `brand` ha precedenza, poi `marchio` globale,
+  // poi il cookie regia_brand.
+  const globalBrand = await getBrandFilter(params);
+  const brandFilter = params.brand ?? globalBrand ?? "";
   const kindFilter = isKind(params.kind) ? params.kind : undefined;
   const statusFilter: ReminderStatus = isStatus(params.status) ? params.status : "pending";
   // Finestra "da fare": per i pending mostriamo solo scheduled nella finestra
