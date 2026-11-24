@@ -13,6 +13,7 @@ export async function generateMetadata({
   return { title: `Marchio ${pretty}` };
 }
 import { ArrowLeft, Trash2, ChevronUp, ChevronDown, ImagePlus } from "lucide-react";
+import { CreatomateTemplatesSection } from "./creatomate-templates-section";
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";
 import { BrandChip } from "@/components/brand/brand-chip";
@@ -39,6 +40,8 @@ import {
 } from "@/components/ui/table";
 import {
   getBrandBySlug,
+  // Import diretto: presente altrove in questa pagina ma abbiamo anche
+  // il lazy per listBrandTemplates perché il modulo m15 è nuovo.
   getBrandKitWithLists,
   formatBrandContextForAI,
   updateBrandKitTone,
@@ -88,6 +91,14 @@ export default async function BrandKitPage({
 
   const bundle = await getBrandKitWithLists(brandId);
   const aiContext = await formatBrandContextForAI(brandId);
+  const creatomateTemplates = await (async () => {
+    try {
+      const { listBrandTemplates } = await import("@/modules/m15-creatomate/public");
+      return await listBrandTemplates(session.organizationId, brandId, false);
+    } catch {
+      return [];
+    }
+  })();
 
   const kit = bundle?.kit;
   const pillars = bundle?.pillars ?? [];
@@ -525,6 +536,12 @@ export default async function BrandKitPage({
           </pre>
         </CardContent>
       </Card>
+
+      <CreatomateTemplatesSection
+        brandId={brandId}
+        brandSlug={brandSlug}
+        templates={creatomateTemplates}
+      />
     </div>
   );
 }

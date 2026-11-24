@@ -11,6 +11,8 @@ export {
   listMediaAssetsByBrand,
   searchMediaAssetsByBrand,
   getMediaAssetById,
+  insertMediaAsset,
+  setDraftMediaAsset,
 } from "./internal/media-assets-repo";
 
 export {

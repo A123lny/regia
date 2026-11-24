@@ -101,6 +101,10 @@ export default async function ImpostazioniPage() {
   const voyage = maskApiKey(process.env["VOYAGE_API_KEY"]);
   const gemini = maskApiKey(process.env["GEMINI_API_KEY"]);
   const falKey = maskApiKey(process.env["FAL_KEY"]);
+  const creatomateKey = maskApiKey(process.env["CREATOMATE_API_KEY"]);
+
+  // Commit sha (Vercel ne espone la versione completa; la tagliamo a 7 char).
+  const commitSha = (process.env["VERCEL_GIT_COMMIT_SHA"] ?? "").slice(0, 7) || "dev";
 
   return (
     <div className="space-y-8">
@@ -373,13 +377,41 @@ export default async function ImpostazioniPage() {
               </span>
             </div>
 
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                Creatomate (video e immagini da template)
+              </span>
+              {creatomateKey.present ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-success">chiave presente</span>
+                  <code className="rounded bg-surface-muted px-2 py-1 text-xs text-text">
+                    {creatomateKey.masked}
+                  </code>
+                </div>
+              ) : (
+                <span className="text-sm text-danger">chiave non impostata</span>
+              )}
+              <span className="text-[11px] text-text-muted/80">
+                Oltre alla chiave serve un provider attivo con slug <code>creatomate</code> in{" "}
+                <Link href="/impostazioni/provider-media" className="underline hover:no-underline">
+                  Provider media
+                </Link>
+                . I template specifici per marchio si registrano in Marchio → sezione Creatomate.
+              </span>
+            </div>
+
             <p className="border-t border-border pt-3 text-xs text-text-muted">
-              Le chiavi sono configurate come variabili d&apos;ambiente del deploy. L&apos;UI di
-              edit + test connessione &egrave; prevista in F1.6.
+              Le chiavi sono configurate come variabili d&apos;ambiente del deploy.
             </p>
           </CardContent>
         </Card>
       )}
+
+      {/* Versione/commit in produzione — utile per capire se un fix è attivo */}
+      <div className="border-t border-border pt-4 text-xs text-text-muted">
+        Versione:{" "}
+        <code className="rounded bg-surface-muted px-1.5 py-0.5 text-[11px]">{commitSha}</code>
+      </div>
 
       {/* Logout */}
       <div className="pt-2">

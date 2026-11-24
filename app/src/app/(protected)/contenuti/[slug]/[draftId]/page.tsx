@@ -21,6 +21,7 @@ import {
   listTemplatesForBrand,
 } from "@/modules/m04-media/public";
 import { getBrandBySlug } from "@/modules/m02-brand/public";
+import { listBrandTemplates } from "@/modules/m15-creatomate/public";
 import { ScheduleDraftForm } from "./schedule-form";
 import { MaterialRequestForm } from "./material-request-form";
 import { DraftMediaPicker } from "./media-picker";
@@ -84,6 +85,9 @@ export default async function DraftDetailPage({
     ? await listMediaAssetsByBrand(session.organizationId, brand.id, 200)
     : [];
   const availableTemplates = listTemplatesForBrand(slug);
+  const creatomateTemplates = brand
+    ? await listBrandTemplates(session.organizationId, brand.id, true)
+    : [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -146,12 +150,15 @@ export default async function DraftDetailPage({
         <DraftMediaPicker
           draftId={draft.id}
           brandSlug={slug}
+          brandId={brand?.id ?? ""}
           currentAsset={currentAsset}
           availableAssets={availableAssets}
           availableTemplates={availableTemplates}
+          creatomateTemplates={creatomateTemplates}
           draftContext={{
             topicLabel: draft.topicLabel,
             generatedText: draft.generatedText,
+            themeInput: draft.themeInput,
           }}
         />
       )}

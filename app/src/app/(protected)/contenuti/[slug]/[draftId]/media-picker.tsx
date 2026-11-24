@@ -16,6 +16,7 @@ import {
   Download,
   Wand2,
   Wand,
+  Clapperboard,
 } from "lucide-react";
 import type { MediaAsset, TemplateDefinition } from "@/modules/m04-media/public";
 import {
@@ -25,31 +26,38 @@ import {
   suggestTemplateForDraft,
   autofillTemplateFields,
 } from "@/modules/m04-media/public";
+import type { BrandCreatomateTemplate } from "@/modules/m15-creatomate/public";
 import { AiGeneratePanel } from "./ai-generate-panel";
+import { CreatomatePanel } from "./creatomate-panel";
 
 type DraftContext = {
   topicLabel: string | null;
   generatedText: string;
+  themeInput?: string;
 };
 
 type Props = {
   draftId: string;
   brandSlug: string;
+  brandId: string;
   currentAsset: MediaAsset | null;
   availableAssets: MediaAsset[];
   availableTemplates: TemplateDefinition[];
+  creatomateTemplates: BrandCreatomateTemplate[];
   /** draft context per suggest + autofill template (opzionale per retro-compat). */
   draftContext?: DraftContext;
 };
 
-type PickerMode = "library" | "template" | "ai";
+type PickerMode = "library" | "template" | "ai" | "creatomate";
 
 export function DraftMediaPicker({
   draftId,
   brandSlug,
+  brandId,
   currentAsset,
   availableAssets,
   availableTemplates,
+  creatomateTemplates,
   draftContext,
 }: Props) {
   const router = useRouter();
@@ -173,6 +181,14 @@ export function DraftMediaPicker({
               className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
             >
               <Wand className="h-3.5 w-3.5" /> Genera con AI
+            </button>
+            <button
+              type="button"
+              onClick={() => setPickerOpen("creatomate")}
+              disabled={busy}
+              className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
+            >
+              <Clapperboard className="h-3.5 w-3.5" /> Crea visual
             </button>
           </div>
         )}
@@ -499,6 +515,21 @@ export function DraftMediaPicker({
       {pickerOpen === "ai" && !currentAsset && (
         <div className="mt-3">
           <AiGeneratePanel draftId={draftId} onClose={() => setPickerOpen(null)} />
+        </div>
+      )}
+
+      {pickerOpen === "creatomate" && !currentAsset && (
+        <div className="mt-3">
+          <CreatomatePanel
+            brandId={brandId}
+            draftId={draftId}
+            templates={creatomateTemplates}
+            draftContext={{
+              themeInput: draftContext?.themeInput ?? "",
+              generatedText: draftContext?.generatedText ?? "",
+            }}
+            onClose={() => setPickerOpen(null)}
+          />
         </div>
       )}
     </div>

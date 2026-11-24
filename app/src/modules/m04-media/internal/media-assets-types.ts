@@ -1,6 +1,12 @@
 // M04 — Types media asset (RF-4.1).
 
-export type MediaAssetContentType = "image/png" | "image/jpeg" | "image/webp" | "image/svg+xml";
+export type MediaAssetContentType =
+  | "image/png"
+  | "image/jpeg"
+  | "image/webp"
+  | "image/svg+xml"
+  | "video/mp4"
+  | "video/webm";
 
 export type MediaAsset = {
   id: string;

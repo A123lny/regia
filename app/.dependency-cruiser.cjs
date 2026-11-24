@@ -68,6 +68,7 @@ module.exports = {
           "^src/modules/m12-daily-use/internal/",
           "^src/modules/m13-governance/internal/",
           "^src/modules/m14-robot-assistant/internal/",
+          "^src/modules/m15-creatomate/internal/",
         ],
       },
     },
