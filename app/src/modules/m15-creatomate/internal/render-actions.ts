@@ -82,14 +82,24 @@ const MAX_MOD_VALUE_LEN = 2000;
 //  - domini fal.ai e Creatomate (asset generati nella stessa pipeline)
 // Senza allowlist un utente malintenzionato può usare source=http://internal
 // come SSRF attraverso Creatomate (Creatomate fetcha per noi).
-function isAllowedSourceUrl(raw: string): boolean {
+/**
+ * Valida un URL come safe per source/src media. Ritorna la stringa normalizzata
+ * (u.href senza userinfo/porte non default) se è nell'allowlist, altrimenti null.
+ * Reject: non-https, backslash, userinfo (user:pass@), porte custom, control chars.
+ */
+function sanitizeSourceUrl(raw: string): string | null {
+  // Rifiuta control characters e backslash (parser differential JS vs upstream).
+  // Allow tab/CR/LF solo per confirmed text fields; qui su URL li blocchiamo tutti.
+  if (/[\x00-\x1f\x7f\\]/.test(raw)) return null;
   let u: URL;
   try {
     u = new URL(raw);
   } catch {
-    return false;
+    return null;
   }
-  if (u.protocol !== "https:") return false;
+  if (u.protocol !== "https:") return null;
+  if (u.username || u.password) return null; // no userinfo
+  if (u.port && u.port !== "443") return null; // no custom port
   const h = u.hostname;
   const supaUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"] ?? "";
   let supaHost = "";
@@ -98,7 +108,6 @@ function isAllowedSourceUrl(raw: string): boolean {
   } catch {
     supaHost = "";
   }
-  if (supaHost && h === supaHost) return true;
   const allowed = [
     "cdn.creatomate.com",
     "creatomate-static.s3.amazonaws.com",
@@ -107,7 +116,14 @@ function isAllowedSourceUrl(raw: string): boolean {
     "v3.fal.media",
     "v2.fal.media",
   ];
-  return allowed.some((d) => h === d || h.endsWith("." + d));
+  const ok =
+    (supaHost && h === supaHost) || allowed.some((d) => h === d || h.endsWith("." + d));
+  if (!ok) return null;
+  return u.href;
+}
+
+function isAllowedSourceUrl(raw: string): boolean {
+  return sanitizeSourceUrl(raw) !== null;
 }
 
 function sanitizeModifications(raw: Record<string, unknown>): Record<string, string> {

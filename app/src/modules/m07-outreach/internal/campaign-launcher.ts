@@ -53,20 +53,37 @@ async function loadSegmentCriteria(
   };
 }
 
+/**
+ * Carica una bozza SOLO se ancora valida per l'uso in campagna:
+ * - stessa organization (tenant scope)
+ * - stesso brand della campagna (anti-mismatch, campaigns.brand_id != draft.brand_id)
+ * - status in approved|scheduled|published (non draft|rejected): "gate at the sink",
+ *   non solo al link time. Previene: Owner collega draft approvato, Editor rifiuta
+ *   la bozza, launch procede comunque.
+ * Ritorna null su qualsiasi condizione non valida → launcher risponde
+ * "Campagna senza draft (bozza non più approvata)" con errore chiaro.
+ */
 async function loadContentDraft(
   draftId: string,
   organizationId: string,
+  expectedBrandId?: string,
 ): Promise<{ subject: string; body: string } | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
   const { data } = await admin
     .from("content_drafts")
-    .select("theme_input, generated_text")
+    .select("theme_input, generated_text, status, brand_id")
     .eq("id", draftId)
     .eq("organization_id", organizationId)
     .maybeSingle();
   if (!data) return null;
-  // Convention per F1: theme_input diventa oggetto email, generated_text il body.
+  const status = (data.status as string) ?? "";
+  if (status !== "approved" && status !== "scheduled" && status !== "published") {
+    return null;
+  }
+  if (expectedBrandId && (data.brand_id as string) !== expectedBrandId) {
+    return null;
+  }
   const theme = (data.theme_input as string | null) ?? "";
   const text = (data.generated_text as string | null) ?? "";
   return {
@@ -135,8 +152,18 @@ export async function previewCampaignRecipients(
   // altrimenti usa message_text come body con subject fallback dal nome.
   let draft: { subject: string; body: string };
   if (campaign.contentDraftId) {
-    const loaded = await loadContentDraft(campaign.contentDraftId, organizationId);
-    if (!loaded) return { ok: false, error: "Draft contenuto non trovato" };
+    const loaded = await loadContentDraft(
+      campaign.contentDraftId,
+      organizationId,
+      campaign.brandId,
+    );
+    if (!loaded) {
+      return {
+        ok: false,
+        error:
+          "Bozza collegata non più valida (rifiutata, archiviata o appartenente a un altro marchio). Collega una bozza approvata.",
+      };
+    }
     draft = loaded;
   } else {
     draft = {
@@ -211,8 +238,18 @@ export async function sendCampaignTest(
     return { ok: false, error: `Canale ${campaign.channel} non supportato` };
   }
 
-  const draft = await loadContentDraft(campaign.contentDraftId, input.organizationId);
-  if (!draft) return { ok: false, error: "Draft contenuto non trovato" };
+  const draft = await loadContentDraft(
+    campaign.contentDraftId,
+    input.organizationId,
+    campaign.brandId,
+  );
+  if (!draft) {
+    return {
+      ok: false,
+      error:
+        "Bozza collegata non più valida (rifiutata, archiviata o appartenente a un altro marchio).",
+    };
+  }
 
   const identity = await loadBrandEmailIdentity(input.organizationId, campaign.brandId);
   if (!identity.fromEmail) {
@@ -290,8 +327,18 @@ export async function launchCampaign(
   const segment = await loadSegmentCriteria(campaign.segmentId, input.organizationId);
   if (!segment) return { ok: false, error: "Segmento non trovato" };
 
-  const draft = await loadContentDraft(campaign.contentDraftId, input.organizationId);
-  if (!draft) return { ok: false, error: "Draft non trovato" };
+  const draft = await loadContentDraft(
+    campaign.contentDraftId,
+    input.organizationId,
+    campaign.brandId,
+  );
+  if (!draft) {
+    return {
+      ok: false,
+      error:
+        "Bozza collegata non più valida (rifiutata, archiviata o appartenente a un altro marchio).",
+    };
+  }
 
   const identity = await loadBrandEmailIdentity(input.organizationId, campaign.brandId);
   if (!identity.fromEmail) {

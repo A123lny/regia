@@ -1,35 +1,47 @@
-// GET /api/creatomate/templates — elenco template del progetto Creatomate.
-// Richiede sessione. Risposta: { ok:true, items: [{id, name}] } | errore.
-// Nota: piccola cache in-process 60s per non martellare l'API.
+// GET /api/creatomate/templates — elenco template registrati per il brand.
+// Gated su capability "brand.kit.edit" (Owner/Editor): la lista è usata solo
+// dalla sezione "Template Creatomate" del marchio per l'admin.
+//
+// La route NON ritorna i template-grezzi del progetto Creatomate (shared
+// multi-tenant via API key unica = cross-tenant info disclosure); ritorna
+// soltanto le mappature brand_creatomate_templates della propria org, che
+// sono già bound al tenant. Chi configura un nuovo template conosce
+// l'ID copiandolo dal dashboard Creatomate e lo digita a mano.
+//
+// Cache per-org: l'endpoint è chiamato di rado (sezione admin) quindi
+// torniamo a hit DB diretto senza cache in-memory.
 
 import { NextResponse } from "next/server";
 import { getSessionOrRedirect } from "@/lib/auth/session";
-import { listTemplates } from "@/lib/creatomate/client";
-import { CreatomateError } from "@/lib/creatomate/client";
+import { requireCapability } from "@/lib/auth/permissions";
+import { listBrandTemplates } from "@/modules/m15-creatomate/public";
 
-type CachedTemplates = { at: number; items: Array<{ id: string; name: string }> };
-let cache: CachedTemplates | null = null;
-const CACHE_MS = 60_000;
-
-export async function GET() {
-  await getSessionOrRedirect();
-  const now = Date.now();
-  if (cache && now - cache.at < CACHE_MS) {
-    return NextResponse.json({ ok: true, items: cache.items, cached: true });
+export async function GET(req: Request) {
+  const session = await getSessionOrRedirect();
+  try {
+    requireCapability(session, "brand.kit.edit");
+  } catch (err) {
+    return NextResponse.json(
+      { ok: false, error: err instanceof Error ? err.message : "Non autorizzato." },
+      { status: 403 },
+    );
+  }
+  const url = new URL(req.url);
+  const brandId = url.searchParams.get("brandId") ?? "";
+  if (!brandId) {
+    return NextResponse.json({ ok: false, error: "brandId mancante" }, { status: 400 });
   }
   try {
-    const items = await listTemplates();
-    const slim = items.map((t) => ({
-      id: t.id,
-      name: t.name || t.id,
-      ...(t.width ? { width: t.width } : {}),
-      ...(t.height ? { height: t.height } : {}),
-      ...(t.duration ? { duration: t.duration } : {}),
-    }));
-    cache = { at: now, items: slim };
-    return NextResponse.json({ ok: true, items: slim });
+    const rows = await listBrandTemplates(session.organizationId, brandId, true);
+    const items = rows.map((r) => ({ id: r.templateId, name: r.label }));
+    return NextResponse.json({ ok: true, items });
   } catch (err) {
-    const msg = err instanceof CreatomateError ? err.message : "Errore nel caricare i template.";
-    return NextResponse.json({ ok: false, error: msg }, { status: 400 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: err instanceof Error ? err.message : "Errore nel caricare i template.",
+      },
+      { status: 400 },
+    );
   }
 }
