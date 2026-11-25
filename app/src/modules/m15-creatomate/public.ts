@@ -1,5 +1,11 @@
-// M15 Creatomate — interfaccia pubblica (RS-1).
-// Ogni altro modulo importa SOLO da qui, mai da ./internal/.
+// M15 Creatomate — barrel CLIENT-SAFE (RS-1 split).
+// I client components importano SOLO da qui. Funzioni server-only
+// (es. applySucceededRenderByExternalId con "server-only") stanno in ./server.ts.
+//
+// IMPORTANTE: NON re-esportare da qui file che contengono `import "server-only"`
+// (vale anche per cascata transitiva). Altrimenti il build Next fallisce con:
+//   "'server-only' cannot be imported from a Client Component module"
+// quando un client component importa qualunque simbolo di questo barrel.
 
 export {
   listRecentRendersByBrand,
@@ -27,9 +33,8 @@ export {
 export { startCreatomateRender, getCreatomateRenderStatus } from "./internal/render-actions";
 export type { StartRenderResult, RenderStatusResult } from "./internal/render-actions";
 
-// Non è una server action: funzione server-only chiamata dal webhook handler
-// e dal polling. Deriva ownership + outputUrl dal DB/API, non da input.
-export { applySucceededRenderByExternalId } from "./internal/apply-succeeded";
+// applySucceededRenderByExternalId è server-only (import "server-only").
+// Vive in ./server.ts per non spezzare il bundle client.
 
 export { prefillModifications, splitDraftText } from "./internal/prefill";
 
@@ -37,7 +42,6 @@ export {
   CREATOMATE_PROVIDER_SLUG,
   CREATOMATE_USD_PER_CREDIT,
   CREATOMATE_PRESETS,
+  isCreatomateKeyPresent,
 } from "@/lib/creatomate/config";
 export type { CreatomateRenderQuality } from "@/lib/creatomate/config";
-
-export { isCreatomateKeyPresent } from "@/lib/creatomate/client";

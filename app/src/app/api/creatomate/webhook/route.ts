@@ -6,11 +6,8 @@
 
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit/log";
-import {
-  getRenderByExternalId,
-  updateRenderStatus,
-  applySucceededRenderByExternalId,
-} from "@/modules/m15-creatomate/public";
+import { getRenderByExternalId, updateRenderStatus } from "@/modules/m15-creatomate/public";
+import { applySucceededRenderByExternalId } from "@/modules/m15-creatomate/server";
 
 export async function POST(req: Request) {
   const url = new URL(req.url);

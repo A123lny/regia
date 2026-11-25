@@ -107,10 +107,10 @@ function getKey(): string {
   return k.trim();
 }
 
-export function isCreatomateKeyPresent(): boolean {
-  const k = process.env[CREATOMATE_API_KEY_ENV];
-  return !!k && k.trim().length > 0;
-}
+// isCreatomateKeyPresent è stata spostata in ./config.ts (client-safe barrel):
+// doveva essere importabile da public.ts senza trascinare "server-only"
+// di questo file nel bundle client.
+// Vedi public.ts del modulo m15-creatomate.
 
 const MAX_ATTEMPTS = 3;
 const BASE_DELAY_MS = 600;

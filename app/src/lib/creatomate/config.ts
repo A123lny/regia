@@ -33,3 +33,14 @@ export const CREATOMATE_PRESETS: Record<CreatomateRenderQuality, CreatomateRende
 // Slug del provider in media_providers che deve essere attivo con uso
 // commerciale per permettere la generazione Creatomate (parità con fal).
 export const CREATOMATE_PROVIDER_SLUG = "creatomate";
+
+// Check se la chiave è presente nell'environment. Vive qui (non in client.ts)
+// perché deve essere importabile dal barrel public.ts senza trascinare
+// `import "server-only"` di client.ts nel bundle client. A runtime server,
+// process.env["CREATOMATE_API_KEY"] è letta normalmente; nel bundle client
+// non è esposta (nessun NEXT_PUBLIC_ prefix) quindi ritornerebbe false,
+// ma la funzione non è chiamata da client components.
+export function isCreatomateKeyPresent(): boolean {
+  const k = process.env["CREATOMATE_API_KEY"];
+  return !!k && k.trim().length > 0;
+}
