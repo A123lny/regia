@@ -21,6 +21,7 @@ import {
   CreatomateRateLimitError,
   CreatomateTemplateNotFoundError,
   CreatomateValidationError,
+  isCreatomateKeyPresent,
 } from "@/lib/creatomate/client";
 import {
   CREATOMATE_PRESETS,
@@ -82,6 +83,40 @@ const ALLOWED_MOD_SUFFIXES = new Set<string>([
 const MAX_MOD_KEYS = 40;
 const MAX_MOD_VALUE_LEN = 2000;
 
+// Host allowlist per i campi `source`/`src` (media URL passati a Creatomate).
+// Due famiglie:
+//  - storage Supabase di questo progetto (dove salviamo gli asset brand)
+//  - domini fal.ai e Creatomate (asset generati nella stessa pipeline)
+// Senza allowlist un utente malintenzionato può usare source=http://internal
+// come SSRF attraverso Creatomate (Creatomate fetcha per noi).
+function isAllowedSourceUrl(raw: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:") return false;
+  const h = u.hostname;
+  const supaUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"] ?? "";
+  let supaHost = "";
+  try {
+    supaHost = supaUrl ? new URL(supaUrl).hostname : "";
+  } catch {
+    supaHost = "";
+  }
+  if (supaHost && h === supaHost) return true;
+  const allowed = [
+    "cdn.creatomate.com",
+    "creatomate-static.s3.amazonaws.com",
+    "creatomate-static.s3.eu-west-1.amazonaws.com",
+    "fal.media",
+    "v3.fal.media",
+    "v2.fal.media",
+  ];
+  return allowed.some((d) => h === d || h.endsWith("." + d));
+}
+
 function sanitizeModifications(raw: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {};
   let n = 0;
@@ -94,9 +129,6 @@ function sanitizeModifications(raw: Record<string, unknown>): Record<string, str
     const parts = k.split(".");
     const last = (parts[parts.length - 1] ?? "").toLowerCase();
     if (BLOCKED_MOD_FINAL_KEYS.has(last)) continue;
-    // Chiavi semplici (es. "Title") sono ammesse.
-    // Chiavi puntate (es. "Button.text") sono ammesse SOLO se il suffisso è
-    // nella allowlist. Previene input tipo "Clip.width", "Timeline.duration".
     if (parts.length > 1 && !ALLOWED_MOD_SUFFIXES.has(last)) continue;
     if (v === null || v === undefined) continue;
     const val =
@@ -106,6 +138,11 @@ function sanitizeModifications(raw: Record<string, unknown>): Record<string, str
           ? String(v)
           : "";
     if (!val) continue;
+    // Se la chiave punta a un media (source/src) e il valore è un URL,
+    // deve essere su host allowlisted. Previene SSRF-through-Creatomate.
+    if (last === "source" || last === "src") {
+      if (val.includes("://") && !isAllowedSourceUrl(val)) continue;
+    }
     out[k] = val.slice(0, MAX_MOD_VALUE_LEN);
     n++;
   }
@@ -133,6 +170,13 @@ async function preflight(
   organizationId: string,
   estimatedCostUsd: number,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isCreatomateKeyPresent()) {
+    return {
+      ok: false,
+      error:
+        "Chiave Creatomate non impostata. Chiedi all'amministratore di configurare CREATOMATE_API_KEY (Impostazioni → /impostazioni).",
+    };
+  }
   try {
     await assertAiEnabled(organizationId);
   } catch (err) {
@@ -259,11 +303,13 @@ export async function startCreatomateRender(input: {
       err: err instanceof Error ? err.message : String(err),
     });
     // Sibling-path parity con fal: errori post-accettazione (timeout, 5xx)
-    // possono comunque aver addebitato crediti. Il wrapper client fa retry
-    // su 429/5xx, quindi in worst-case addebiti multipli non bloccanti dal
-    // nostro lato. Loggo lo stimato una volta per non lasciare buco nel cap.
+    // possono comunque aver addebitato crediti. CreatomateConfigError e
+    // CreatomateRateLimitError sono pre-accettazione (0 cost).
     const status = err instanceof CreatomateError ? err.status : 0;
-    const possiblyCharged = status === 0 || status >= 500 || status === 504;
+    const isConfigError = err instanceof CreatomateConfigError;
+    const isRateLimit = err instanceof CreatomateRateLimitError;
+    const possiblyCharged =
+      !isConfigError && !isRateLimit && (status === 0 || status >= 500 || status === 504);
     if (possiblyCharged) {
       try {
         await logSpend({

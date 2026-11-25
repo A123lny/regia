@@ -10,6 +10,7 @@ import { hasCapability } from "@/lib/auth/permissions";
 import { listPendingDraftsForSession } from "@/modules/m03-editorial/public";
 import { SessionWizardClient } from "./session-wizard-client";
 import { HelpButton } from "@/components/help/help-button";
+import { getBrandFilterId } from "@/lib/ui/brand-filter";
 
 export default async function SessionePage({
   searchParams,
@@ -21,10 +22,11 @@ export default async function SessionePage({
   if (!hasCapability(session.role, "content.approve")) notFound();
 
   const { planBatchId } = await searchParams;
-  const drafts = await listPendingDraftsForSession(
-    session.organizationId,
-    planBatchId ? { planBatchId } : undefined,
-  );
+  const brandIdFilter = (await getBrandFilterId(session.organizationId, null)) ?? undefined;
+  const filters: { planBatchId?: string; brandId?: string } = {};
+  if (planBatchId) filters.planBatchId = planBatchId;
+  if (brandIdFilter) filters.brandId = brandIdFilter;
+  const drafts = await listPendingDraftsForSession(session.organizationId, filters);
 
   return (
     <div className="space-y-6">

@@ -11,6 +11,7 @@ import { listBrands } from "@/modules/m02-brand/public";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { MonthGridClient } from "./month-grid-client";
 import { HelpButton } from "@/components/help/help-button";
+import { getBrandFilterId } from "@/lib/ui/brand-filter";
 
 function startOfDayLocal(d: Date): Date {
   const x = new Date(d);
@@ -57,11 +58,13 @@ export default async function CalendarioGlobalePage({
   const todayStart = toYmd(startOfDayLocal(new Date()));
   const isToday = toYmd(startDate) === todayStart;
 
+  const brandIdFilter = (await getBrandFilterId(session.organizationId, null)) ?? undefined;
   const [posts, brands] = await Promise.all([
     listScheduledByOrgBetween(
       session.organizationId,
       startDate.toISOString(),
       endDate.toISOString(),
+      brandIdFilter,
     ),
     listBrands(session.organizationId, "active"),
   ]);

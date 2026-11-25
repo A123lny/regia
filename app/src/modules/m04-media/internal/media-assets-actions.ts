@@ -360,17 +360,26 @@ export async function generateFromTemplate(input: {
   } catch (err) {
     // Rete di sicurezza: nessuna action deve lanciare un errore React
     // grezzo (#441 "Returning an unserializable value from a Server Function").
+    // I redirect di next/navigation lanciano un errore che Next intercetta:
+    // re-throw per non spezzare la navigazione.
+    if (err && typeof err === "object" && "digest" in err) {
+      const digest = (err as { digest?: string }).digest ?? "";
+      if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+        throw err;
+      }
+    }
     console.error("[media] generateFromTemplate failed", {
       draftId: input.draftId,
       templateId: input.templateId,
       err: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
     });
+    // Messaggio generico al client: l'err.message potrebbe contenere path
+    // del bucket, chiavi, nomi colonna DB (info disclosure).
     return {
       ok: false,
       error:
-        err instanceof Error
-          ? err.message
-          : "Errore sconosciuto nella generazione del template.",
+        "Errore interno nella generazione del template. Riprova; se persiste contatta il supporto.",
     };
   }
 }

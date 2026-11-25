@@ -474,6 +474,7 @@ export async function listScheduledByOrgBetween(
   organizationId: string,
   fromIsoInclusive: string,
   toIsoExclusive: string,
+  brandId?: string,
 ): Promise<
   Array<
     ContentDraft & {
@@ -485,15 +486,16 @@ export async function listScheduledByOrgBetween(
 > {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
-  const { data, error } = await admin
+  let q = admin
     .from("content_drafts")
     .select(`${SELECT_COLS}, brands!inner(slug, display_name, color, is_archived)`)
     .eq("organization_id", organizationId)
     .in("status", ["scheduled", "published"])
     .eq("brands.is_archived", false)
     .gte("scheduled_at", fromIsoInclusive)
-    .lt("scheduled_at", toIsoExclusive)
-    .order("scheduled_at", { ascending: true });
+    .lt("scheduled_at", toIsoExclusive);
+  if (brandId) q = q.eq("brand_id", brandId);
+  const { data, error } = await q.order("scheduled_at", { ascending: true });
   if (error) throw new Error(`Errore lettura calendario org: ${error.message}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((data ?? []) as any[]).map((row) => ({

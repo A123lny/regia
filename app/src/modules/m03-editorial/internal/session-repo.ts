@@ -24,7 +24,7 @@ const SELECT_COLS =
  */
 export async function listPendingDraftsForSession(
   organizationId: string,
-  filters?: { planBatchId?: string },
+  filters?: { planBatchId?: string; brandId?: string },
 ): Promise<SessionDraft[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = getAdminClient() as any;
@@ -37,6 +37,9 @@ export async function listPendingDraftsForSession(
     .order("created_at", { ascending: true });
   if (filters?.planBatchId) {
     query = query.eq("plan_batch_id", filters.planBatchId);
+  }
+  if (filters?.brandId) {
+    query = query.eq("brand_id", filters.brandId);
   }
   const { data, error } = await query;
   if (error) throw new Error(`Errore lettura sessione: ${error.message}`);

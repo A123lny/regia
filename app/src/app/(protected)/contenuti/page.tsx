@@ -18,6 +18,7 @@ import {
 import { listContentDraftsByStatus } from "@/modules/m03-editorial/public";
 import type { ContentDraftStatus } from "@/modules/m03-editorial/public";
 import { HelpButton } from "@/components/help/help-button";
+import { getBrandFilterId } from "@/lib/ui/brand-filter";
 
 const STATUS_META: Record<
   ContentDraftStatus,
@@ -85,9 +86,17 @@ export default async function ContenutiIndexPage({
   const session = await getSessionOrRedirect();
   const { status } = await searchParams;
 
+  // Filtro marchio globale: cookie regia_brand (o ?marchio=).
+  const brandId = (await getBrandFilterId(session.organizationId, null)) ?? undefined;
+
   // Modo A: filtro per stato → elenco cross-brand.
   if (isValidStatus(status)) {
-    const drafts = await listContentDraftsByStatus(session.organizationId, status, 100);
+    const drafts = await listContentDraftsByStatus(
+      session.organizationId,
+      status,
+      100,
+      brandId,
+    );
     const meta = STATUS_META[status];
 
     return (
