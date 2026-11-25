@@ -1,11 +1,11 @@
-// Home "Oggi" — Fase 2.
-// Sostituisce la vecchia dashboard con un layout piu' asciutto e orientato
-// all'azione: saluto + campo "Crea un post" + lista "Da fare" a tre livelli
+// Home "Oggi" — nuova dashboard asciutta, orientata all'azione:
+// saluto + campo "Crea un post" + lista "Da fare" a tre livelli
 // + colonna laterale "Questa settimana".
 
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSessionOrRedirect } from "@/lib/auth/session";
+import { getAdminClient } from "@/lib/db/admin";
 import { buildDashboardTasks, listTasks } from "@/modules/m12-daily-use/server";
 import { listBrands } from "@/modules/m02-brand/public";
 import { listContentDraftsByStatus } from "@/modules/m03-editorial/public";
@@ -15,14 +15,24 @@ import { CreatePostField } from "@/components/oggi/create-post-field";
 import { TodayTaskList } from "@/components/oggi/today-task-list";
 import { ThisWeekCard } from "@/components/oggi/this-week-card";
 
-export const metadata: Metadata = { title: "Oggi" };
+export const metadata: Metadata = { title: "Oggi · Regìa" };
 
-function greetingFor(userEmail: string, now: Date): string {
+// UUID = 36 char con trattini in posizioni 8/13/18/23. Se compare nel
+// greeting significa che non abbiamo recuperato l'email del profilo.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function greetingFor(userIdentifier: string, now: Date): string {
   const h = now.getHours();
   const timePart = h < 13 ? "Buongiorno" : h < 19 ? "Buon pomeriggio" : "Buonasera";
-  const name = userEmail.split("@")[0] ?? "";
-  const nameCap = name.length > 0 ? name.charAt(0).toUpperCase() + name.slice(1) : "";
-  return nameCap ? `${timePart}, ${nameCap}` : timePart;
+  const raw = (userIdentifier ?? "").trim();
+  // Se è un UUID, non abbiamo il nome: usa il saluto senza nome invece di
+  // mostrare la stringa "711CC123-...".
+  if (!raw || UUID_RE.test(raw)) return timePart;
+  // Prendi la parte prima della @ e il primo "token" (es. "mario.rossi" → "mario").
+  const localPart = raw.split("@")[0] ?? raw;
+  const firstToken = localPart.split(/[._-]/)[0] ?? localPart;
+  const name = firstToken.length > 0 ? firstToken.charAt(0).toUpperCase() + firstToken.slice(1) : "";
+  return name ? `${timePart}, ${name}` : timePart;
 }
 
 function formatToday(d: Date): string {
@@ -40,6 +50,11 @@ function estimateMinutes(totalTasks: number): number {
 
 export default async function OggiPage() {
   const session = await getSessionOrRedirect();
+  // Email per il saluto (session espone solo userId UUID). Recuperiamo
+  // dall'auth admin; fallback a stringa vuota (greeting senza nome).
+  const admin = getAdminClient();
+  const { data: userRow } = await admin.auth.admin.getUserById(session.userId);
+  const userEmail = userRow.user?.email ?? "";
 
   // Filtro marchio globale (cookie regia_brand o ?marchio=): applica alle
   // aggregate "Da fare" e "Questa settimana". `null` = tutti i marchi.
@@ -59,7 +74,7 @@ export default async function OggiPage() {
   const openCustomTasks = customTasks.filter((t) => t.status === "open");
   const totalCount = tasks.totalCount + openCustomTasks.length;
   const now = new Date();
-  const greeting = greetingFor(session.userId, now);
+  const greeting = greetingFor(userEmail, now);
   const today = formatToday(now);
   const mins = estimateMinutes(totalCount);
 
@@ -72,7 +87,9 @@ export default async function OggiPage() {
   });
 
   return (
-    <div className="space-y-6">
+    // overflow-x-hidden evita lo scroll orizzontale di pochi px che la vecchia
+    // Home mostrava su alcuni browser.
+    <div className="space-y-6 overflow-x-hidden">
       {/* Saluto + riepilogo */}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -104,7 +121,9 @@ export default async function OggiPage() {
       />
 
       {/* Griglia principale: Da fare a sinistra, Questa settimana a destra */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      {/* min-w-0 sulle colonne per evitare che il contenuto interno (bottoni,
+          titoli lunghi) forzi overflow orizzontale causando scroll di pochi px. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div>
           <TodayTaskList tasks={tasks} customTasks={openCustomTasks} />
         </div>

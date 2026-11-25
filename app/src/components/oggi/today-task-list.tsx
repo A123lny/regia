@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { AlertCircle, Clock, Circle, ArrowRight } from "lucide-react";
 import type { DashboardTaskList } from "@/modules/m12-daily-use/public";
+import { CustomTaskRow } from "./custom-task-row";
 
 type CustomTask = {
   id: string;
@@ -115,12 +116,11 @@ export function TodayTaskList({
                 />
               ))}
               {manual.map((t) => (
-                <TaskRow
+                <CustomTaskRow
                   key={t.id}
+                  id={t.id}
                   title={t.title}
-                  context={t.description ?? null}
-                  href="/dashboard#tasks"
-                  actionLabel="Vedi"
+                  description={t.description ?? null}
                 />
               ))}
             </ul>

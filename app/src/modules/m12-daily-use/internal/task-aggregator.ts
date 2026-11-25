@@ -357,7 +357,7 @@ export async function buildDashboardTasks(
       id: "abandonment-high",
       priority: "urgent",
       iconName: "AlertTriangle",
-      label: `${abandonmentHighCount} segnal${abandonmentHighCount === 1 ? "e" : "i"} abbandono alta gravita${latestStr}`,
+      label: `${abandonmentHighCount} segnal${abandonmentHighCount === 1 ? "e" : "i"} abbandono ad alta priorità${latestStr}`,
       count: abandonmentHighCount,
       href: "/anti-abbandono",
       module: "m09",
@@ -437,9 +437,9 @@ export async function buildDashboardTasks(
     }, null);
     const coolingSuffix =
       oldestDaysAgo === Infinity
-        ? " (il piu' vecchio: mai contattato)"
+        ? " (il più vecchio: mai contattato)"
         : oldestDaysAgo !== null
-          ? ` (il piu' vecchio da ${oldestDaysAgo}gg)`
+          ? ` (il più vecchio da ${oldestDaysAgo}gg)`
           : "";
     urgent.push({
       id: "cooling-partners",
@@ -449,7 +449,7 @@ export async function buildDashboardTasks(
       instructions:
         "Sono partner da risentire non contattati da 7+ giorni. Chiamali uno a uno: " +
         "quando parli con il referente usa 'Marca come contattato' per loggare la chiamata e " +
-        "aggiornare l'ultimo contatto. Perdere un ristorante costa piu' di una promozione (RF-7.4).",
+        "aggiornare l'ultimo contatto. Perdere un ristorante costa più di una promozione.",
       count: coolingCount,
       href: "/ristoranti",
       module: "m07",
@@ -468,7 +468,7 @@ export async function buildDashboardTasks(
       const days = Math.floor((Date.now() - new Date(oldestIso).getTime()) / (24 * 3600 * 1000));
       if (days >= 1) {
         suffix =
-          days === 1 ? " (la piu' vecchia da 1 giorno)" : ` (la piu' vecchia da ${days} giorni)`;
+          days === 1 ? " (la più vecchia da 1 giorno)" : ` (la più vecchia da ${days} giorni)`;
       }
     }
     important.push({
@@ -544,7 +544,7 @@ export async function buildDashboardTasks(
       id: "abandonment-medium",
       priority: "opportunity",
       iconName: "AlertTriangle",
-      label: `${abandonmentMediumCount} segnal${abandonmentMediumCount === 1 ? "e" : "i"} abbandono media gravita${latestStr}`,
+      label: `${abandonmentMediumCount} segnal${abandonmentMediumCount === 1 ? "e" : "i"} abbandono a media priorità${latestStr}`,
       count: abandonmentMediumCount,
       href: "/anti-abbandono",
       module: "m09",
