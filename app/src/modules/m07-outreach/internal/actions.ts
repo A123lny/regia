@@ -142,7 +142,28 @@ export async function upsertCampaignAction(
     };
     if (input.campaignId) payload.campaignId = input.campaignId;
     if (input.segmentId) payload.segmentId = input.segmentId;
-    if (input.contentDraftId) payload.contentDraftId = input.contentDraftId;
+    // Ownership + workflow check sulla bozza collegata: deve appartenere
+    // alla stessa organizzazione E allo stesso brand della campagna, e deve
+    // essere in stato approved/scheduled/published (non "draft" o "rejected")
+    // per evitare bypass approvazione.
+    if (input.contentDraftId) {
+      const { getContentDraft } = await import("@/modules/m03-editorial/public");
+      const draft = await getContentDraft(input.contentDraftId, session.organizationId);
+      if (!draft) {
+        return { ok: false, error: "Bozza collegata non trovata o non accessibile." };
+      }
+      if (draft.brandId !== input.brandId) {
+        return { ok: false, error: "La bozza collegata non appartiene a questo marchio." };
+      }
+      if (draft.status !== "approved" && draft.status !== "scheduled" && draft.status !== "published") {
+        return {
+          ok: false,
+          error:
+            "La bozza collegata non è approvata. Approvala prima di collegarla a una campagna.",
+        };
+      }
+      payload.contentDraftId = input.contentDraftId;
+    }
     if (input.plannedAt) payload.plannedAt = input.plannedAt;
     if (input.notes !== undefined) payload.notes = input.notes;
     if (input.messageText !== undefined) payload.messageText = input.messageText;

@@ -124,15 +124,21 @@ function sanitizeModifications(raw: Record<string, unknown>): Record<string, str
     if (BLOCKED_MOD_FINAL_KEYS.has(last)) continue;
     if (parts.length > 1 && !ALLOWED_MOD_SUFFIXES.has(last)) continue;
     if (v === null || v === undefined) continue;
-    const val =
+    const rawVal =
       typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : "";
-    if (!val) continue;
-    // Se la chiave punta a un media (source/src) e il valore è un URL,
-    // deve essere su host allowlisted. Previene SSRF-through-Creatomate.
-    if (last === "source" || last === "src") {
-      if (val.includes("://") && !isAllowedSourceUrl(val)) continue;
+    if (!rawVal) continue;
+    // IMPORTANTE: truncate PRIMA della validazione per evitare bypass tipo
+    // "https://good.cdn.creatomate.com/..." + 3000 char garbage che passerebbe
+    // la validazione su val ma verrebbe mandato a Creatomate troncato.
+    const val = rawVal.slice(0, MAX_MOD_VALUE_LEN);
+    // Rilevatore generico "sembra un URL" — per QUALSIASI chiave (non solo
+    // source/src): se il valore inizia con schema://, path assoluto // o
+    // scheme generico, va validato come URL safe.
+    const looksUrlish = /^\s*([a-z][a-z0-9+.-]*:|[/\\]{2})/i.test(val);
+    if (last === "source" || last === "src" || looksUrlish) {
+      if (!isAllowedSourceUrl(val)) continue;
     }
-    out[k] = val.slice(0, MAX_MOD_VALUE_LEN);
+    out[k] = val;
     n++;
   }
   return out;
