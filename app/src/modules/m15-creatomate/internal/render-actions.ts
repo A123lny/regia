@@ -122,10 +122,6 @@ function sanitizeSourceUrl(raw: string): string | null {
   return u.href;
 }
 
-function isAllowedSourceUrl(raw: string): boolean {
-  return sanitizeSourceUrl(raw) !== null;
-}
-
 function sanitizeModifications(raw: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {};
   let n = 0;
@@ -143,16 +139,26 @@ function sanitizeModifications(raw: Record<string, unknown>): Record<string, str
     const rawVal =
       typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : "";
     if (!rawVal) continue;
-    // IMPORTANTE: truncate PRIMA della validazione per evitare bypass tipo
-    // "https://good.cdn.creatomate.com/..." + 3000 char garbage che passerebbe
-    // la validazione su val ma verrebbe mandato a Creatomate troncato.
+    // Rifiuta C0 control char (0x00-0x1f) e 0x7f su QUALSIASI valore: non
+    // ammessi in mod Creatomate. (Se in futuro servono \n per campi text,
+    // whitelist esplicito per quelle chiavi.)
+    if (/[\x00-\x1f\x7f]/.test(rawVal)) continue;
+    // Truncate PRIMA della validazione per evitare "https://safe.cdn.../..." + garbage.
     const val = rawVal.slice(0, MAX_MOD_VALUE_LEN);
-    // Rilevatore generico "sembra un URL" — per QUALSIASI chiave (non solo
-    // source/src): se il valore inizia con schema://, path assoluto // o
-    // scheme generico, va validato come URL safe.
+    // Canonical form per detection URL-like: nessun trim ulteriore (i control
+    // char che potevano "mascherare" lo schema li abbiamo già bloccati sopra).
     const looksUrlish = /^\s*([a-z][a-z0-9+.-]*:|[/\\]{2})/i.test(val);
     if (last === "source" || last === "src" || looksUrlish) {
-      if (!isAllowedSourceUrl(val)) continue;
+      // Usa il VALORE NORMALIZZATO ritornato da sanitizeSourceUrl, non quello
+      // originale. Altrimenti si introduce un parser-differential tra il
+      // nostro validator e Creatomate (es. URL con tab embedded che JS URL()
+      // accetta ma il server HTTP downstream interpreta diversamente).
+      const safe = sanitizeSourceUrl(val);
+      if (safe === null) continue;
+      if (safe.length > MAX_MOD_VALUE_LEN) continue;
+      out[k] = safe;
+      n++;
+      continue;
     }
     out[k] = val;
     n++;
