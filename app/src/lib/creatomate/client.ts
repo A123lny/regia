@@ -165,7 +165,8 @@ async function fetchJsonWithRetry(url: string, init: RequestInit): Promise<unkno
       }
       // 400 ecc.
       const bodyObj = body as { message?: string; error?: string } | null;
-      const detail = bodyObj?.message ?? bodyObj?.error ?? text.slice(0, 200) ?? "payload rifiutato";
+      const detail =
+        bodyObj?.message ?? bodyObj?.error ?? text.slice(0, 200) ?? "payload rifiutato";
       throw new CreatomateValidationError(detail);
     } catch (err) {
       clearTimeout(timer);

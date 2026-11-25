@@ -78,7 +78,11 @@ export function CreatomatePanel({ brandId, draftId, templates, draftContext, onC
           setStatus(data.status);
           if (data.outputUrl) setOutputUrl(data.outputUrl);
         }
-        if (data.status === "succeeded" || data.status === "failed" || data.status === "cancelled") {
+        if (
+          data.status === "succeeded" ||
+          data.status === "failed" ||
+          data.status === "cancelled"
+        ) {
           if (pollTimer.current) clearInterval(pollTimer.current);
           if (data.status === "failed") {
             setError(data.errorMessage ?? "Render fallito.");
@@ -147,10 +151,7 @@ export function CreatomatePanel({ brandId, draftId, templates, draftContext, onC
         </div>
         <p className="text-text-muted">
           Nessun template Creatomate configurato per questo marchio. Vai in{" "}
-          <a
-            href={`/marchi/${brandId}`}
-            className="text-primary underline hover:no-underline"
-          >
+          <a href={`/marchi/${brandId}`} className="text-primary underline hover:no-underline">
             Marchio → template Creatomate
           </a>{" "}
           e aggiungine almeno uno (serve un template creato nel pannello Creatomate).
@@ -159,7 +160,8 @@ export function CreatomatePanel({ brandId, draftId, templates, draftContext, onC
     );
   }
 
-  const inProgress = status && status !== "succeeded" && status !== "failed" && status !== "cancelled";
+  const inProgress =
+    status && status !== "succeeded" && status !== "failed" && status !== "cancelled";
 
   return (
     <div className="rounded-lg border border-primary/40 bg-primary/5 p-4">
@@ -207,9 +209,7 @@ export function CreatomatePanel({ brandId, draftId, templates, draftContext, onC
               <input
                 type="text"
                 value={modifications[k] ?? ""}
-                onChange={(e) =>
-                  setModifications((prev) => ({ ...prev, [k]: e.target.value }))
-                }
+                onChange={(e) => setModifications((prev) => ({ ...prev, [k]: e.target.value }))}
                 disabled={pending || !!renderId}
                 maxLength={500}
                 className="w-full rounded-md border border-border bg-bg px-3 py-2 text-xs"

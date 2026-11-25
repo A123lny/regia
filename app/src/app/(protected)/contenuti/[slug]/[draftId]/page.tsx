@@ -238,8 +238,8 @@ export default async function DraftDetailPage({
         <div className="space-y-3">
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
             <strong>Programmato</strong> per {formatDateTime(draft.scheduledAt)}. Il sistema non
-            pubblica automaticamente: quando avrai pubblicato manualmente sul canale, torna qui
-            e clicca &quot;Segna come pubblicato&quot;.
+            pubblica automaticamente: quando avrai pubblicato manualmente sul canale, torna qui e
+            clicca &quot;Segna come pubblicato&quot;.
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <form action={unscheduleContentDraft.bind(null, draft.id)} className="flex-1">

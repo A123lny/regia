@@ -17,11 +17,7 @@ import { revalidatePath } from "next/cache";
 import { getAdminClient } from "@/lib/db/admin";
 import { logAuditEvent } from "@/lib/audit/log";
 import { getContentDraft } from "@/modules/m03-editorial/public";
-import {
-  insertMediaAsset,
-  setDraftMediaAsset,
-  type MediaAsset,
-} from "@/modules/m04-media/public";
+import { insertMediaAsset, setDraftMediaAsset, type MediaAsset } from "@/modules/m04-media/public";
 import { getBrandById } from "@/modules/m02-brand/public";
 import { getRender } from "@/lib/creatomate/client";
 import { getRenderByExternalId, updateRenderStatus } from "./creatomate-renders-repo";
@@ -205,11 +201,14 @@ async function tryClaim(externalId: string): Promise<boolean> {
  *
  * Idempotente: se la row è già succeeded/failed/cancelled, non fa nulla.
  */
-export async function applySucceededRenderByExternalId(externalId: string): Promise<{
-  ok: true;
-  assetId: string | null;
-  alreadyDone?: boolean;
-} | { ok: false; error: string }> {
+export async function applySucceededRenderByExternalId(externalId: string): Promise<
+  | {
+      ok: true;
+      assetId: string | null;
+      alreadyDone?: boolean;
+    }
+  | { ok: false; error: string }
+> {
   const row = await getRenderByExternalId(externalId);
   if (!row) return { ok: false, error: "Render non trovato in DB." };
   if (row.status === "succeeded" || row.status === "failed" || row.status === "cancelled") {
@@ -269,7 +268,10 @@ export async function applySucceededRenderByExternalId(externalId: string): Prom
   if (row.draftId) {
     const draft = await getContentDraft(row.draftId, row.organizationId);
     draftIsAttachable =
-      !!draft && draft.brandId === row.brandId && draft.status !== "published" && draft.status !== "rejected";
+      !!draft &&
+      draft.brandId === row.brandId &&
+      draft.status !== "published" &&
+      draft.status !== "rejected";
   }
 
   let asset: MediaAsset;

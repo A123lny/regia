@@ -9,9 +9,7 @@ import { logAuditEvent } from "@/lib/audit/log";
 import { getBrandById } from "@/modules/m02-brand/public";
 import { upsertBrandTemplate, removeBrandTemplate } from "./brand-templates-repo";
 
-export type UpsertBrandTemplateResult =
-  | { ok: true; id: string }
-  | { ok: false; error: string };
+export type UpsertBrandTemplateResult = { ok: true; id: string } | { ok: false; error: string };
 
 export async function upsertBrandTemplateAction(input: {
   brandId: string;

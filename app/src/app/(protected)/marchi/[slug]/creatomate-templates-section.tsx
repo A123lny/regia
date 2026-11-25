@@ -81,9 +81,8 @@ export function CreatomateTemplatesSection({ brandId, brandSlug, templates }: Pr
         )}
       </header>
       <p className="text-xs text-text-muted">
-        Registra qui i template Creatomate che l&apos;Owner può usare dal dettaglio bozza.
-        L&apos;ID template lo prendi dall&apos;URL dell&apos;editor Creatomate (es.{" "}
-        <code>abcd-1234</code>).
+        Registra qui i template Creatomate che l&apos;Owner può usare dal dettaglio bozza. L&apos;ID
+        template lo prendi dall&apos;URL dell&apos;editor Creatomate (es. <code>abcd-1234</code>).
       </p>
 
       {templates.length > 0 && (
@@ -164,7 +163,11 @@ export function CreatomateTemplatesSection({ brandId, brandSlug, templates }: Pr
               disabled={pending || !templateId.trim() || !label.trim()}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-hover disabled:opacity-50"
             >
-              {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              {pending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )}
               Salva
             </button>
             <button

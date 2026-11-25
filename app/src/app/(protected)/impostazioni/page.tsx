@@ -348,9 +348,7 @@ export default async function ImpostazioniPage() {
                   </code>
                 </div>
               ) : (
-                <span className="text-sm text-danger">
-                  non configurata (opzionale)
-                </span>
+                <span className="text-sm text-danger">non configurata (opzionale)</span>
               )}
             </div>
 

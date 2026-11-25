@@ -21,8 +21,8 @@ export function AiBudgetsCard({ summaries }: { summaries: SpendSummary[] }) {
           <Wallet className="h-5 w-5 text-primary" /> Tetti spesa AI
         </CardTitle>
         <CardDescription>
-          cap mensile per categoria. Quando raggiunto, la generazione viene bloccata
-          (guardia server-side). Reset automatico al primo del mese.
+          cap mensile per categoria. Quando raggiunto, la generazione viene bloccata (guardia
+          server-side). Reset automatico al primo del mese.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">

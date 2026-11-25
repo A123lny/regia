@@ -24,10 +24,7 @@ export {
   removeBrandTemplateAction,
 } from "./internal/brand-templates-actions";
 
-export {
-  startCreatomateRender,
-  getCreatomateRenderStatus,
-} from "./internal/render-actions";
+export { startCreatomateRender, getCreatomateRenderStatus } from "./internal/render-actions";
 export type { StartRenderResult, RenderStatusResult } from "./internal/render-actions";
 
 // Non è una server action: funzione server-only chiamata dal webhook handler

@@ -35,8 +35,7 @@ import { applySucceededRenderByExternalId } from "./apply-succeeded";
 import { listBrandTemplates } from "./brand-templates-repo";
 
 export type StartRenderResult =
-  | { ok: true; renderId: string; externalId: string; status: string }
-  | { ok: false; error: string };
+  { ok: true; renderId: string; externalId: string; status: string } | { ok: false; error: string };
 
 export type RenderStatusResult =
   | {
@@ -73,13 +72,7 @@ const BLOCKED_MOD_FINAL_KEYS = new Set<string>([
   "trim_start",
   "trim_duration",
 ]);
-const ALLOWED_MOD_SUFFIXES = new Set<string>([
-  "text",
-  "fill_color",
-  "source",
-  "src",
-  "color",
-]);
+const ALLOWED_MOD_SUFFIXES = new Set<string>(["text", "fill_color", "source", "src", "color"]);
 const MAX_MOD_KEYS = 40;
 const MAX_MOD_VALUE_LEN = 2000;
 
@@ -132,11 +125,7 @@ function sanitizeModifications(raw: Record<string, unknown>): Record<string, str
     if (parts.length > 1 && !ALLOWED_MOD_SUFFIXES.has(last)) continue;
     if (v === null || v === undefined) continue;
     const val =
-      typeof v === "string"
-        ? v
-        : typeof v === "number" || typeof v === "boolean"
-          ? String(v)
-          : "";
+      typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : "";
     if (!val) continue;
     // Se la chiave punta a un media (source/src) e il valore è un URL,
     // deve essere su host allowlisted. Previene SSRF-through-Creatomate.
@@ -194,7 +183,7 @@ async function preflight(
     return {
       ok: false,
       error:
-        "Provider Creatomate non attivo in Impostazioni → Provider media (/impostazioni/provider-media). Registralo con slug \"creatomate\" e diritti d'uso \"commercial\" per generare visual.",
+        'Provider Creatomate non attivo in Impostazioni → Provider media (/impostazioni/provider-media). Registralo con slug "creatomate" e diritti d\'uso "commercial" per generare visual.',
     };
   }
   if (!provider.allowedUses.includes("commercial")) {

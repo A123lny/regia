@@ -53,8 +53,8 @@ export function ConnectionsHealthCard({ brands, accounts }: Props) {
           <Activity className="h-5 w-5 text-primary" /> Salute connessioni social
         </CardTitle>
         <CardDescription>
-          monitor delle credenziali social configurate per marchio. I token Meta/LinkedIn
-          hanno tipicamente scadenza 60 giorni: qui vedi quanti giorni sono passati dall&apos;ultimo
+          monitor delle credenziali social configurate per marchio. I token Meta/LinkedIn hanno
+          tipicamente scadenza 60 giorni: qui vedi quanti giorni sono passati dall&apos;ultimo
           aggiornamento. Verifica live arriva con M5 publisher (F2+).
         </CardDescription>
       </CardHeader>

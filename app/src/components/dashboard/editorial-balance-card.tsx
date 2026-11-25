@@ -26,8 +26,8 @@ export function EditorialBalanceCard({ balance }: { balance: EditorialBalance })
         </span>
       </div>
       <p className="mb-3 text-xs text-text-muted">
-        distribuzione dei contenuti per etichetta di argomento. Sbilancio
-        segnalato se una categoria differisce dalla media di ±20 punti percentuali.
+        distribuzione dei contenuti per etichetta di argomento. Sbilancio segnalato se una categoria
+        differisce dalla media di ±20 punti percentuali.
       </p>
 
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">

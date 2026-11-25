@@ -98,8 +98,8 @@ export function ProvidersClient({ providers, canManage }: Props) {
 
       {active.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-surface p-10 text-center text-sm text-text-muted">
-          Nessun provider media registrato. Finché non ne registri uno, il motore media
-          genera solo da template interni — niente generazione AI esterna.
+          Nessun provider media registrato. Finché non ne registri uno, il motore media genera solo
+          da template interni — niente generazione AI esterna.
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border bg-surface">

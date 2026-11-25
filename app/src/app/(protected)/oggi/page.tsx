@@ -31,7 +31,8 @@ function greetingFor(userIdentifier: string, now: Date): string {
   // Prendi la parte prima della @ e il primo "token" (es. "mario.rossi" → "mario").
   const localPart = raw.split("@")[0] ?? raw;
   const firstToken = localPart.split(/[._-]/)[0] ?? localPart;
-  const name = firstToken.length > 0 ? firstToken.charAt(0).toUpperCase() + firstToken.slice(1) : "";
+  const name =
+    firstToken.length > 0 ? firstToken.charAt(0).toUpperCase() + firstToken.slice(1) : "";
   return name ? `${timePart}, ${name}` : timePart;
 }
 

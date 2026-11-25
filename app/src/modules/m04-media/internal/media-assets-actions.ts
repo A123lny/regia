@@ -258,8 +258,7 @@ export async function attachMediaAssetToDraft(
  * Sequenziale: render server-side (~500-2000ms), upload, insert asset, attach.
  */
 export type GenerateFromTemplateResult =
-  | { ok: true; assetId: string }
-  | { ok: false; error: string };
+  { ok: true; assetId: string } | { ok: false; error: string };
 
 export async function generateFromTemplate(input: {
   draftId: string;

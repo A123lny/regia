@@ -840,8 +840,8 @@ function MonthlyReportCard({ partnerId }: { partnerId: string }) {
       {!report && !error && (
         <p className="text-xs text-text-muted">
           Prepara un messaggio da inviare al ristoratore: andamento ordini, posizione nella
-          categoria, attività recenti. Si copia e si manda via WhatsApp a mano (WhatsApp
-          automatico non ancora configurato).
+          categoria, attività recenti. Si copia e si manda via WhatsApp a mano (WhatsApp automatico
+          non ancora configurato).
         </p>
       )}
 

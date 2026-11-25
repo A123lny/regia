@@ -50,11 +50,7 @@ export function CustomTaskRow({
           className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-success/40 bg-success/5 px-2.5 py-1.5 text-xs font-medium text-success hover:bg-success/15 disabled:opacity-50"
           aria-label="Segna come fatto"
         >
-          {pending ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Check className="h-3 w-3" />
-          )}
+          {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
           Fatto
         </button>
         <Link

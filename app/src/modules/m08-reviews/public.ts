@@ -16,3 +16,6 @@ export {
   reopenSeriousForDraftAction,
   regenerateDraftAction,
 } from "./internal/actions";
+
+export { insertManualReviewAction, importReviewsCsvAction } from "./internal/manual-insert-actions";
+export type { ManualInsertResult, CsvImportResult } from "./internal/manual-insert-actions";

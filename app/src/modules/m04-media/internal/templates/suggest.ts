@@ -98,8 +98,7 @@ export function autofillTemplateFields(
 ): Record<string, string> {
   const text = (draft.generatedText || "").replace(/\s+/g, " ").trim();
   const firstSentenceEnd = text.search(/[.!?]\s/);
-  const firstSentence =
-    firstSentenceEnd > 0 ? text.slice(0, firstSentenceEnd + 1).trim() : text;
+  const firstSentence = firstSentenceEnd > 0 ? text.slice(0, firstSentenceEnd + 1).trim() : text;
 
   const SHORT_TITLE_KEYS = new Set(["title", "headline", "tip", "role"]);
   const VERY_SHORT_KEYS = new Set(["service"]);

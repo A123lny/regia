@@ -13,6 +13,7 @@ import type { ReviewClassification, ReviewStatus } from "@/modules/m08-reviews/p
 import { listBrands } from "@/modules/m02-brand/public";
 import { getBrandFilter } from "@/lib/ui/brand-filter";
 import { ReviewsFilters } from "./_components/reviews-filters";
+import { AddReviewPanel } from "./_components/add-review-panel";
 import { ReviewsTable } from "./_components/reviews-table";
 
 type SearchParams = {
@@ -88,6 +89,9 @@ export default async function RecensioniPage({
         <KpiCard label="Totale" value={reviews.length} hint="Nei filtri correnti" />
       </div>
 
+      <AddReviewPanel
+        brands={brands.map((b) => ({ id: b.id, slug: b.slug, displayName: b.displayName }))}
+      />
       <ReviewsFilters brands={brands} />
       <ReviewsTable reviews={reviews} brands={brands} nowMs={nowMs} />
     </div>

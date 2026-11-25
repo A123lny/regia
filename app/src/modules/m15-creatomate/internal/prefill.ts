@@ -10,7 +10,10 @@
 
 export type ModKind = "short" | "long" | "image" | "other";
 
-export function splitDraftText(generatedText: string, themeInput: string): {
+export function splitDraftText(
+  generatedText: string,
+  themeInput: string,
+): {
   shortTitle: string;
   longBody: string;
 } {

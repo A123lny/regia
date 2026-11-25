@@ -91,12 +91,7 @@ export default async function ContenutiIndexPage({
 
   // Modo A: filtro per stato → elenco cross-brand.
   if (isValidStatus(status)) {
-    const drafts = await listContentDraftsByStatus(
-      session.organizationId,
-      status,
-      100,
-      brandId,
-    );
+    const drafts = await listContentDraftsByStatus(session.organizationId, status, 100, brandId);
     const meta = STATUS_META[status];
 
     return (

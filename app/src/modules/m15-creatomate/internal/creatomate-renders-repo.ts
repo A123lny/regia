@@ -3,12 +3,7 @@
 import { getAdminClient } from "@/lib/db/admin";
 
 export type CreatomateRenderStatus =
-  | "queued"
-  | "planned"
-  | "rendering"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
+  "queued" | "planned" | "rendering" | "succeeded" | "failed" | "cancelled";
 
 export type CreatomateRenderRow = {
   id: string;

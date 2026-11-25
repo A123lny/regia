@@ -243,18 +243,12 @@ export async function generateImages(input: GenerateImagesInput): Promise<Genera
       // Da qui in poi, nessun retry: emettere errore terminale che preserva
       // accumulatedChargedCost accumulato dai tentativi precedenti addebitabili.
       if (status === 401 || status === 403) {
-        throw new FalConfigError(
-          "Chiave fal.ai non valida o revocata.",
-          accumulatedChargedCost,
-        );
+        throw new FalConfigError("Chiave fal.ai non valida o revocata.", accumulatedChargedCost);
       }
       if (status === 400 || status === 422) {
         // Prompt rifiutato in validation: pre-accettazione per questo tentativo,
         // ma i retry precedenti possono aver addebitato (possiblyCharged auto).
-        throw new FalContentRejectedError(
-          accumulatedChargedCost > 0,
-          accumulatedChargedCost,
-        );
+        throw new FalContentRejectedError(accumulatedChargedCost > 0, accumulatedChargedCost);
       }
       if (status === 429) {
         throw new FalRateLimitError(accumulatedChargedCost);

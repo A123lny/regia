@@ -502,6 +502,8 @@ function CampaignForm({
           if (notes) payload.notes = notes;
           const messageText = String(fd.get("messageText") ?? "").trim();
           if (messageText) payload.messageText = messageText;
+          const contentDraftId = String(fd.get("contentDraftId") ?? "").trim();
+          if (contentDraftId) payload.contentDraftId = contentDraftId;
 
           const result = await upsertCampaignAction(payload);
           if (result.ok) onDone();
@@ -579,6 +581,21 @@ function CampaignForm({
         />
       </div>
       <div>
+        <Label htmlFor="contentDraftId">Bozza collegata (opzionale)</Label>
+        <Input
+          id="contentDraftId"
+          name="contentDraftId"
+          type="text"
+          maxLength={40}
+          defaultValue={initial?.contentDraftId ?? ""}
+          placeholder="ID bozza (es. 0f1e2d3c-...)"
+        />
+        <p className="mt-1 text-[11px] text-text-muted">
+          Se colleghi una bozza, il suo testo sarà usato come messaggio. In alternativa compila il
+          campo sotto.
+        </p>
+      </div>
+      <div>
         <Label htmlFor="messageText">Testo del messaggio</Label>
         <Textarea
           id="messageText"
@@ -589,8 +606,7 @@ function CampaignForm({
           placeholder="Es. Ciao {{firstName}}, da oggi la nuova carta clienti..."
         />
         <p className="mt-1 text-[11px] text-text-muted">
-          Testo che verrà inviato (max 2000 caratteri). Alternativa alla selezione di una bozza
-          esistente.
+          Testo che verrà inviato (max 2000 caratteri). Serve se non hai collegato una bozza sopra.
         </p>
       </div>
       <div>

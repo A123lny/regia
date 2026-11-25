@@ -52,8 +52,8 @@ export default async function ProviderMediaPage() {
               {" "}
               · Fornitori AI per immagini/video (es. fal.ai FLUX, Replicate, DALL-E). ToS, detentore
               dei diritti e usi ammessi vengono verificati <strong>una volta</strong> alla
-              registrazione del fornitore e tracciati qui per audit. usa solo template
-              interni: questa sezione precede l&apos;integrazione dei provider reali.
+              registrazione del fornitore e tracciati qui per audit. usa solo template interni:
+              questa sezione precede l&apos;integrazione dei provider reali.
             </p>
           </div>
         </div>
