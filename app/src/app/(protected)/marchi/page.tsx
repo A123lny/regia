@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Marchi" };
+
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { listBrands } from "@/modules/m02-brand/public";
 import { BrandsAdminClient } from "./brands-admin-client";

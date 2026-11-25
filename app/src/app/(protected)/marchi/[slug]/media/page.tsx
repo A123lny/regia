@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Libreria media" };
+
 // Libreria media per marchio.
 // Griglia + upload + tag filter + search caption. Editor+Owner (brand.kit.edit).
 

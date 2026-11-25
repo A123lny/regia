@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Regole" };
+
 // M13 Governance — regole autonomia + prodotti sconto vietato.
 
 import { notFound } from "next/navigation";

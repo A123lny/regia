@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Rete ristoranti Lenny" };
+
 // M07 Partners — pagina Rete ristoranti Lenny.
 
 import { notFound } from "next/navigation";

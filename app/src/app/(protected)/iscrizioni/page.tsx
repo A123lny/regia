@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Iscrizioni" };
+
 // M10 admin — pagina Iscrizioni (landing CRUD + eventi).
 
 import { notFound } from "next/navigation";

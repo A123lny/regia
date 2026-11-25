@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Rete" };
+
 // Hub area Rete. Reindirizza alla prima scheda accessibile.
 
 import { redirect } from "next/navigation";

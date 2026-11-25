@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Calendario editoriale" };
+
 // Calendario editoriale cross-brand (,).
 // Vista aggregata dei post scheduled+published dei 4 marchi nella griglia 14 giorni.
 // Il drag&drop tra giorni + quick-view modal sono in MonthGridClient (client component).

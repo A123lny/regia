@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Dettaglio contenuto" };
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, X } from "lucide-react";

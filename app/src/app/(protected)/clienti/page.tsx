@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Clienti" };
+
 // Hub area Clienti. Reindirizza alla prima scheda accessibile.
 // La TabBar e' nel layout globale, la pagina visibile e' la vecchia route
 // (es. /contatti). Qui facciamo solo lo smistamento.

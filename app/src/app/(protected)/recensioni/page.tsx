@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Recensioni" };
+
 // Pagina recensioni e reputazione —.
 // Flusso giornaliero: KPI + filtri URL + tabella + drawer (Task 12).
 

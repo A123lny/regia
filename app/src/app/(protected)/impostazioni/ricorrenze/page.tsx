@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Ricorrenze" };
+
 // Archivio ricorrenze annuali (CRUD).
 
 import Link from "next/link";

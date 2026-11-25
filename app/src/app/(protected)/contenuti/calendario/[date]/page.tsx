@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Giorno nel calendario" };
+
 // Day-view cross-brand del calendario editoriale.
 // Server component: fetches post di scheduled+published nel giorno [00:00, 24:00) locale.
 // Delega al client DayViewClient il rendering della griglia oraria + drag&drop + menu.

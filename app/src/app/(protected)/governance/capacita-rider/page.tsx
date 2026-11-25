@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Capacità rider" };
+
 import { getSessionOrRedirect } from "@/lib/auth/session";
 import { hasCapability } from "@/lib/auth/permissions";
 import { listRiderCapacityWindows, listRiderShiftRequests } from "@/modules/m13-governance/public";

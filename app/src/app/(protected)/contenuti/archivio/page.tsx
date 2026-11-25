@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Archivio contenuti" };
+
 // Archivio contenuti + ricerca full-text.
 // Cross-brand. Filtri: query testo · marchio · stato · date range. Paginato.
 

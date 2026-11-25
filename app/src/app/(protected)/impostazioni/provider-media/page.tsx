@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Provider media" };
+
 // Provider media esterna — pagina Owner-only.
 // Registrazione fornitori di generazione media (immagini/video) con ToS/diritti
 // verificati UNA VOLTA alla registrazione. Non e' un controllo che si ripete a

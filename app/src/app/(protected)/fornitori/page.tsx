@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Fornitori" };
+
 // M6a Fornitori (partner spesa) —.
 
 import { notFound } from "next/navigation";

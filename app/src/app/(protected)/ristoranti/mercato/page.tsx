@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Mercato ristoranti" };
+
 // Analisi mercato per categoria — cruscotto strategico.
 // Owner-only (partner.crud): decisione da gestore di mercato, non da marketing.
 

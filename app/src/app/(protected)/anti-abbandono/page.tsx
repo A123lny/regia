@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Da recuperare" };
+
 // M9 Da recuperare — +.x struttura.
 
 import { notFound } from "next/navigation";

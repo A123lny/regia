@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Contenuti del marchio" };
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Sparkles, Calendar, ListChecks, Zap } from "lucide-react";

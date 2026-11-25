@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Ordini" };
+
 // M01 Data Hub Blocco 2 — pagina Ordini/vendite (read-only in F1).
 
 import { notFound } from "next/navigation";

@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Dati personali" };
+
 // Dossier dati personali.
 // Pagina Owner-only: mostra TUTTO quello che Regia possiede sul contatto,
 // con bottoni per registrare una richiesta export/cancellazione e per

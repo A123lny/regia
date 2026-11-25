@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Sessione di approvazione" };
+
 // Sessione di approvazione a doppia copertura.
 // Wizard cross-brand che scorre tutte le bozze in stato 'draft' una alla volta.
 // Opzionale: filtra per planBatchId per lavorare solo su un piano specifico.

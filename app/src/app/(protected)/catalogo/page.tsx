@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Catalogo" };
+
 // M01 Data Hub Blocco 2 — pagina Catalogo prodotti/servizi.
 // modello canonico, storico prezzi (visibile nel drawer).
 

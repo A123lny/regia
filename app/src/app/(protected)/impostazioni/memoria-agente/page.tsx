@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Memoria agente" };
+
 // Memoria agente — pagina Owner-only.
 // Mostra cosa l'AI ha "imparato" dall'uso: approval rate per topic, motivi
 // di rifiuto frequenti, esiti promozioni, preferenze di stile per marchio.
