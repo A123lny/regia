@@ -526,8 +526,8 @@ export default async function BrandKitPage({
         <CardHeader>
           <CardTitle className="font-serif">Anteprima contesto per AI</CardTitle>
           <CardDescription>
-            Come l&apos;AI di M3 leggerà il brand kit di questo marchio quando genererà contenuti
-            (,.3a). Aggiornato in tempo reale.
+            Come l&apos;AI leggerà il brand kit di questo marchio quando genererà contenuti.
+            Aggiornato in tempo reale.
           </CardDescription>
         </CardHeader>
         <CardContent>

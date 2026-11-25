@@ -43,7 +43,7 @@ const REC_LABELS: Record<MarketCategoryRow["recommendation"], string> = {
 
 const REC_HINT: Record<MarketCategoryRow["recommendation"], string> = {
   sotto_offerta:
-    "Pochi ristoranti rispetto alla domanda. Opportunita' per inserire un partner nuovo.",
+    "Pochi ristoranti rispetto alla domanda. Opportunità per inserire un partner nuovo.",
   equilibrata: "Numero di partner adeguato alla domanda.",
   satura: "Molti ristoranti per la domanda. Nuovi partner avrebbero ordini sotto la media rete.",
   sconosciuta: "Mediana rete pari a 0: non si può confrontare.",

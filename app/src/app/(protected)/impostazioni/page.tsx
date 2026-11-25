@@ -180,9 +180,8 @@ export default async function ImpostazioniPage() {
               <Share2 className="h-5 w-5" /> Account social
             </CardTitle>
             <CardDescription>
-              Credenziali di pubblicazione per ogni marchio e piattaforma (predisposizione M14
-              auto-publishing). Le credenziali sono al sicuro nel DB e mai mostrate in chiaro dopo
-              il primo salvataggio.
+              Credenziali di pubblicazione per ogni marchio e piattaforma. Le credenziali sono
+              al sicuro nel database e mai mostrate in chiaro dopo il primo salvataggio.
             </CardDescription>
           </CardHeader>
           <CardContent>

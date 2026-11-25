@@ -169,7 +169,7 @@ export function TeamAdminClient({ members, canManage, showArchived, currentUserI
                       {m.requiresMfa ? (
                         <span
                           className="inline-flex items-center gap-1"
-                          title="Attivazione prevista in F1.6"
+                          title="Attivazione prevista a breve"
                         >
                           <ShieldCheck className="h-3.5 w-3.5" /> prevista
                         </span>

@@ -107,8 +107,8 @@ export function SegmentsClient({ segments, brands, canCrud }: Props) {
                 <th className="p-3">Segmento</th>
                 <th className="p-3">Criteri</th>
                 <th className="w-24 p-3 text-right">Contatti</th>
-                <th className="w-32 p-3">Aggiornato</th>
-                <th className="w-16 p-3" />
+                <th className="w-40 p-3">Ultimo calcolo</th>
+                <th className="w-28 p-3" />
                 <th className="w-24 p-3">Stato</th>
               </tr>
             </thead>
@@ -149,12 +149,13 @@ export function SegmentsClient({ segments, brands, canCrud }: Props) {
                       type="button"
                       disabled={refreshing.has(s.id)}
                       onClick={() => handleRefresh(s.id)}
-                      className="rounded-md p-1 text-text-muted hover:bg-surface-muted hover:text-primary disabled:opacity-50"
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-xs font-medium text-text hover:border-primary/40 hover:text-primary disabled:opacity-50"
                       aria-label="Ricalcola"
                     >
                       <RefreshCw
                         className={`h-3.5 w-3.5 ${refreshing.has(s.id) ? "animate-spin" : ""}`}
                       />
+                      Ricalcola
                     </button>
                   </td>
                   <td className="p-3">

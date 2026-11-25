@@ -1,4 +1,8 @@
-// M07 Gruppi — pagina.
+// Pagina Gruppi.
+
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Gruppi" };
 
 import { notFound } from "next/navigation";
 import { Filter } from "lucide-react";

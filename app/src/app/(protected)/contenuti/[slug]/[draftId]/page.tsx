@@ -89,9 +89,23 @@ export default async function DraftDetailPage({
     ? await listMediaAssetsByBrand(session.organizationId, brand.id, 200)
     : [];
   const availableTemplates = listTemplatesForBrand(slug);
-  const creatomateTemplates = brand
-    ? await listBrandTemplates(session.organizationId, brand.id, true)
-    : [];
+  // Creatomate templates: se la tabella brand_creatomate_templates non è
+  // ancora stata applicata in produzione (migration 20261124000005) la
+  // query fallisce. Degrada a lista vuota invece di esplodere l'intera
+  // pagina: la sezione "Crea visual" nel picker resta disattivata finché
+  // non arrivano i template. Lo stesso vale per qualsiasi errore transiente
+  // della tabella Creatomate.
+  let creatomateTemplates: Awaited<ReturnType<typeof listBrandTemplates>> = [];
+  if (brand) {
+    try {
+      creatomateTemplates = await listBrandTemplates(session.organizationId, brand.id, true);
+    } catch (err) {
+      console.warn("[contenuti draft] listBrandTemplates failed, degraded to []", {
+        brandId: brand.id,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

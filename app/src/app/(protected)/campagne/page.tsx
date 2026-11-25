@@ -49,10 +49,10 @@ export default async function CampagnePage({
           <HelpButton pageKey="campagne" />
         </div>
         <p className="mt-1 text-sm text-text-muted">
-          Predisposizione invii cross-canale. la campagna resta
-          &quot;draft&quot;/&quot;scheduled&quot; finché non arriva M5; l&apos;Owner marca
-          l&apos;invio effettivo qui riportando gli esiti. vincolo: mai autonomo su primi contatti a
-          pubblici nuovi.
+          Predisposizione invii cross-canale. La campagna resta
+          &quot;bozza&quot;/&quot;programmata&quot; finché l&apos;invio automatico non è attivo;
+          l&apos;Owner marca l&apos;invio effettivo qui riportando gli esiti. Vincolo: mai
+          autonomo su primi contatti a pubblici nuovi.
         </p>
       </header>
 

@@ -2,6 +2,10 @@
 // Owner: modifica ruolo + archivia/ripristina membri.
 // Editor: legge elenco team (team.read) ma nessuna azione.
 
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Team" };
+
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getSessionOrRedirect } from "@/lib/auth/session";
@@ -102,8 +106,8 @@ export default async function TeamPage({
         </p>
         {canManage && (
           <p className="mt-3 text-xs text-text-muted">
-            L&apos;invito di nuovi membri tramite UI (magic-link via email) &egrave; previsto in
-            F1.6. Al momento la creazione account passa da chi gestisce il deploy.
+            L&apos;invito di nuovi membri tramite UI (magic-link via email) arriverà a breve.
+            Al momento la creazione account passa da chi gestisce il deploy.
           </p>
         )}
         <p className="mt-2 text-xs text-text-muted">

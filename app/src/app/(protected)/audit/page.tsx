@@ -53,7 +53,8 @@ export default async function AuditPage({
       : events;
 
   return (
-    <div className="space-y-6">
+    // overflow-x-hidden per evitare scroll ~18px da tabella con colonne JSON lunghe
+    <div className="space-y-6 overflow-x-hidden">
       <header>
         <div className="flex items-start justify-between gap-3">
           <h1 className="font-serif text-3xl font-semibold text-text">Registro attività</h1>

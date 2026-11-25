@@ -476,10 +476,10 @@ function BrandFormDialog({
           {mode === "edit" && brand && (
             <div className="rounded-md border border-border bg-surface-muted/40 p-3">
               <div className="mb-2">
-                <span className="text-xs font-medium text-text">Identita email (.2a)</span>
+                <span className="text-xs font-medium text-text">Identità email</span>
                 <p className="text-[10px] text-text-muted">
-                  Usato quando M5 pubblisher spedira email. Il dominio deve avere SPF/DKIM
-                  configurati (config, non codice).
+                  Usato quando l&apos;app spedirà email dal marchio. Il dominio deve avere SPF/DKIM
+                  configurati.
                 </p>
               </div>
               <div className="space-y-2">

@@ -83,7 +83,9 @@ export default async function BrandContentPage({
     : await listContentDraftsByBrand(brandId, session.organizationId, 20);
 
   return (
-    <div className="space-y-6">
+    // overflow-x-hidden evita lo scroll orizzontale di ~40px su layout 1200px
+    // causato da inline-flex di bottoni/badge che forzano min-width
+    <div className="space-y-6 overflow-x-hidden">
       <header className="space-y-2">
         <Link
           href="/contenuti"

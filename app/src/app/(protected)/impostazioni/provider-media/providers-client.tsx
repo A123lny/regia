@@ -433,7 +433,7 @@ function ProviderForm({ initial, onDone }: { initial: MediaProvider | null; onDo
           rows={3}
           maxLength={1000}
           defaultValue={initial?.verificationNotes ?? ""}
-          placeholder="es. Verificato T&C del 18/09/2026, piano Enterprise. Clausola 5.2 esclude pubblicita' politica."
+          placeholder="es. Verificato T&C del 18/09/2026, piano Enterprise. Clausola 5.2 esclude pubblicità politica."
         />
       </div>
 

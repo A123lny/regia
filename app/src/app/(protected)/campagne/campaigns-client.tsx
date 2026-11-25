@@ -672,8 +672,8 @@ function MarkSentForm({ campaign, onDone }: { campaign: CampaignRow; onDone: () 
         </div>
       </div>
       <p className="text-xs text-text-muted">
-        Segna gli esiti dell&apos;invio manuale. Fino a M5 il sistema non tiene traccia
-        automaticamente; questo passaggio serve per l&apos;audit trail.
+        Segna gli esiti dell&apos;invio manuale. Fino a che l&apos;invio automatico non sarà attivo
+        il sistema non tiene traccia da solo; questo passaggio serve per il registro attività.
       </p>
       <div className="grid grid-cols-3 gap-2">
         <div>
