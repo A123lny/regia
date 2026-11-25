@@ -1,4 +1,4 @@
-// Chip colorato per marchio, con LOGO al posto del pallino colorato (RF-2.2).
+// Chip colorato per marchio, con LOGO al posto del pallino colorato.
 // Due modalita d'uso:
 //   1. <BrandChip brand="lenny" />  (retrocompat: lookup statico dei 4 seed, senza logo)
 //   2. <BrandChip name="X" color="#RRGGBB" logoUrl={...} />  (dinamico dal DB, con logo)

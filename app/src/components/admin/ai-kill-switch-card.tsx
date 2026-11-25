@@ -85,9 +85,9 @@ export function AiKillSwitchCard({ initialStatus }: { initialStatus: AiSafetySta
           )}
         </CardTitle>
         <CardDescription>
-          RF-11.4: interruttore di arresto per bloccare TUTTE le generazioni AI (testo social, piano
+          interruttore di arresto per bloccare TUTTE le generazioni AI (testo social, piano
           editoriale, comunicazioni di servizio, ricorrenze). Effetto immediato. Non blocca le
-          funzioni interne come rendering template (satori/resvg).
+          funzioni interne come rendering template.
         </CardDescription>
       </CardHeader>
       <CardContent>

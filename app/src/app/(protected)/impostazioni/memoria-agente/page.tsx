@@ -2,7 +2,7 @@
 // Mostra cosa l'AI ha "imparato" dall'uso: approval rate per topic, motivi
 // di rifiuto frequenti, esiti promozioni, preferenze di stile per marchio.
 //
-// La memoria risiede nel DB (RNF-8): cambio di modello AI non la perde.
+// La memoria risiede nel DB: cambio di modello AI non la perde.
 // Nessun dato scritto qui: tutto read-only dai sistemi esistenti.
 
 import Link from "next/link";

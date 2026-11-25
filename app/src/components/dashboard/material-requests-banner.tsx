@@ -1,6 +1,6 @@
 "use client";
 
-// Banner dashboard: richieste materiali (foto/video) aperte (RF-3.9).
+// Banner dashboard: richieste materiali (foto/video) aperte.
 // Ogni riga: brand + descrizione + scadenza + azioni fulfill/cancel.
 
 import { useState, useTransition } from "react";

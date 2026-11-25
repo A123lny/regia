@@ -119,7 +119,8 @@ export default async function NewContentPage({
             </SelectContent>
           </Select>
           <p className="text-xs text-text-muted">
-            F1.5a supporta solo il canale social. Email, WhatsApp e altri arriveranno in F1.5b+.
+            Al momento è disponibile solo il canale social. Email, WhatsApp e altri arriveranno
+            quando saranno collegati i provider di invio.
           </p>
         </div>
 

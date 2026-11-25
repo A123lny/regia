@@ -2,7 +2,7 @@
 // tabs mostrare dalla pathname. Le tabs sono <Link> alle route esistenti
 // (nessuna duplicazione del contenuto).
 //
-// Incluso nel layout (protected) PRIMA del children, cosi' appare su tutte
+// Incluso nel layout (protected) PRIMA del children, così appare su tutte
 // le pagine delle aree. Se l'URL non e' sotto nessuna area con tabs
 // (es. /impostazioni/marchi/[slug]/media), il componente non renderizza nulla.
 
@@ -14,7 +14,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 type Tab = {
   /** Etichetta visibile della scheda. */
   label: string;
-  /** URL della scheda. Puo' avere query string (es. /contenuti?status=draft). */
+  /** URL della scheda. Può avere query string (es. /contenuti?status=draft). */
   href: string;
   /** Capability eventuale (stringa libera, filtrata dal server component che
    *  passa le tabs). Il componente stesso e' client-side e non ha access a Role,
@@ -176,16 +176,11 @@ export function AreaTabBar() {
 
   return (
     <div className="mb-6 border-b border-border">
-      <div className="mb-3">
-        <h1
-          className="text-2xl font-extrabold uppercase tracking-tight text-text"
-          style={{ fontFamily: "var(--font-bricolage)" }}
-        >
-          {area.title}
-        </h1>
-        <p className="mt-1 text-sm text-text-muted">{area.subtitle}</p>
-      </div>
-      <nav className="flex gap-1 overflow-x-auto pb-px">
+      {/* Non stampiamo più il titolo dell'area qui: ogni pagina ha il proprio
+          h1 (es. "Archivio contenuti"). Prima apparivano DUE titoli
+          sovrapposti (Area + Pagina). L'area resta implicita: sidebar attiva
+          + tab evidenziata. */}
+      <nav className="flex gap-1 overflow-x-auto pb-px" aria-label={area.title}>
         {area.tabs.map((tab) => {
           const isActive = tab.href === active;
           return (

@@ -36,7 +36,7 @@ function safeHref(url: string | null): string | undefined {
   return /^https?:\/\//i.test(url) ? url : undefined;
 }
 
-// Settori che i T&C dei provider vietano piu' spesso ( hint UI).
+// Settori che i T&C dei provider vietano più spesso ( hint UI).
 const COMMON_RESTRICTED_SECTORS = [
   "tabacco",
   "alcool",
@@ -98,8 +98,8 @@ export function ProvidersClient({ providers, canManage }: Props) {
 
       {active.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-surface p-10 text-center text-sm text-text-muted">
-          Nessun provider media registrato. Finche&apos; non ne registri uno, M04 genera solo da
-          template interni (satori) — niente generazione AI esterna.
+          Nessun provider media registrato. Finché non ne registri uno, il motore media
+          genera solo da template interni — niente generazione AI esterna.
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
@@ -248,7 +248,7 @@ function ProviderForm({ initial, onDone }: { initial: MediaProvider | null; onDo
     if (!initial) return;
     if (
       !window.confirm(
-        `Archiviare "${initial.name}"? Dopo l'archiviazione la generazione via questo provider sara' bloccata.`,
+        `Archiviare "${initial.name}"? Dopo l'archiviazione la generazione via questo provider sarà bloccata.`,
       )
     ) {
       return;
@@ -401,8 +401,8 @@ function ProviderForm({ initial, onDone }: { initial: MediaProvider | null; onDo
       <div className="rounded-md border border-border bg-bg p-3">
         <Label className="text-sm font-semibold">Settori vietati dai T&amp;C</Label>
         <p className="mt-1 text-xs text-text-muted">
-          Se il provider vieta esplicitamente un settore nei suoi T&amp;C, spuntalo. Il codice M04
-          potra&apos; (quando attivo) rifiutare richieste che toccano questi settori.
+          Se il provider vieta esplicitamente un settore nei suoi T&amp;C, spuntalo. Il sistema
+          potrà (quando attivo) rifiutare richieste che toccano questi settori.
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
           {COMMON_RESTRICTED_SECTORS.map((s) => {

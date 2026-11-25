@@ -42,7 +42,7 @@ const STATUS_META: Record<
   published: {
     label: "Pubblicate",
     heading: "Pubblicate",
-    subtitle: "Contenuti già pubblicati. Le metriche di andamento arriveranno con M8 (F2).",
+    subtitle: "Contenuti già pubblicati. Le metriche di andamento arriveranno con M8.",
   },
   rejected: {
     label: "Rifiutate",

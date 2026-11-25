@@ -49,7 +49,7 @@ export function TopicLabelEditor({ draftId, currentLabel, disabled }: Props) {
     >
       <Tag className="h-3.5 w-3.5 text-text-muted" />
       <label htmlFor={`topic-${draftId}`} className="text-text-muted">
-        Argomento (RF-12.2):
+        Argomento:
       </label>
       <select
         // key sul valore corrente: dopo il salvataggio, il parent revalida e

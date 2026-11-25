@@ -1,4 +1,4 @@
-// Team management (RU-1a).
+// Team management.
 // Owner: modifica ruolo + archivia/ripristina membri.
 // Editor: legge elenco team (team.read) ma nessuna azione.
 

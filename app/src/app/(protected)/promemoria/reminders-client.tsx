@@ -197,7 +197,7 @@ export function RemindersClient({ reminders, canCrud, canRefresh }: Props) {
                             }}
                             className="rounded-md p-1 text-text-muted hover:bg-primary/10 hover:text-primary"
                             aria-label="Invia ora via M05 (WA o email a seconda del tipo)"
-                            title="Invia ora (M05)"
+                            title="Invia ora"
                           >
                             <Send className="h-3.5 w-3.5" />
                           </button>

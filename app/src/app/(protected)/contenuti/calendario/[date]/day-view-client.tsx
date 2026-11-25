@@ -99,7 +99,7 @@ function isoToLocalInput(iso: string): string {
 }
 
 // Interpreta l'input `datetime-local` come local time e ritorna ISO UTC.
-// NB: evitiamo `new Date("YYYY-MM-DDTHH:mm")` perche' alcuni browser lo
+// NB: evitiamo `new Date("YYYY-MM-DDTHH:mm")` perché alcuni browser lo
 // interpretano come UTC (invece che local time), slittando il giorno in
 // timezone come Europe/Rome. Parsiamo esplicitamente ed usiamo il
 // constructor locale, che non ha ambiguita'.

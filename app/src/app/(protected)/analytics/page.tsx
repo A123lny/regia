@@ -107,7 +107,7 @@ export default async function AnalyticsPage({
       getPartnersAnalytics(session.organizationId),
       getSignupAnalytics(session.organizationId, period),
       getAttributionByDraft(session.organizationId, { limit: 20 }),
-      //: commercial-only (RU-1a) ma lo chiamiamo sempre per semplicità;
+      //: commercial-only ma lo chiamiamo sempre per semplicità;
       // mostriamo la sezione solo se canCommercial. Costo trascurabile (poche righe voucher).
       getCrossBrandFlow(session.organizationId, period),
     ]);
@@ -320,7 +320,7 @@ export default async function AnalyticsPage({
             </>
           ) : (
             <div className="col-span-2 flex items-center justify-center rounded-lg border border-dashed border-border bg-bg p-3 text-center text-[11px] italic text-text-muted">
-              Dati di fatturato riservati al titolare (RU-1a)
+              Dati di fatturato riservati al titolare
             </div>
           )}
           <div className="rounded-lg bg-bg p-3">

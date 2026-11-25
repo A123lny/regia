@@ -1,4 +1,4 @@
-// RN-67: banner dashboard quando il motivo "troppi messaggi" prevale sulle disiscrizioni
+// banner dashboard quando il motivo "troppi messaggi" prevale sulle disiscrizioni
 // degli ultimi 30gg. Avvisa prima che il danno si estenda.
 
 import { AlertTriangle } from "lucide-react";

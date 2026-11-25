@@ -25,8 +25,8 @@ export async function AppShell({
   role: Role;
   organizationId: string;
 }) {
-  // RF-11.4: banner globale quando AI e sospesa (visibile a tutti gli utenti loggati)
-  // RF-2.7: branding piattaforma white label
+  // banner globale quando AI e sospesa (visibile a tutti gli utenti loggati)
+  // branding piattaforma white label
   // + selettore marchio globale: carichiamo i brand attivi e il filtro corrente
   const [aiSafety, branding, brandRows, currentBrand] = await Promise.all([
     getAiSafetyStatus(organizationId),

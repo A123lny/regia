@@ -142,7 +142,7 @@ function LandingsTab({
                     setDialogOpen(false);
                     setEditing(null);
                     // Al termine di una CREAZIONE riuscita apro automaticamente
-                    // il QR dialog cosi' l'utente puo' scaricare subito il QR.
+                    // il QR dialog così l'utente può scaricare subito il QR.
                     if (wasCreate && created) {
                       setQrFor({ slug: created.slug, headline: created.headline });
                     }

@@ -307,7 +307,7 @@ function RoleEditDialog({
                   <div className="text-sm font-medium text-text">{ROLE_LABELS[r]}</div>
                   <div className="text-xs text-text-muted">
                     {r === "owner"
-                      ? "Accesso completo. Approvazione contenuti, gestione team, audit. Richiede MFA (RU-3)."
+                      ? "Accesso completo. Approvazione contenuti, gestione team, audit. Richiede MFA."
                       : "Genera, programma, pubblica, edita brand kit. Non approva ne gestisce marchi/team."}
                   </div>
                 </div>
@@ -316,7 +316,7 @@ function RoleEditDialog({
           </div>
           {role === "owner" && member.role !== "owner" && (
             <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-              Attenzione: promuovere a Owner setta requires_mfa=true (RU-3).
+              Attenzione: promuovere a Owner setta requires_mfa=true.
             </p>
           )}
           <div className="flex justify-end gap-2 pt-2">

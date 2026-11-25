@@ -51,7 +51,7 @@ export function WelcomeBackBanner({ previousLoginAt, role, pendingDraftsCount }:
               <Link href="/team" className="font-medium text-primary underline hover:no-underline">
                 assegnare un Editor
               </Link>{" "}
-              che approvi al tuo posto (RF-12.6).
+              che approvi al tuo posto.
             </>
           )}
         </p>

@@ -42,7 +42,7 @@ const REC_HINT: Record<MarketCategoryRow["recommendation"], string> = {
     "Pochi ristoranti rispetto alla domanda. Opportunita' per inserire un partner nuovo.",
   equilibrata: "Numero di partner adeguato alla domanda.",
   satura: "Molti ristoranti per la domanda. Nuovi partner avrebbero ordini sotto la media rete.",
-  sconosciuta: "Mediana rete pari a 0: non si puo' confrontare.",
+  sconosciuta: "Mediana rete pari a 0: non si può confrontare.",
 };
 
 const REC_STYLE: Record<MarketCategoryRow["recommendation"], string> = {

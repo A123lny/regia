@@ -49,7 +49,7 @@ export default async function CampagnePage({
           <HelpButton pageKey="campagne" />
         </div>
         <p className="mt-1 text-sm text-text-muted">
-          Predisposizione invii cross-canale. In F1 la campagna resta
+          Predisposizione invii cross-canale. la campagna resta
           &quot;draft&quot;/&quot;scheduled&quot; finché non arriva M5; l&apos;Owner marca
           l&apos;invio effettivo qui riportando gli esiti. vincolo: mai autonomo su primi contatti a
           pubblici nuovi.

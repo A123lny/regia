@@ -43,7 +43,7 @@ export function CalendarClient({ brandSlug, startDateIso, scheduled, approved }:
     try {
       await scheduleContentDraft(draftId, target.toISOString());
       // revalidatePath dentro l'action — la RSC parent viene rirenderizzata.
-      // router.refresh() richiede il re-fetch dei Server Components senza full reload (RS-6).
+      // router.refresh() richiede il re-fetch dei Server Components senza full reload.
       router.refresh();
     } catch (e) {
       setError((e as Error).message);

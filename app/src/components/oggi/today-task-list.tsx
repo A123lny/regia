@@ -69,7 +69,7 @@ export function TodayTaskList({
   customTasks: CustomTask[];
 }) {
   // Merge: task auto-generati + task manuali (manuali tutti in "urgent" o
-  // "important" a seconda della priorita').
+  // "important" a seconda della priorità).
   const groupedCustom = {
     urgent: customTasks.filter((t) => t.priority === "urgent"),
     important: customTasks.filter((t) => t.priority === "important"),

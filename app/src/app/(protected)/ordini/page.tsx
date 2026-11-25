@@ -99,7 +99,7 @@ export default async function OrdiniPage({
           <HelpButton pageKey="ordini" />
         </div>
         <p className="mt-1 text-sm text-text-muted">
-          Vendite cross-marchio. Testata + righe con snapshot prezzo/nome. In F1 sola lettura: la
+          Vendite cross-marchio. Testata + righe con snapshot prezzo/nome. sola lettura: la
           scrittura arriva con la sincronizzazione dei gestionali.
         </p>
       </header>
@@ -285,7 +285,7 @@ export default async function OrdiniPage({
 
       {items.length === 0 && (
         <div className="rounded-lg border border-dashed border-border bg-surface p-10 text-center text-sm text-text-muted">
-          Nessun ordine trovato. In F1 lo scarico avviene dai gestionali.
+          Nessun ordine trovato. lo scarico avviene dai gestionali.
         </div>
       )}
     </div>

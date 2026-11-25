@@ -54,8 +54,8 @@ export function ScheduleDraftForm({ draftId }: { draftId: string }) {
           disabled={pending}
         />
         <p className="text-xs text-text-muted">
-          Il sistema non pubblica automaticamente in questa fase (F1.5b-α). Quando arriva il
-          momento, aprirai il draft e cliccherai &quot;Segna come pubblicato&quot;.
+          Il sistema non pubblica automaticamente. Quando arriva il momento, apri la bozza e
+          clicca &quot;Segna come pubblicato&quot;.
         </p>
       </div>
 

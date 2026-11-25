@@ -1,5 +1,5 @@
 // Header globale. Server component minimale: logo + user menu.
-// RF-2.7: nome + logo piattaforma dinamici (white label).
+// nome + logo piattaforma dinamici (white label).
 
 import Link from "next/link";
 import { MobileSidebar } from "@/components/layout/sidebar";

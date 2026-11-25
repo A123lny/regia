@@ -3,7 +3,7 @@
 // RF-12.1 Task list dashboard — vista unificata:
 // A) Segnali di sistema (auto-generati dai moduli, read-only, link al modulo)
 // B) Task manuali (CRUD, checkbox per completare, assegnabili al team)
-// Entrambe raggruppate per priorita' (urgent/important/opportunity) con colori
+// Entrambe raggruppate per priorità (urgent/important/opportunity) con colori
 // semaforo. Bottone "Nuovo task" + filtri "Tutti/Miei/Assegnati a me/Completati".
 
 import { useState, useTransition } from "react";

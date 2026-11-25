@@ -108,7 +108,7 @@ function isAreaActive(pathname: string, areaKey: Area["key"]): boolean {
   const matches = LEGACY_PATH_TO_AREA.filter(
     (m) => pathname === m.prefix || pathname.startsWith(m.prefix + "/"),
   );
-  // Prende il prefisso piu' lungo (/impostazioni/memoria-agente vince su /impostazioni).
+  // Prende il prefisso più lungo (/impostazioni/memoria-agente vince su /impostazioni).
   matches.sort((a, b) => b.prefix.length - a.prefix.length);
   return matches[0]?.area === areaKey;
 }

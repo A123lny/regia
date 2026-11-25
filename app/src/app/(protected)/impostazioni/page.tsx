@@ -293,7 +293,7 @@ export default async function ImpostazioniPage() {
         </CardContent>
       </Card>
 
-      {/* Sezione chiavi AI (read-only, RNF-1) — solo Owner (RU-1a) */}
+      {/* Sezione chiavi AI (read-only, RNF-1) — solo Owner */}
       {session.role === "owner" && (
         <Card className="border-border bg-surface">
           <CardHeader>
@@ -349,7 +349,7 @@ export default async function ImpostazioniPage() {
                 </div>
               ) : (
                 <span className="text-sm text-danger">
-                  non configurata (opzionale — F1.5a degrada senza)
+                  non configurata (opzionale)
                 </span>
               )}
             </div>

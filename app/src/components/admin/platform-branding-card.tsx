@@ -75,7 +75,7 @@ export function PlatformBrandingCard({ initial }: { initial: PlatformBranding })
         </CardTitle>
         <CardDescription>
           RF-2.7 White label: personalizza nome, logo e colore primario della piattaforma. Utile se
-          un giorno rivendi Regìa ad altri clienti (RN-87).
+          un giorno rivendi Regìa ad altri clienti.
         </CardDescription>
       </CardHeader>
       <CardContent>

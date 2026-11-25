@@ -1,6 +1,6 @@
 "use client";
 
-// Banner dashboard che elenca le ricorrenze annuali "in finestra" (RF-3.4).
+// Banner dashboard che elenca le ricorrenze annuali "in finestra".
 // Ogni card mostra: nome evento, marchio (chip colorato), giorni rimanenti,
 // bottone "Genera bozza". Se gia attivato, badge "Bozza creata".
 

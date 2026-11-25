@@ -3,7 +3,7 @@
 // verificati UNA VOLTA alla registrazione. Non e' un controllo che si ripete a
 // ogni generazione: e' una condizione di ammissione del fornitore.
 //
-// In F1 M04 usa solo template interni (satori). Questa pagina diventa pratica
+// usa solo template interni. Questa pagina diventa pratica
 // quando colleghiamo un provider reale (fal.ai FLUX, Replicate, DALL-E, ecc.).
 
 import Link from "next/link";
@@ -48,7 +48,7 @@ export default async function ProviderMediaPage() {
               {" "}
               · Fornitori AI per immagini/video (es. fal.ai FLUX, Replicate, DALL-E). ToS, detentore
               dei diritti e usi ammessi vengono verificati <strong>una volta</strong> alla
-              registrazione del fornitore e tracciati qui per audit. In F1 M04 usa solo template
+              registrazione del fornitore e tracciati qui per audit. usa solo template
               interni: questa sezione precede l&apos;integrazione dei provider reali.
             </p>
           </div>

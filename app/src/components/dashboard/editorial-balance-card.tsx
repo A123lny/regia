@@ -1,6 +1,6 @@
 // RF-12.3 Equilibrio editoriale — vista sintetica in dashboard.
 // Mostra distribuzione contenuti approvati/programmati/pubblicati ultimi 30gg
-// per topic_label (RF-12.2). Warning se sbilanciato ≥20 punti percentuali.
+// per topic_label. Warning se sbilanciato ≥20 punti percentuali.
 
 import { Scale, ArrowUp, ArrowDown } from "lucide-react";
 import type { EditorialBalance } from "@/modules/m03-editorial/public";
@@ -26,7 +26,7 @@ export function EditorialBalanceCard({ balance }: { balance: EditorialBalance })
         </span>
       </div>
       <p className="mb-3 text-xs text-text-muted">
-        RF-12.3: distribuzione dei contenuti per etichetta di argomento (RF-12.2). Sbilancio
+        distribuzione dei contenuti per etichetta di argomento. Sbilancio
         segnalato se una categoria differisce dalla media di ±20 punti percentuali.
       </p>
 
