@@ -17,6 +17,7 @@ import {
   Wand2,
   Wand,
   Clapperboard,
+  Film,
 } from "lucide-react";
 import type { MediaAsset, TemplateDefinition } from "@/modules/m04-media/public";
 import {
@@ -29,6 +30,7 @@ import {
 import type { BrandCreatomateTemplate } from "@/modules/m15-creatomate/public";
 import { AiGeneratePanel } from "./ai-generate-panel";
 import { CreatomatePanel } from "./creatomate-panel";
+import { FalVideoPanel } from "./fal-video-panel";
 
 type DraftContext = {
   topicLabel: string | null;
@@ -48,7 +50,7 @@ type Props = {
   draftContext?: DraftContext;
 };
 
-type PickerMode = "library" | "template" | "ai" | "creatomate";
+type PickerMode = "library" | "template" | "ai" | "creatomate" | "video";
 
 export function DraftMediaPicker({
   draftId,
@@ -194,6 +196,15 @@ export function DraftMediaPicker({
               className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
             >
               <Clapperboard className="h-3.5 w-3.5" /> Crea visual
+            </button>
+            <button
+              type="button"
+              onClick={() => setPickerOpen("video")}
+              disabled={busy || !currentAsset}
+              className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
+              title={currentAsset ? undefined : "Serve un'immagine allegata"}
+            >
+              <Film className="h-3.5 w-3.5" /> Genera video AI
             </button>
           </div>
         )}
@@ -533,6 +544,17 @@ export function DraftMediaPicker({
               themeInput: draftContext?.themeInput ?? "",
               generatedText: draftContext?.generatedText ?? "",
             }}
+            onClose={() => setPickerOpen(null)}
+          />
+        </div>
+      )}
+
+      {pickerOpen === "video" && (
+        <div className="mt-3">
+          <FalVideoPanel
+            brandId={brandId}
+            draftId={draftId}
+            hasImage={!!currentAsset}
             onClose={() => setPickerOpen(null)}
           />
         </div>

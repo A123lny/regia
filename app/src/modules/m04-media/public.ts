@@ -63,6 +63,17 @@ export type { UpsertMediaProviderActionInput } from "./internal/media-providers-
 // Generazione immagini AI (fal.ai).
 export { generateAiPreviews, generateAndSaveAiVariant } from "./internal/fal-actions";
 export type { AiPreviewItem, AiPreviewsResult, AiVariantSavedResult } from "./internal/fal-actions";
+
+// Generazione video AI (fal.ai image-to-video).
+export {
+  startFalVideoAction,
+  getFalVideoJobStatusAction,
+} from "./internal/fal-video-actions";
+export type { StartVideoResult, VideoStatusResult } from "./internal/fal-video-actions";
+
+// Helper per diagnostica (test rendering template senza bucket).
+export { renderTemplateToPng } from "./internal/templates/renderer";
+
 export {
   FAL_PREVIEW_MODEL,
   FAL_QUALITY_MODEL,

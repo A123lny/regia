@@ -171,11 +171,8 @@ export async function testStorageAction(): Promise<DiagResult> {
 export async function testTemplateRenderAction(): Promise<DiagResult> {
   await requireOwner();
   try {
-    const { renderTemplateToPng } = await import(
-      "@/modules/m04-media/internal/templates/renderer"
-    );
-    const { getTemplateDefinition } = await import(
-      "@/modules/m04-media/internal/templates/template-registry"
+    const { renderTemplateToPng, getTemplateDefinition } = await import(
+      "@/modules/m04-media/public"
     );
     // Prendi il primo template con il minimo di campi richiesti.
     const def = getTemplateDefinition("promo-announce");

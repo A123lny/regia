@@ -13,12 +13,22 @@ export const FAL_QUALITY_MODEL: FalImageModelId = "fal-ai/flux-pro/v1.1";
 export const FAL_PREVIEW_COUNT = 4;
 
 // Costo stimato per immagine, aggiornato ai prezzi listati fal.ai (nov 2026).
-// Usato solo per preflight budget check; il costo reale viene letto dalla
-// risposta fal se presente (campo `timings`/`cost` non sempre disponibile).
 export const FAL_COST_USD: Record<FalImageModelId, number> = {
   "fal-ai/flux/schnell": 0.003,
   "fal-ai/flux-pro/v1.1": 0.04,
 };
+
+// ─── Video (image-to-video) ───────────────────────────────────────────────
+// Endpoint fal video image-to-video. Kling 2.0 e Veo-3 sono fra i più usati
+// (verifica listino aggiornato su fal.ai/models). Scelta operativa: kling
+// (più economico, ~$0.10 per 5s 9:16) per il primo roll-out.
+export type FalVideoModelId = "fal-ai/kling-video/v2/master/image-to-video";
+export const FAL_VIDEO_MODEL: FalVideoModelId = "fal-ai/kling-video/v2/master/image-to-video";
+export const FAL_VIDEO_COST_USD = 0.1; // stima per 5s
+// Timeout polling long-running: video sincrono può superare la finestra
+// Vercel (300s max). Qui usiamo queue.submit + status polling.
+export const FAL_VIDEO_DEFAULT_DURATION_S = 5;
+export const FAL_VIDEO_DEFAULT_ASPECT = "9:16" as const;
 
 // Formato in base al canale della bozza. Dimensioni allineate agli standard IG/FB.
 export type FalImageSize = {
