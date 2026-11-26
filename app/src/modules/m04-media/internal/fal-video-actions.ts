@@ -141,7 +141,15 @@ export async function startFalVideoAction(input: {
     return { ok: false, error: "Immagine della bozza non trovata nella libreria." };
   }
 
-  const pre = await preflight(session.organizationId, FAL_VIDEO_COST_USD);
+  // Allow-list durate accettate (5 o 10s): evita che un client malevolo
+  // imposti durata 60s pagando come 5s nel preflight.
+  const ALLOWED_DURATIONS = [5, 10];
+  const duration = ALLOWED_DURATIONS.includes(Number(input.durationSeconds))
+    ? Number(input.durationSeconds)
+    : 5;
+  const costForDuration = FAL_VIDEO_COST_USD * (duration / 5); // lineare su 5s base
+
+  const pre = await preflight(session.organizationId, costForDuration);
   if (!pre.ok) return pre;
 
   const prompt =
@@ -159,7 +167,7 @@ export async function startFalVideoAction(input: {
     submit = await submitVideoJob({
       imageUrl: asset.signedUrl,
       prompt,
-      ...(input.durationSeconds ? { durationSeconds: input.durationSeconds } : {}),
+      durationSeconds: duration,
       aspectRatio: "9:16",
     });
   } catch (err) {
@@ -171,14 +179,16 @@ export async function startFalVideoAction(input: {
     return { ok: false, error: mapErr(err) };
   }
 
-  // Log spesa + audit SUBITO (parità con fal images)
+  // Log spesa + audit SUBITO (parità con fal images). Usiamo costForDuration
+  // perché submit.estimatedCostUsd è base 5s: la durata effettiva è
+  // controllata server-side.
   try {
     await logSpend({
       organizationId: session.organizationId,
       brandId: brand.id,
       category: "fal",
       action: "media.ai_video_submitted",
-      costUsd: submit.estimatedCostUsd,
+      costUsd: costForDuration,
       tokensIn: 0,
       tokensOut: 0,
       targetType: "draft",

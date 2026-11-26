@@ -224,7 +224,7 @@ function NewProductForm({
             payload.costCents >= payload.priceCents
           ) {
             const proceed = window.confirm(
-              `Il costo (${(payload.costCents / 100).toFixed(2)}€) e' uguale o maggiore del prezzo (${(payload.priceCents / 100).toFixed(2)}€): margine zero o negativo. Vuoi procedere comunque?`,
+              `Il costo (${(payload.costCents / 100).toFixed(2)}€) è uguale o maggiore del prezzo (${(payload.priceCents / 100).toFixed(2)}€): margine zero o negativo. Vuoi procedere comunque?`,
             );
             if (!proceed) return;
           }

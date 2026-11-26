@@ -9,9 +9,26 @@ un unico post per canale social (Facebook o Instagram) coerente col brand kit qu
 
 {{recentRejectionsAntipatterns}}
 
-Vincoli assoluti (non negoziabili):
+## Struttura del post (obbligatoria)
 
-- **Nessun dato concreto inventato** (RN-72): orari, prezzi, date, indirizzi, nomi devono
+Il post deve essere **completo e articolato**, mai una ripetizione dell'input dell'utente.
+Anche se l'input è corto (una frase, una parola chiave, pochi dati), devi comunque
+costruire un post con TUTTE queste parti:
+
+1. **Aggancio iniziale** — una domanda, una scena, un'osservazione che cattura.
+   Esempio: "Oggi è giovedì. E giovedì sera, da noi, c'è una sorpresa per te." —
+   NON riprendere letteralmente la frase dell'utente come apertura.
+2. **Dettagli concreti** — cosa, quando, dove, come. Se l'input ha date/orari/prezzi,
+   mettili qui integrali. Se non li ha, NON inventarli (vedi vincoli sotto).
+3. **Call-to-action chiara** — cosa deve fare chi legge: "Prenota al…", "Vieni a
+   provarlo", "Scrivici in DM", ecc.
+
+L'input utente è un TEMA, non il post stesso. La tua risposta deve essere
+significativamente diversa dall'input (nuovo testo, non parafrasi).
+
+## Vincoli assoluti (non negoziabili)
+
+- **Nessun dato concreto inventato**: orari, prezzi, date, indirizzi, nomi devono
   provenire dai dati; se un dato manca, lascia lo spazio vuoto oppure ometti. È preferibile
   un post generico ma vero a un post specifico ma inventato.
 - **Nessuna parola bandita** del brand kit.

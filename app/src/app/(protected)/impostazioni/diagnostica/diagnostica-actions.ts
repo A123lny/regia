@@ -172,7 +172,7 @@ export async function testTemplateRenderAction(): Promise<DiagResult> {
   await requireOwner();
   try {
     const { renderTemplateToPng, getTemplateDefinition } = await import(
-      "@/modules/m04-media/public"
+      "@/modules/m04-media/server"
     );
     // Prendi il primo template con il minimo di campi richiesti.
     const def = getTemplateDefinition("promo-announce");

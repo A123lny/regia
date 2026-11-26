@@ -71,8 +71,8 @@ export {
 } from "./internal/fal-video-actions";
 export type { StartVideoResult, VideoStatusResult } from "./internal/fal-video-actions";
 
-// Helper per diagnostica (test rendering template senza bucket).
-export { renderTemplateToPng } from "./internal/templates/renderer";
+// renderTemplateToPng e getTemplateDefinition vivono in ./server.ts
+// (importano @resvg/resvg-js nativo non bundlabile client).
 
 export {
   FAL_PREVIEW_MODEL,

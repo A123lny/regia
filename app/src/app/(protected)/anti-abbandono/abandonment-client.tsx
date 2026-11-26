@@ -269,7 +269,7 @@ function ResolveDialog({
                   onChange={(e) => setReason(e.target.value)}
                   rows={6}
                   maxLength={1000}
-                  placeholder="Es: Chiamato il cliente, mi ha spiegato che il ritardo era dovuto a... Si e' chiarito, torna attivo. Prossimo contatto previsto a dicembre."
+                  placeholder="Es: Chiamato il cliente, mi ha spiegato che il ritardo era dovuto a... Si è chiarito, torna attivo. Prossimo contatto previsto a dicembre."
                   className="mt-1 w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
                   autoFocus
                 />
