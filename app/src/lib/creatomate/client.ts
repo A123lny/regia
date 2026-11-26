@@ -247,10 +247,15 @@ export async function createRender(input: CreateRenderInput): Promise<Creatomate
 // ────────────────────────────────────────────────────────────────────────
 
 export async function getRender(externalId: string): Promise<CreatomateRenderResponse> {
-  const data = (await fetchJsonWithRetry(`${CREATOMATE_API_BASE}/renders/${externalId}`, {
-    method: "GET",
-    headers: { Authorization: `Bearer ${getKey()}` },
-  })) as CreatomateRenderResponse;
+  // encodeURIComponent anti path-injection: il caller dovrebbe già validare
+  // che sia un UUID, questo è defense-in-depth.
+  const data = (await fetchJsonWithRetry(
+    `${CREATOMATE_API_BASE}/renders/${encodeURIComponent(externalId)}`,
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${getKey()}` },
+    },
+  )) as CreatomateRenderResponse;
   if (!data || typeof data.id !== "string") {
     throw new CreatomateError(502, "Creatomate ha restituito una risposta inattesa.");
   }

@@ -13,8 +13,8 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { getSessionOrRedirect } from "@/lib/auth/session";
-import { requireCapability } from "@/lib/auth/permissions";
 import { logAuditEvent } from "@/lib/audit/log";
+import { getAdminClient } from "@/lib/db/admin";
 import { getBrandById } from "@/modules/m02-brand/public";
 import { getContentDraft } from "@/modules/m03-editorial/public";
 import { getRender } from "@/lib/creatomate/client";
@@ -24,15 +24,40 @@ import {
 } from "@/modules/m15-creatomate/public";
 import { applySucceededRenderByExternalId } from "@/modules/m15-creatomate/server";
 
+// UUID match: Creatomate render IDs sono UUID v4. Rifiutiamo qualsiasi
+// altro formato PRIMA di usarli in URL/DB (path injection su outbound).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Prova che la nostra org "possiede" questo external_id: verifica l'audit
+// trail. Quando creiamo un render, logAuditEvent registra
+// creatomate.default_render_started / _render_started / _render_orphaned
+// con details.externalId. La recovery è concessa solo se un evento con
+// quell'externalId esiste PER QUESTA organization.
+async function ownsExternalId(organizationId: string, externalId: string): Promise<boolean> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { data } = await admin
+    .from("audit_events")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .in("action", [
+      "creatomate.render_started",
+      "creatomate.default_render_started",
+      "creatomate.default_render_orphaned",
+      "creatomate.render_errored_possibly_charged",
+      "creatomate.default_render_errored_possibly_charged",
+    ])
+    .filter("details->>externalId", "eq", externalId)
+    .limit(1);
+  return Array.isArray(data) && data.length > 0;
+}
+
 export async function POST(req: Request) {
   const session = await getSessionOrRedirect();
-  try {
-    requireCapability(session, "content.generate");
-  } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Non autorizzato." },
-      { status: 403 },
-    );
+  // Recovery è un'operazione amministrativa (crea row con externalId
+  // fornito dal client): Owner-only.
+  if (session.role !== "owner") {
+    return NextResponse.json({ ok: false, error: "Solo Owner." }, { status: 403 });
   }
 
   let body: unknown;
@@ -42,12 +67,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Body non valido." }, { status: 400 });
   }
   const b = body as { externalId?: unknown; brandId?: unknown; draftId?: unknown };
-  if (typeof b.externalId !== "string" || !b.externalId) {
-    return NextResponse.json({ ok: false, error: "externalId mancante." }, { status: 400 });
+  const rawExternalId = typeof b.externalId === "string" ? b.externalId : "";
+  if (!UUID_RE.test(rawExternalId)) {
+    return NextResponse.json(
+      { ok: false, error: "externalId non valido (deve essere un UUID)." },
+      { status: 400 },
+    );
   }
   if (typeof b.brandId !== "string" || !b.brandId) {
     return NextResponse.json({ ok: false, error: "brandId mancante." }, { status: 400 });
   }
+  const externalId = rawExternalId.toLowerCase();
 
   const brand = await getBrandById(session.organizationId, b.brandId);
   if (!brand) {
@@ -62,9 +92,27 @@ export async function POST(req: Request) {
     }
   }
 
-  // Già presente?
-  const existing = await getRenderByExternalId(b.externalId);
+  // Cross-tenant ownership: solo externalId tracciati in audit per QUESTA org.
+  // Previene che un Owner di un'org altrui recuperi un render di un'altra.
+  const owns = await ownsExternalId(session.organizationId, externalId);
+  if (!owns) {
+    return NextResponse.json(
+      { ok: false, error: "externalId non trovato nel registro attività di questa organizzazione." },
+      { status: 404 },
+    );
+  }
+
+  // Già presente? Cerca scoped per org (getRenderByExternalId non filtra).
+  const existing = await getRenderByExternalId(externalId);
   if (existing) {
+    // Verifica che la row esistente appartenga alla nostra org: in caso
+    // contrario trattalo come not-found generico (no info disclosure).
+    if (existing.organizationId !== session.organizationId) {
+      return NextResponse.json(
+        { ok: false, error: "Render non recuperabile." },
+        { status: 404 },
+      );
+    }
     return NextResponse.json({
       ok: true,
       alreadyExisted: true,
@@ -76,7 +124,7 @@ export async function POST(req: Request) {
   // Fetch da Creatomate
   let live;
   try {
-    live = await getRender(b.externalId);
+    live = await getRender(externalId);
   } catch (err) {
     return NextResponse.json(
       {
@@ -106,7 +154,7 @@ export async function POST(req: Request) {
       organizationId: session.organizationId,
       brandId: brand.id,
       ...(draftId ? { draftId } : {}),
-      externalId: b.externalId,
+      externalId: externalId,
       templateId: "__recovered",
       modifications: {},
       webhookToken,
@@ -119,12 +167,12 @@ export async function POST(req: Request) {
       actorKind: "user",
       action: "creatomate.render_recovered",
       target: `render:${row.id}`,
-      details: { externalId: b.externalId, status: initialStatus, ...(draftId ? { draftId } : {}) },
+      details: { externalId: externalId, status: initialStatus, ...(draftId ? { draftId } : {}) },
     });
 
     // Se è succeeded, fai il download+attach SUBITO
     if (initialStatus === "succeeded") {
-      const applied = await applySucceededRenderByExternalId(b.externalId);
+      const applied = await applySucceededRenderByExternalId(externalId);
       return NextResponse.json({
         ok: true,
         recovered: true,

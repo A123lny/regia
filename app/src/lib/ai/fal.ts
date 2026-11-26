@@ -242,8 +242,45 @@ export async function generateImages(input: GenerateImagesInput): Promise<Genera
       }
       // Da qui in poi, nessun retry: emettere errore terminale che preserva
       // accumulatedChargedCost accumulato dai tentativi precedenti addebitabili.
-      if (status === 401 || status === 403) {
-        throw new FalConfigError("Chiave fal.ai non valida o revocata.", accumulatedChargedCost);
+      if (status === 401) {
+        throw new FalConfigError(
+          "Chiave fal.ai non valida (401). Verifica FAL_KEY su Vercel.",
+          accumulatedChargedCost,
+        );
+      }
+      if (status === 403) {
+        // Distinguere credito/account bloccato dal "non autorizzato" generico.
+        const msgLower = String(message).toLowerCase();
+        if (msgLower.includes("balance") || msgLower.includes("credit") || msgLower.includes("insufficient")) {
+          throw new FalConfigError(
+            "fal.ai: credito esaurito. Ricarica l'account su https://fal.ai/dashboard/billing",
+            accumulatedChargedCost,
+          );
+        }
+        if (msgLower.includes("locked") || msgLower.includes("suspended") || msgLower.includes("disabled")) {
+          throw new FalConfigError(
+            "Account fal.ai bloccato o sospeso. Contatta fal.ai support.",
+            accumulatedChargedCost,
+          );
+        }
+        throw new FalConfigError(
+          `Accesso fal.ai negato (403): ${message}`,
+          accumulatedChargedCost,
+        );
+      }
+      if (status === 402) {
+        throw new FalConfigError(
+          "fal.ai: pagamento richiesto / credito esaurito (402).",
+          accumulatedChargedCost,
+        );
+      }
+      if (status === 404) {
+        // 404 = modello non trovato (slug sbagliato)
+        throw new FalApiError(
+          404,
+          `Modello fal.ai non trovato: ${message}`,
+          accumulatedChargedCost,
+        );
       }
       if (status === 400 || status === 422) {
         // Prompt rifiutato in validation: pre-accettazione per questo tentativo,

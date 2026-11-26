@@ -51,31 +51,60 @@ export async function testGeminiAction(): Promise<DiagResult> {
 }
 
 // ─────────────────────────────────────────────────────────────── fal.ai
+// Test AUTENTICATO a costo zero: GET status di un request_id dummy sulla
+// coda flux/schnell. Risposte attese:
+//   401/403   → chiave non valida o revocata
+//   402       → crediti esauriti
+//   404       → chiave VALIDA (request non esiste, ma l'auth è OK) ✓
+//   429       → rate limit temporaneo
+//   5xx/time  → fal down
 export async function testFalAction(): Promise<DiagResult> {
   await requireOwner();
   const key = process.env["FAL_KEY"];
   if (!key || !key.trim()) {
     return { ok: false, message: "Chiave fal.ai non impostata (FAL_KEY)." };
   }
-  // Endpoint auth check molto leggero: /models richiede solo auth, nessun billing.
+  const dummyId = "00000000-0000-0000-0000-000000000000";
   try {
-    const res = await fetch("https://queue.fal.run/fal-ai/flux/schnell", {
-      method: "OPTIONS",
-      headers: { Authorization: `Key ${key}` },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (res.status === 401 || res.status === 403) {
-      return { ok: false, message: "Chiave fal.ai non valida (401/403)." };
+    const res = await fetch(
+      `https://queue.fal.run/fal-ai/flux/schnell/requests/${dummyId}/status`,
+      {
+        method: "GET",
+        headers: { Authorization: `Key ${key}` },
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    const text = await res.text().catch(() => "");
+    const bodyLower = text.toLowerCase();
+    if (res.status === 401) {
+      return { ok: false, message: "Chiave fal.ai non valida o scaduta (401)." };
     }
-    // OPTIONS risponde 200/204 su endpoint esistenti: qualunque risposta che
-    // non sia 4xx-auth ci dice che il server riconosce la chiave.
-    if (res.status >= 500) {
+    if (res.status === 403) {
+      if (bodyLower.includes("balance") || bodyLower.includes("credit")) {
+        return { ok: false, message: "fal.ai: credito esaurito (403 balance)." };
+      }
+      if (bodyLower.includes("locked") || bodyLower.includes("suspended")) {
+        return { ok: false, message: "Account fal.ai bloccato o sospeso (403)." };
+      }
+      return { ok: false, message: "Accesso fal.ai negato (403). Verifica la chiave." };
+    }
+    if (res.status === 402) {
+      return { ok: false, message: "fal.ai: pagamento richiesto / credito esaurito (402)." };
+    }
+    if (res.status === 429) {
+      return { ok: false, message: "fal.ai: troppe richieste (429). Riprova fra poco." };
+    }
+    if (res.status === 404) {
       return {
-        ok: false,
-        message: `fal.ai ha risposto con errore server ${res.status}.`,
+        ok: true,
+        message:
+          "Connessione OK — chiave fal.ai autenticata (404 su dummy ID è il risultato atteso).",
       };
     }
-    return { ok: true, message: "Connessione OK — fal.ai raggiungibile." };
+    if (res.status >= 500) {
+      return { ok: false, message: `fal.ai ha risposto con errore server ${res.status}.` };
+    }
+    return { ok: true, message: `Connessione OK — fal.ai raggiungibile (status ${res.status}).` };
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
       return { ok: false, message: "fal.ai: timeout di 10 secondi superato." };
