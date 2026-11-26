@@ -30,8 +30,15 @@ export {
   removeBrandTemplateAction,
 } from "./internal/brand-templates-actions";
 
-export { startCreatomateRender, getCreatomateRenderStatus } from "./internal/render-actions";
+export {
+  startCreatomateRender,
+  startCreatomateDefaultRender,
+  getCreatomateRenderStatus,
+} from "./internal/render-actions";
 export type { StartRenderResult, RenderStatusResult } from "./internal/render-actions";
+
+export { DEFAULT_VARIANT_LABELS } from "./internal/default-sources";
+export type { DefaultVariant } from "./internal/default-sources";
 
 // applySucceededRenderByExternalId è server-only (import "server-only").
 // Vive in ./server.ts per non spezzare il bundle client.

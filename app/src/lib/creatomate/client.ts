@@ -193,11 +193,15 @@ async function fetchJsonWithRetry(url: string, init: RequestInit): Promise<unkno
 // ────────────────────────────────────────────────────────────────────────
 
 export type CreateRenderInput = {
-  templateId: string;
-  modifications: Record<string, unknown>;
+  // Specifica UNA fra templateId (template registrato in Creatomate) o
+  // source (RenderScript JSON inline — permette di creare render senza
+  // template preregistrato, utile per i default della piattaforma).
+  templateId?: string;
+  source?: Record<string, unknown>;
+  modifications?: Record<string, unknown>;
   webhookUrl: string;
   metadata?: Record<string, unknown>;
-  // Forza dimensioni (preset test). Dove il template le ignora Creatomate lo fa suo.
+  // Forza dimensioni (preset test). Ignorate se `source` include già w/h.
   width?: number;
   height?: number;
   frameRate?: number;
@@ -205,11 +209,17 @@ export type CreateRenderInput = {
 };
 
 export async function createRender(input: CreateRenderInput): Promise<CreatomateRenderResponse> {
+  if (!input.templateId && !input.source) {
+    throw new CreatomateValidationError(
+      "Necessario specificare o templateId o source (RenderScript JSON).",
+    );
+  }
   const body: Record<string, unknown> = {
-    template_id: input.templateId,
-    modifications: input.modifications,
     webhook_url: input.webhookUrl,
   };
+  if (input.templateId) body["template_id"] = input.templateId;
+  if (input.source) body["source"] = input.source;
+  if (input.modifications) body["modifications"] = input.modifications;
   if (input.metadata) body["metadata"] = JSON.stringify(input.metadata).slice(0, 2000);
   if (input.width) body["width"] = input.width;
   if (input.height) body["height"] = input.height;

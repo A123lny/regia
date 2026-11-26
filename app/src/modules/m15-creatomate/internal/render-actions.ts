@@ -33,6 +33,7 @@ import { getActiveProviderBySlug } from "@/modules/m04-media/internal/media-prov
 import { insertCreatomateRender, getRenderById } from "./creatomate-renders-repo";
 import { applySucceededRenderByExternalId } from "./apply-succeeded";
 import { listBrandTemplates } from "./brand-templates-repo";
+import { sourceForVariant, type DefaultVariant } from "./default-sources";
 
 export type StartRenderResult =
   { ok: true; renderId: string; externalId: string; status: string } | { ok: false; error: string };
@@ -487,4 +488,194 @@ export async function getCreatomateRenderStatus(input: {
     assetId: after.assetId,
     errorMessage: after.errorMessage,
   };
+}
+
+/**
+ * Avvia render Creatomate usando un DEFAULT inline (RenderScript JSON),
+ * senza richiedere un template preregistrato nel pannello Creatomate o
+ * nella mappatura brand. Permette "Crea visual" di funzionare subito
+ * dopo l'attivazione dell'account.
+ *
+ * Varianti disponibili (vedi default-sources.ts):
+ *  - square_post: 1080×1080 jpg (post Instagram/FB)
+ *  - story_reel:  1080×1920 mp4 8s (story/reel verticale)
+ *  - poster_a4:   2480×3508 jpg (locandina stampa)
+ *
+ * Il brand kit (color, logo) e la bozza forniscono i contenuti dinamici.
+ */
+export async function startCreatomateDefaultRender(input: {
+  brandId: string;
+  draftId?: string;
+  variant: DefaultVariant;
+  shortTitle: string;
+  body: string;
+  ctaText?: string;
+}): Promise<StartRenderResult> {
+  const session = await getSessionOrRedirect();
+  try {
+    requireCapability(session, "content.generate");
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Non autorizzato." };
+  }
+  if (!input.brandId) return { ok: false, error: "brandId mancante." };
+  if (input.variant !== "square_post" && input.variant !== "story_reel" && input.variant !== "poster_a4") {
+    return { ok: false, error: "Variante non valida." };
+  }
+
+  const brand = await getBrandById(session.organizationId, input.brandId);
+  if (!brand) return { ok: false, error: "Marchio non trovato." };
+
+  if (input.draftId) {
+    const draft = await getContentDraft(input.draftId, session.organizationId);
+    if (!draft) return { ok: false, error: "Bozza non trovata." };
+    if (draft.brandId !== brand.id) {
+      return { ok: false, error: "La bozza non appartiene a questo marchio." };
+    }
+  }
+
+  // Preset test: dimensioni ridotte in test, full in final. Per i default
+  // inline usiamo sempre dimensioni "final" perché le risoluzioni sono
+  // fisse per convenzione variant; stimiamo 3 crediti per mp4, 1 per jpg.
+  const estimatedCredits = input.variant === "story_reel" ? 3 : 1;
+  const estimatedUsd = estimatedCredits * CREATOMATE_USD_PER_CREDIT;
+
+  const pre = await preflight(session.organizationId, estimatedUsd);
+  if (!pre.ok) return pre;
+
+  const appUrl =
+    process.env["NEXT_PUBLIC_APP_URL"]?.replace(/\/$/, "") ??
+    (process.env["VERCEL_URL"] ? `https://${process.env["VERCEL_URL"]}` : "");
+  if (!appUrl) {
+    return {
+      ok: false,
+      error:
+        "URL app non configurato (NEXT_PUBLIC_APP_URL): impossibile ricevere il webhook di Creatomate.",
+    };
+  }
+
+  const webhookToken = randomBytes(24).toString("hex");
+  const webhookUrl = `${appUrl}/api/creatomate/webhook?t=${webhookToken}`;
+
+  const source = sourceForVariant(
+    input.variant,
+    {
+      displayName: brand.displayName,
+      color: brand.color,
+      logoUrl: brand.logoUrl ?? null,
+    },
+    {
+      shortTitle: (input.shortTitle || "").slice(0, 120),
+      body: (input.body || "").slice(0, 400),
+      ...(input.ctaText ? { ctaText: input.ctaText.slice(0, 40) } : {}),
+    },
+  );
+
+  let r;
+  try {
+    r = await createRender({
+      source,
+      webhookUrl,
+      metadata: {
+        brandId: brand.id,
+        brandSlug: brand.slug,
+        variant: input.variant,
+        ...(input.draftId ? { draftId: input.draftId } : {}),
+        requestedBy: session.userId,
+      },
+    });
+  } catch (err) {
+    console.error("[creatomate] default render failed", {
+      brandSlug: brand.slug,
+      variant: input.variant,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    const status = err instanceof CreatomateError ? err.status : 0;
+    const isConfigError = err instanceof CreatomateConfigError;
+    const isRateLimit = err instanceof CreatomateRateLimitError;
+    const possiblyCharged =
+      !isConfigError && !isRateLimit && (status === 0 || status >= 500 || status === 504);
+    if (possiblyCharged) {
+      try {
+        await logSpend({
+          organizationId: session.organizationId,
+          brandId: brand.id,
+          category: "creatomate",
+          action: "creatomate.default_render_errored_possibly_charged",
+          costUsd: estimatedUsd,
+          tokensIn: 0,
+          tokensOut: 0,
+          targetType: "draft",
+          ...(input.draftId ? { targetId: input.draftId } : {}),
+        });
+      } catch {
+        // best-effort
+      }
+    }
+    return { ok: false, error: mapCreatomateError(err) };
+  }
+
+  try {
+    await logSpend({
+      organizationId: session.organizationId,
+      brandId: brand.id,
+      category: "creatomate",
+      action: "creatomate.default_render_started",
+      costUsd: estimatedUsd,
+      tokensIn: 0,
+      tokensOut: 0,
+      targetType: "draft",
+      ...(input.draftId ? { targetId: input.draftId } : {}),
+    });
+  } catch {
+    // best-effort
+  }
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "creatomate.default_render_started",
+    target: `render:${r.id}`,
+    details: {
+      provider: "creatomate",
+      variant: input.variant,
+      externalId: r.id,
+      estimatedCredits,
+      estimatedCostUsd: estimatedUsd,
+    },
+  });
+
+  const initialStatus =
+    r.status === "succeeded"
+      ? "succeeded"
+      : r.status === "failed" || r.status === "cancelled"
+        ? "failed"
+        : r.status === "planned"
+          ? "planned"
+          : r.status === "rendering" || r.status === "transcribing"
+            ? "rendering"
+            : "queued";
+
+  try {
+    const row = await insertCreatomateRender({
+      organizationId: session.organizationId,
+      brandId: brand.id,
+      ...(input.draftId ? { draftId: input.draftId } : {}),
+      externalId: r.id,
+      templateId: `__default_${input.variant}`,
+      modifications: { variant: input.variant, shortTitle: input.shortTitle, body: input.body },
+      webhookToken,
+      requestedBy: session.userId,
+      initialStatus,
+    });
+    return { ok: true, renderId: row.id, externalId: r.id, status: row.status };
+  } catch (err) {
+    console.error("[creatomate] default insertRender fail", {
+      externalId: r.id,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return {
+      ok: false,
+      error: `Render avviato su Creatomate ma non salvato in locale. ID: ${r.id}`,
+    };
+  }
 }
