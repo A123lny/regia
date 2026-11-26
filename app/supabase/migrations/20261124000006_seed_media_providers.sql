@@ -23,7 +23,7 @@ select
   o.id,
   'fal.ai',
   'fal-ai',
-  'image',
+  'both',
   'https://fal.ai/terms',
   'user',
   array['commercial']::text[],
@@ -31,7 +31,7 @@ select
   'Provider immagini AI (FLUX schnell + pro). Attivabile da Impostazioni → Provider media quando FAL_KEY è configurata.',
   null,
   now(),
-  false
+  true
 from public.organizations o
 on conflict do nothing;
 
@@ -61,6 +61,6 @@ select
   'Provider video/immagini da template Creatomate. Attivabile quando CREATOMATE_API_KEY è configurata.',
   null,
   now(),
-  false
+  true
 from public.organizations o
 on conflict do nothing;

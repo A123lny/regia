@@ -1,36 +1,99 @@
-// M04 — Font loader per satori.
-// satori richiede font come ArrayBuffer. Carichiamo Bricolage Grotesque + Inter
-// da Google Fonts al primo utilizzo, poi cache in memoria.
+// Font loader per satori con fallback multi-CDN, timeout, log server.
+// Problema su Vercel: cdn.jsdelivr occasionalmente timeout o blocco network
+// → satori fallisce → "Errore interno nella generazione del template".
+// Qui: timeout 8s per CDN, prova 2 fallback, log diagnostico.
 
-let cachedFonts:
-  { name: string; data: ArrayBuffer; weight: number; style: "normal" | "italic" }[] | null = null;
+type FontRecord = {
+  name: string;
+  data: ArrayBuffer;
+  weight: number;
+  style: "normal" | "italic";
+};
+
+let cachedFonts: FontRecord[] | null = null;
+
+const FONT_TIMEOUT_MS = 8_000;
+
+type FontSource = {
+  name: string;
+  weight: number;
+  style: "normal" | "italic";
+  urls: string[];
+};
+
+const FONTS: FontSource[] = [
+  {
+    name: "Inter",
+    weight: 400,
+    style: "normal",
+    urls: [
+      "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf",
+      "https://unpkg.com/@fontsource/inter@latest/files/inter-latin-400-normal.woff",
+    ],
+  },
+  {
+    name: "Inter",
+    weight: 700,
+    style: "normal",
+    urls: [
+      "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-normal.ttf",
+      "https://unpkg.com/@fontsource/inter@latest/files/inter-latin-700-normal.woff",
+    ],
+  },
+  {
+    name: "Bricolage",
+    weight: 800,
+    style: "normal",
+    urls: [
+      "https://cdn.jsdelivr.net/fontsource/fonts/bricolage-grotesque@latest/latin-800-normal.ttf",
+      "https://unpkg.com/@fontsource/bricolage-grotesque@latest/files/bricolage-grotesque-latin-800-normal.woff",
+    ],
+  },
+];
 
 async function fetchFont(url: string): Promise<ArrayBuffer> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Font fetch failed: ${res.status} ${res.statusText}`);
-  return await res.arrayBuffer();
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(FONT_TIMEOUT_MS),
+    cache: "force-cache",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  return res.arrayBuffer();
 }
 
-export async function loadFonts(): Promise<
-  { name: string; data: ArrayBuffer; weight: number; style: "normal" | "italic" }[]
-> {
+async function fetchFontWithFallback(src: FontSource): Promise<ArrayBuffer> {
+  let lastErr: unknown = null;
+  for (const url of src.urls) {
+    try {
+      return await fetchFont(url);
+    } catch (err) {
+      lastErr = err;
+      console.warn("[font-loader] fetch failed, try next", {
+        font: `${src.name}:${src.weight}`,
+        url,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  throw new Error(
+    `Impossibile scaricare font ${src.name} ${src.weight}: ${
+      lastErr instanceof Error ? lastErr.message : "nessun CDN disponibile"
+    }`,
+  );
+}
+
+export async function loadFonts(): Promise<FontRecord[]> {
   if (cachedFonts) return cachedFonts;
-
-  // Google Fonts CSS API pattern: prendi il woff/ttf diretto dai commenti CSS.
-  // Per semplicita usiamo url font-static ttf noti (Inter e Bricolage Grotesque).
-  // In produzione considera un CDN dedicato per stability.
-  const [interRegular, interBold, bricolageBold] = await Promise.all([
-    fetchFont("https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf"),
-    fetchFont("https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-normal.ttf"),
-    fetchFont(
-      "https://cdn.jsdelivr.net/fontsource/fonts/bricolage-grotesque@latest/latin-800-normal.ttf",
-    ),
-  ]);
-
-  cachedFonts = [
-    { name: "Inter", data: interRegular, weight: 400, style: "normal" },
-    { name: "Inter", data: interBold, weight: 700, style: "normal" },
-    { name: "Bricolage", data: bricolageBold, weight: 800, style: "normal" },
-  ];
+  const start = Date.now();
+  const loaded = await Promise.all(
+    FONTS.map(async (src) => {
+      const data = await fetchFontWithFallback(src);
+      return { name: src.name, data, weight: src.weight, style: src.style };
+    }),
+  );
+  cachedFonts = loaded;
+  console.log("[font-loader] fonts caricati", {
+    count: loaded.length,
+    ms: Date.now() - start,
+  });
   return cachedFonts;
 }

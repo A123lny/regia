@@ -373,12 +373,15 @@ export async function generateFromTemplate(input: {
       err: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack : undefined,
     });
-    // Messaggio generico al client: l'err.message potrebbe contenere path
-    // del bucket, chiavi, nomi colonna DB (info disclosure).
+    // Esponiamo il messaggio del nostro wrapper (già sanitizzato in renderer.ts),
+    // così l'Owner può capire se è font/satori/resvg/bucket. I path interni
+    // e le chiavi non arrivano qui.
     return {
       ok: false,
       error:
-        "Errore interno nella generazione del template. Riprova; se persiste contatta il supporto.",
+        err instanceof Error
+          ? err.message
+          : "Errore sconosciuto nella generazione del template.",
     };
   }
 }

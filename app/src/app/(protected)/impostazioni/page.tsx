@@ -404,6 +404,18 @@ export default async function ImpostazioniPage() {
         </Card>
       )}
 
+      {/* Link diagnostica — visibile solo all'Owner */}
+      {session.role === "owner" && (
+        <div className="rounded-md border border-border bg-surface p-3 text-xs">
+          <Link href="/impostazioni/diagnostica" className="font-medium text-primary hover:underline">
+            → Diagnostica integrazioni
+          </Link>
+          <span className="ml-2 text-text-muted">
+            Testa con un click Gemini, fal.ai, Creatomate, Storage, rendering template.
+          </span>
+        </div>
+      )}
+
       {/* Versione/commit in produzione — utile per capire se un fix è attivo */}
       <div className="border-t border-border pt-4 text-xs text-text-muted">
         Versione:{" "}
