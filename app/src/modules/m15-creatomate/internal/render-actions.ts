@@ -673,9 +673,34 @@ export async function startCreatomateDefaultRender(input: {
       externalId: r.id,
       err: err instanceof Error ? err.message : String(err),
     });
+    // Audit log immediato con l'external_id, così può essere recuperato
+    // più tardi anche se il DB era irraggiungibile al momento.
+    try {
+      await logAuditEvent({
+        organizationId: session.organizationId,
+        actorUserId: session.userId,
+        actorKind: "system",
+        action: "creatomate.default_render_orphaned",
+        target: `brand:${brand.slug}`,
+        details: {
+          externalId: r.id,
+          variant: input.variant,
+          error: err instanceof Error ? err.message : String(err),
+          hint: "Usa POST /api/creatomate/renders/recover per ricollegare.",
+        },
+      });
+    } catch {
+      // nothing more we can do
+    }
+    const detail =
+      err instanceof Error && /relation .* does not exist/i.test(err.message)
+        ? "tabella creatomate_renders non applicata in produzione: applica le migration SQL su Supabase."
+        : err instanceof Error
+          ? err.message
+          : "errore DB";
     return {
       ok: false,
-      error: `Render avviato su Creatomate ma non salvato in locale. ID: ${r.id}`,
+      error: `Render avviato su Creatomate (ID: ${r.id}) ma non salvato in locale — ${detail} — Owner può recuperare via /api/creatomate/renders/recover.`,
     };
   }
 }

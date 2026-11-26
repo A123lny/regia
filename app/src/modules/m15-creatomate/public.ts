@@ -12,6 +12,7 @@ export {
   getRenderById,
   getRenderByExternalId,
   updateRenderStatus,
+  insertCreatomateRender,
 } from "./internal/creatomate-renders-repo";
 export type {
   CreatomateRenderRow,
