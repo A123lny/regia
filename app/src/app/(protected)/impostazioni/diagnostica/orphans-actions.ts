@@ -3,7 +3,15 @@
 // Trova e recupera i render Creatomate orfani: external_id che hanno un
 // audit event di start/orphaned per questa org MA non hanno una riga in
 // creatomate_renders (insert fallito al momento dello start, es. migration
-// non ancora applicata). Un click → tutti recuperati, Owner-only.
+// non ancora applicata). Owner-only.
+//
+// Fonti di brandId/draftId per l'orfano, in ordine di preferenza:
+//  1. audit event details (per i render avviati DOPO che abbiamo iniziato a
+//     salvarli nell'audit - commit "Blocco B")
+//  2. metadata di Creatomate (GET /v2/renders/:id → metadata JSON string,
+//     recupera brandId/brandSlug/draftId dal payload inviato in sede di
+//     createRender)
+//  3. scelta manuale dall'UI (brand picker per i super-vecchi orfani)
 
 import { randomBytes } from "node:crypto";
 import { getSessionOrRedirect } from "@/lib/auth/session";
@@ -12,7 +20,7 @@ import { logAuditEvent } from "@/lib/audit/log";
 import { getRender } from "@/lib/creatomate/client";
 import { getRenderByExternalId, insertCreatomateRender } from "@/modules/m15-creatomate/public";
 import { applySucceededRenderByExternalId } from "@/modules/m15-creatomate/server";
-import { getBrandById } from "@/modules/m02-brand/public";
+import { getBrandById, listBrands } from "@/modules/m02-brand/public";
 import { getContentDraft } from "@/modules/m03-editorial/public";
 
 export type OrphanRow = {
@@ -21,11 +29,52 @@ export type OrphanRow = {
   draftId: string | null;
   startedAt: string;
   action: string;
+  /** "audit" quando brandId viene dall'audit event; "creatomate" quando dal
+   * metadata recuperato via API; "none" quando non si è riusciti e serve
+   * l'intervento manuale (brand picker). */
+  brandSource: "audit" | "creatomate" | "none";
 };
 
-export type FindOrphansResult = { ok: true; items: OrphanRow[] } | { ok: false; error: string };
+export type OrphanBrand = { id: string; slug: string; displayName: string };
+
+export type FindOrphansResult =
+  { ok: true; items: OrphanRow[]; brands: OrphanBrand[] } | { ok: false; error: string };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Prova a ricavare brandId/draftId leggendo i metadata che Creatomate ha
+ * conservato per questo render (noi li abbiamo passati in createRender).
+ * Best-effort: silenzioso su errore.
+ */
+async function fetchBrandFromCreatomateMetadata(extId: string): Promise<{
+  brandId: string | null;
+  draftId: string | null;
+}> {
+  try {
+    const live = await getRender(extId);
+    const raw = live.metadata;
+    // metadata è stringa JSON (noi la stringifichiamo in createRender). Parse.
+    let obj: unknown = null;
+    if (typeof raw === "string") {
+      try {
+        obj = JSON.parse(raw);
+      } catch {
+        obj = null;
+      }
+    } else if (raw && typeof raw === "object") {
+      obj = raw;
+    }
+    if (!obj || typeof obj !== "object") return { brandId: null, draftId: null };
+    const o = obj as { brandId?: unknown; draftId?: unknown };
+    return {
+      brandId: typeof o.brandId === "string" ? o.brandId : null,
+      draftId: typeof o.draftId === "string" ? o.draftId : null,
+    };
+  } catch {
+    return { brandId: null, draftId: null };
+  }
+}
 
 export async function findOrphanCreatomateRendersAction(): Promise<FindOrphansResult> {
   const session = await getSessionOrRedirect();
@@ -46,7 +95,13 @@ export async function findOrphanCreatomateRendersAction(): Promise<FindOrphansRe
       .limit(100);
     if (error) return { ok: false, error: error.message };
     const seen = new Set<string>();
-    const orphans: OrphanRow[] = [];
+    const candidates: Array<{
+      extId: string;
+      brandId: string | null;
+      draftId: string | null;
+      startedAt: string;
+      action: string;
+    }> = [];
     for (const ev of (events ?? []) as Array<{
       action: string;
       details: unknown;
@@ -56,18 +111,55 @@ export async function findOrphanCreatomateRendersAction(): Promise<FindOrphansRe
       const extId = typeof d?.externalId === "string" ? d.externalId : "";
       if (!extId || seen.has(extId)) continue;
       seen.add(extId);
-      // Esiste già in DB? allora non è orfano
       const row = await getRenderByExternalId(extId);
       if (row && row.organizationId === session.organizationId) continue;
-      orphans.push({
-        externalId: extId,
+      candidates.push({
+        extId,
         brandId: typeof d?.brandId === "string" ? d.brandId : null,
         draftId: typeof d?.draftId === "string" ? d.draftId : null,
         startedAt: ev.created_at,
         action: ev.action,
       });
     }
-    return { ok: true, items: orphans };
+
+    // Per gli orfani senza brandId nell'audit (vecchi commit), prova a
+    // ricavarlo dai metadata di Creatomate. Cap a 5 lookup per non far
+    // esplodere i tempi della diagnostica (ogni getRender può prendere
+    // anche 10s).
+    const MAX_CREATOMATE_LOOKUPS = 5;
+    let lookups = 0;
+    const orphans: OrphanRow[] = [];
+    for (const c of candidates) {
+      let brandId: string | null = c.brandId;
+      let draftId: string | null = c.draftId;
+      let brandSource: OrphanRow["brandSource"] = brandId ? "audit" : "none";
+      if (!brandId && lookups < MAX_CREATOMATE_LOOKUPS) {
+        lookups++;
+        const meta = await fetchBrandFromCreatomateMetadata(c.extId);
+        if (meta.brandId) {
+          brandId = meta.brandId;
+          if (!draftId) draftId = meta.draftId;
+          brandSource = "creatomate";
+        }
+      }
+      orphans.push({
+        externalId: c.extId,
+        brandId,
+        draftId,
+        startedAt: c.startedAt,
+        action: c.action,
+        brandSource,
+      });
+    }
+
+    // Lista brand dell'org per l'eventuale brand picker manuale.
+    const brands = (await listBrands(session.organizationId, "active")).map((b) => ({
+      id: b.id,
+      slug: b.slug,
+      displayName: b.displayName,
+    }));
+
+    return { ok: true, items: orphans, brands };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "errore" };
   }
@@ -83,31 +175,20 @@ export type RecoverResult =
   | { ok: false; error: string };
 
 // Helper interno (NON "server action" esposta al client): recupera un singolo
-// orfano partendo da una OrphanRow già derivata lato server dall'audit event
-// di questa org. brandId/draftId NON vengono mai dal client. Chiamato solo da
-// recoverAllOrphansAction qui sotto.
-//
-// Ownership checks (defense-in-depth):
-//  1. externalId: audit ownership è già garantita da findOrphans (eq
-//     organization_id). Validiamo UUID.
-//  2. brandId: deve esistere nell'org tramite getBrandById (IDOR su brand).
-//  3. draftId (se presente): deve esistere nell'org E appartenere allo
-//     stesso brand (IDOR su draft, draft→brand mismatch).
-//  4. row esistente: se c'è già una riga con questo external_id ma org
-//     diversa, non ricreiamo nulla (externalId globale in Creatomate — una
-//     collisione cross-tenant significa che qualcun altro l'ha già importato).
+// orfano. brandId/draftId sono validati contro l'org SEMPRE, sia che arrivino
+// dall'audit, dai metadata Creatomate, o dalla scelta manuale dell'utente.
 async function recoverSingleOrphan(
   session: { userId: string; organizationId: string; role: string },
-  orphan: OrphanRow,
+  args: { externalId: string; brandId: string; draftId: string | null },
 ): Promise<{ ok: true; renderId: string; status: string } | { ok: false; error: string }> {
-  if (!UUID_RE.test(orphan.externalId)) {
+  if (!UUID_RE.test(args.externalId)) {
     return { ok: false, error: "externalId non valido." };
   }
-  if (!orphan.brandId) return { ok: false, error: "brandId mancante in audit." };
+  if (!args.brandId) return { ok: false, error: "brandId mancante." };
 
-  const extId = orphan.externalId.toLowerCase();
+  const extId = args.externalId.toLowerCase();
 
-  // Row esistente? Se org diversa, trattiamo come not-found generico (no leak).
+  // Row esistente? Se org diversa, not-found generico (no leak).
   const existing = await getRenderByExternalId(extId);
   if (existing) {
     if (existing.organizationId !== session.organizationId) {
@@ -117,12 +198,12 @@ async function recoverSingleOrphan(
   }
 
   // Brand deve appartenere a questa org.
-  const brand = await getBrandById(session.organizationId, orphan.brandId);
+  const brand = await getBrandById(session.organizationId, args.brandId);
   if (!brand) return { ok: false, error: "Brand non trovato nell'organizzazione." };
 
   // Draft (se citato) deve appartenere a questa org e a questo brand.
-  if (orphan.draftId) {
-    const draft = await getContentDraft(orphan.draftId, session.organizationId);
+  if (args.draftId) {
+    const draft = await getContentDraft(args.draftId, session.organizationId);
     if (!draft) return { ok: false, error: "Bozza collegata non trovata." };
     if (draft.brandId !== brand.id) {
       return { ok: false, error: "Bozza non appartiene al brand indicato." };
@@ -156,7 +237,7 @@ async function recoverSingleOrphan(
     const row = await insertCreatomateRender({
       organizationId: session.organizationId,
       brandId: brand.id,
-      ...(orphan.draftId ? { draftId: orphan.draftId } : {}),
+      ...(args.draftId ? { draftId: args.draftId } : {}),
       externalId: extId,
       templateId: "__recovered",
       modifications: {},
@@ -170,7 +251,13 @@ async function recoverSingleOrphan(
       actorKind: "user",
       action: "creatomate.render_recovered",
       target: `render:${row.id}`,
-      details: { externalId: extId, status: initialStatus },
+      details: {
+        externalId: extId,
+        brandId: brand.id,
+        brandSlug: brand.slug,
+        ...(args.draftId ? { draftId: args.draftId } : {}),
+        status: initialStatus,
+      },
     });
     if (initialStatus === "succeeded") {
       const applied = await applySucceededRenderByExternalId(extId);
@@ -189,8 +276,9 @@ async function recoverSingleOrphan(
 }
 
 /**
- * Recupera TUTTI gli orfani trovati. Owner-only. brandId/draftId vengono
- * sempre dall'audit event di questa org, mai dal client.
+ * Recupera TUTTI gli orfani per cui è noto il brand (dall'audit o dai metadata
+ * Creatomate). Quelli senza brand richiedono scelta manuale → vedi
+ * recoverOrphanWithBrandAction.
  */
 export async function recoverAllOrphansAction(): Promise<RecoverResult> {
   const session = await getSessionOrRedirect();
@@ -201,7 +289,19 @@ export async function recoverAllOrphansAction(): Promise<RecoverResult> {
   let failed = 0;
   const details: Array<{ externalId: string; result: string }> = [];
   for (const o of found.items) {
-    const r = await recoverSingleOrphan(session, o);
+    if (!o.brandId) {
+      failed++;
+      details.push({
+        externalId: o.externalId,
+        result: "brand non ricavabile - serve scelta manuale",
+      });
+      continue;
+    }
+    const r = await recoverSingleOrphan(session, {
+      externalId: o.externalId,
+      brandId: o.brandId,
+      draftId: o.draftId,
+    });
     if (r.ok) {
       recovered++;
       details.push({ externalId: o.externalId, result: r.status });
@@ -211,4 +311,24 @@ export async function recoverAllOrphansAction(): Promise<RecoverResult> {
     }
   }
   return { ok: true, recovered, failed, details };
+}
+
+/**
+ * Recupero manuale di un singolo orfano quando il brand va scelto a mano
+ * (orfani super-vecchi senza metadata recuperabili). brandId viene dal client
+ * MA viene validato contro l'org: la UI dropdown mostra solo brand dell'org,
+ * e getBrandById(session.orgId, brandId) rigetta brand di altre org.
+ */
+export async function recoverOrphanWithBrandAction(input: {
+  externalId: string;
+  brandId: string;
+  draftId?: string;
+}): Promise<{ ok: true; renderId: string; status: string } | { ok: false; error: string }> {
+  const session = await getSessionOrRedirect();
+  if (session.role !== "owner") return { ok: false, error: "Solo Owner." };
+  return recoverSingleOrphan(session, {
+    externalId: input.externalId,
+    brandId: input.brandId,
+    draftId: input.draftId ?? null,
+  });
 }

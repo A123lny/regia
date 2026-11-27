@@ -117,8 +117,7 @@ function sanitizeSourceUrl(raw: string): string | null {
     "v3.fal.media",
     "v2.fal.media",
   ];
-  const ok =
-    (supaHost && h === supaHost) || allowed.some((d) => h === d || h.endsWith("." + d));
+  const ok = (supaHost && h === supaHost) || allowed.some((d) => h === d || h.endsWith("." + d));
   if (!ok) return null;
   return u.href;
 }
@@ -384,6 +383,11 @@ export async function startCreatomateRender(input: {
       provider: "creatomate",
       templateId: input.templateId,
       externalId: r.id,
+      // brandId/draftId nei details così il recovery orfani può ricavarli
+      // dall'audit senza round-trip a Creatomate.
+      brandId: brand.id,
+      brandSlug: brand.slug,
+      ...(input.draftId ? { draftId: input.draftId } : {}),
       quality,
       estimatedCredits: preset.estimatedCredits,
       estimatedCostUsd: estimatedUsd,
@@ -518,7 +522,11 @@ export async function startCreatomateDefaultRender(input: {
     return { ok: false, error: err instanceof Error ? err.message : "Non autorizzato." };
   }
   if (!input.brandId) return { ok: false, error: "brandId mancante." };
-  if (input.variant !== "square_post" && input.variant !== "story_reel" && input.variant !== "poster_a4") {
+  if (
+    input.variant !== "square_post" &&
+    input.variant !== "story_reel" &&
+    input.variant !== "poster_a4"
+  ) {
     return { ok: false, error: "Variante non valida." };
   }
 
@@ -639,6 +647,10 @@ export async function startCreatomateDefaultRender(input: {
       provider: "creatomate",
       variant: input.variant,
       externalId: r.id,
+      // brandId/draftId per recovery orfani (vedi commento sull'altra action).
+      brandId: brand.id,
+      brandSlug: brand.slug,
+      ...(input.draftId ? { draftId: input.draftId } : {}),
       estimatedCredits,
       estimatedCostUsd: estimatedUsd,
     },
@@ -685,8 +697,12 @@ export async function startCreatomateDefaultRender(input: {
         details: {
           externalId: r.id,
           variant: input.variant,
+          // brandId/draftId per recovery automatico orfani.
+          brandId: brand.id,
+          brandSlug: brand.slug,
+          ...(input.draftId ? { draftId: input.draftId } : {}),
           error: err instanceof Error ? err.message : String(err),
-          hint: "Usa POST /api/creatomate/renders/recover per ricollegare.",
+          hint: "Usa Impostazioni → Diagnostica → Render orfani per ricollegare.",
         },
       });
     } catch {
