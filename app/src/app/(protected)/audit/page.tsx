@@ -93,7 +93,7 @@ export default async function AuditPage({
         </span>
       </div>
 
-      <div className="rounded-lg border border-border bg-surface">
+      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
         <Table>
           <TableHeader>
             <TableRow>

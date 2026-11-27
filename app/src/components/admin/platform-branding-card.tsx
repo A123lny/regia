@@ -74,8 +74,8 @@ export function PlatformBrandingCard({ initial }: { initial: PlatformBranding })
           <Layers className="h-5 w-5 text-primary" /> Aspetto piattaforma
         </CardTitle>
         <CardDescription>
-          RF-2.7 White label: personalizza nome, logo e colore primario della piattaforma. Utile se
-          un giorno rivendi Regìa ad altri clienti.
+          Personalizza nome, logo e colore primario della piattaforma (white label). Utile se un
+          giorno rivendi Regìa ad altri clienti.
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -49,8 +49,7 @@ export default async function AgentMemoryPage() {
   if (!hasCapability(session.role, "agent_memory.read")) {
     return (
       <div className="p-8 text-sm text-text-muted">
-        La memoria dell&apos;agente AI e&apos; una vista strategica accessibile solo al
-        Proprietario.
+        La memoria dell&apos;agente AI è una vista strategica accessibile solo al Proprietario.
       </div>
     );
   }
@@ -206,8 +205,8 @@ export default async function AgentMemoryPage() {
         </div>
         <p className="mb-4 text-sm text-text-muted">
           Per ogni offerta: quanti voucher emessi vs riscattati. Un tasso di riscatto basso
-          suggerisce che l&apos;offerta non e&apos; attrattiva, il canale sbagliato o la scadenza
-          troppo stretta.
+          suggerisce che l&apos;offerta non è attrattiva, il canale sbagliato o la scadenza troppo
+          stretta.
         </p>
         {promoOutcomes.length === 0 ? (
           <p className="text-sm italic text-text-muted">Nessun voucher emesso finora.</p>
@@ -311,8 +310,8 @@ export default async function AgentMemoryPage() {
       <section className="rounded-lg border border-border bg-surface-muted p-4 text-xs text-text-muted">
         <strong>Dove vivono questi dati:</strong> content_drafts (approval + motivi rifiuto),
         vouchers + voucher_offers (esiti promo), brand_pillars + brand_forbidden_words +
-        brand_sensitive_topics (preferenze stile). Nessun dato viene scritto qui — e&apos; una vista
-        aggregata.: la tracciabilita&apos; del singolo evento sta nell&apos;audit log (/audit).
+        brand_sensitive_topics (preferenze stile). Nessun dato viene scritto qui — è una vista
+        aggregata: la tracciabilità del singolo evento sta nell&apos;audit log (/audit).
       </section>
     </main>
   );

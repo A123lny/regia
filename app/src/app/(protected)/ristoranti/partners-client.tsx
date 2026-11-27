@@ -874,7 +874,7 @@ function MonthlyReportCard({ partnerId }: { partnerId: string }) {
                 </div>
               </div>
               <div>
-                <div className="text-text-muted">Attivita&apos; M07</div>
+                <div className="text-text-muted">Attività partner</div>
                 <div className="text-base font-semibold">{report.activitiesCount}</div>
                 <div className="text-[10px] text-text-muted">
                   vs {report.activitiesPrevCount} mese prec.
@@ -913,7 +913,7 @@ function MonthlyReportCard({ partnerId }: { partnerId: string }) {
             </div>
             {report.ordersThisMonth === 0 && (
               <div className="mt-2 border-t border-border/60 pt-2 text-[10px] italic text-text-muted">
-                Nessun ordine attribuito al ristorante: i connettori M1 reali non sono ancora
+                Nessun ordine attribuito al ristorante: i connettori ai gestionali non sono ancora
                 attivi, quindi il messaggio parla di relazione invece che di numeri.
               </div>
             )}
@@ -1091,8 +1091,8 @@ function LaunchCard({ partnerId, canCrud }: { partnerId: string; canCrud: boolea
         </div>
         {status.ordersSoFar === 0 && (
           <div className="mt-2 border-t border-border/60 pt-2 text-[10px] italic text-text-muted">
-            Nessun ordine attribuito: senza connettori M1 reali attivi i dati vendita non arrivano.
-            La sorveglianza automatica non puo&apos; agire.
+            Nessun ordine attribuito: senza connettori reali ai gestionali i dati vendita non
+            arrivano. La sorveglianza automatica non può agire.
           </div>
         )}
       </div>

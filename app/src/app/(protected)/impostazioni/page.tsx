@@ -151,7 +151,7 @@ export default async function ImpostazioniPage() {
           <div className="flex flex-col gap-1">
             <span className="text-xs font-medium uppercase tracking-wide text-text-muted">MFA</span>
             <span className="text-sm text-text-muted">
-              Non richiesto in F0-b.{" "}
+              Non richiesto adesso.{" "}
               <span className="text-xs text-text-muted/70">
                 (Attivazione pianificata in fase successiva.)
               </span>
@@ -180,8 +180,8 @@ export default async function ImpostazioniPage() {
               <Share2 className="h-5 w-5" /> Account social
             </CardTitle>
             <CardDescription>
-              Credenziali di pubblicazione per ogni marchio e piattaforma. Le credenziali sono
-              al sicuro nel database e mai mostrate in chiaro dopo il primo salvataggio.
+              Credenziali di pubblicazione per ogni marchio e piattaforma. Le credenziali sono al
+              sicuro nel database e mai mostrate in chiaro dopo il primo salvataggio.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -407,7 +407,10 @@ export default async function ImpostazioniPage() {
       {/* Link diagnostica — visibile solo all'Owner */}
       {session.role === "owner" && (
         <div className="rounded-md border border-border bg-surface p-3 text-xs">
-          <Link href="/impostazioni/diagnostica" className="font-medium text-primary hover:underline">
+          <Link
+            href="/impostazioni/diagnostica"
+            className="font-medium text-primary hover:underline"
+          >
             → Diagnostica integrazioni
           </Link>
           <span className="ml-2 text-text-muted">

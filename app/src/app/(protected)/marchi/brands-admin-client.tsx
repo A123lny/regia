@@ -528,8 +528,8 @@ function BrandFormDialog({
               <div className="mb-2">
                 <span className="text-xs font-medium text-text">Google Place ID (, opzionale)</span>
                 <p className="text-[10px] text-text-muted">
-                  Serve per il fetcher recensioni M08. Lascia vuoto se il marchio non ha scheda
-                  Google.
+                  Serve per leggere le recensioni Google del marchio. Lascia vuoto se il marchio non
+                  ha scheda Google.
                 </p>
               </div>
               <label className="block">

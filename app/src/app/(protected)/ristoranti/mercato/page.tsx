@@ -81,11 +81,10 @@ export default async function MercatoPage() {
             <h1 className="font-serif text-2xl font-bold">Analisi di mercato della rete</h1>
             <p className="mt-1 text-sm text-text-muted">
               {" "}
-              · Il problema non e&apos; chi va male, e&apos;{" "}
-              <strong>quanti fanno la stessa cosa</strong>. Confronto per categoria vs mediana rete:
-              categorie <strong>sature</strong> (pochi ordini medi), categorie{" "}
-              <strong>sotto-offerta</strong> (molti ordini medi). Decisione da gestore di mercato,
-              non da marketing.
+              · Il problema non è chi va male, è <strong>quanti fanno la stessa cosa</strong>.
+              Confronto per categoria vs mediana rete: categorie <strong>sature</strong> (pochi
+              ordini medi), categorie <strong>sotto-offerta</strong> (molti ordini medi). Decisione
+              da gestore di mercato, non da marketing.
             </p>
           </div>
         </div>
@@ -204,9 +203,9 @@ export default async function MercatoPage() {
       )}
 
       <section className="rounded-lg border border-border bg-surface-muted p-4 text-xs text-text-muted">
-        <strong>Nota F1:</strong> l&apos;analisi usa <code>brand_orders.partner_restaurant_id</code>
-        . Finche&apos; i connettori M1 reali non alimentano questo campo, molte categorie restano a
-        0 ordini e il confronto non e&apos; significativo. Resta valido il conteggio ristoranti per
+        <strong>Nota:</strong> l&apos;analisi usa <code>brand_orders.partner_restaurant_id</code>.
+        Finché i connettori reali ai gestionali non alimentano questo campo, molte categorie restano
+        a 0 ordini e il confronto non è significativo. Resta valido il conteggio ristoranti per
         categoria (saturazione cardinale).
       </section>
     </main>

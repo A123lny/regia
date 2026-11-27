@@ -132,7 +132,7 @@ export default async function BrandContentPage({
         )}
       </header>
 
-      <div className="rounded-lg border border-border bg-surface">
+      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
         {drafts.length === 0 ? (
           <div className="p-8 text-center text-text-muted">
             Nessun contenuto ancora.{" "}

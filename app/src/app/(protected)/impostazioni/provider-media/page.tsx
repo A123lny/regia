@@ -62,11 +62,11 @@ export default async function ProviderMediaPage() {
       <ProvidersClient providers={providers} canManage={canManage} />
 
       <section className="rounded-lg border border-border bg-surface-muted p-4 text-xs text-text-muted">
-        <strong>Perche&apos; non e&apos; un controllo da fare a ogni generazione:</strong> i T&amp;C
-        di un provider cambiano raramente, e il modello non deve decidere a run-time se un uso
-        e&apos; ammesso (: il codice dispone). La verifica avviene qui, una volta, con un umano. Il
-        codice di generazione poi legge solo &quot;c&apos;e&apos; almeno un provider attivo per
-        l&apos;uso richiesto?&quot; e si ferma se la risposta e&apos; no.
+        <strong>Perché non è un controllo da fare a ogni generazione:</strong> i T&amp;C di un
+        provider cambiano raramente, e il modello non deve decidere a run-time se un uso è ammesso
+        (il codice dispone). La verifica avviene qui, una volta, con un umano. Il codice di
+        generazione poi legge solo &laquo;c&apos;è almeno un provider attivo per l&apos;uso
+        richiesto?&raquo; e si ferma se la risposta è no.
       </section>
     </main>
   );
