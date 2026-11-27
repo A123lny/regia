@@ -316,8 +316,15 @@ export async function recoverAllOrphansAction(): Promise<RecoverResult> {
 /**
  * Recupero manuale di un singolo orfano quando il brand va scelto a mano
  * (orfani super-vecchi senza metadata recuperabili). brandId viene dal client
- * MA viene validato contro l'org: la UI dropdown mostra solo brand dell'org,
- * e getBrandById(session.orgId, brandId) rigetta brand di altre org.
+ * MA sia brandId che externalId sono validati contro l'org PRIMA di toccare
+ * qualunque risorsa:
+ *  - externalId: deve comparire in un audit event di questa org con action
+ *    in set di start/orphaned. Senza questo check un utente potrebbe passare
+ *    l'externalId di un altro tenant con il PROPRIO brandId e importarlo
+ *    (cross-tenant resource claim).
+ *  - brandId: la UI dropdown mostra solo brand dell'org, e getBrandById
+ *    (session.orgId, brandId) interno a recoverSingleOrphan rigetta brand
+ *    di altre org.
  */
 export async function recoverOrphanWithBrandAction(input: {
   externalId: string;
@@ -326,6 +333,33 @@ export async function recoverOrphanWithBrandAction(input: {
 }): Promise<{ ok: true; renderId: string; status: string } | { ok: false; error: string }> {
   const session = await getSessionOrRedirect();
   if (session.role !== "owner") return { ok: false, error: "Solo Owner." };
+  if (!UUID_RE.test(input.externalId)) return { ok: false, error: "externalId non valido." };
+
+  // Audit ownership: deve esistere almeno un audit event di questa org che
+  // referenzia questo externalId con un'azione di start/orphaned. Senza,
+  // negare (not-found generico: no leak di esistenza su altra org).
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = getAdminClient() as any;
+    const { data: ev, error } = await admin
+      .from("audit_events")
+      .select("id")
+      .eq("organization_id", session.organizationId)
+      .in("action", [
+        "creatomate.render_started",
+        "creatomate.default_render_started",
+        "creatomate.default_render_orphaned",
+      ])
+      .contains("details", { externalId: input.externalId })
+      .limit(1)
+      .maybeSingle();
+    if (error || !ev) {
+      return { ok: false, error: "Render non trovato fra gli orfani di questa organizzazione." };
+    }
+  } catch {
+    return { ok: false, error: "Verifica audit fallita." };
+  }
+
   return recoverSingleOrphan(session, {
     externalId: input.externalId,
     brandId: input.brandId,
