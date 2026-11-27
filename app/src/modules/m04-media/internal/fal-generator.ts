@@ -11,6 +11,7 @@ import { getAdminClient } from "@/lib/db/admin";
 import { getBrandById, getBrandKitWithLists } from "@/modules/m02-brand/public";
 import { generateImages, type GenerateImagesResult } from "@/lib/ai/fal";
 import { generateText as geminiGenerateText } from "@/lib/ai/gemini";
+import { assertBudgetOk, AiBudgetExceededError, logSpend } from "@/modules/m11-admin/public";
 import {
   FAL_SIZE_BY_CHANNEL,
   type DraftChannelHint,
@@ -46,14 +47,37 @@ export type ComposedPrompt = {
 /**
  * Chiede a Gemini di estrarre dal testo italiano della bozza una SOLA
  * descrizione VISIVA in inglese, zero branding, zero strategia, pronta per
- * un modello text-to-image. Se la chiamata fallisce (quota/timeout/config)
- * ritorna null e il caller fa fallback a theme/body sanitizzati.
+ * un modello text-to-image.
+ *
+ * Costo: ~500 token input + ~220 token output su Gemini 2.5 Flash =
+ * ~$0.0001 per chiamata (free tier copre fino a 1500 chiamate/giorno).
+ * Comunque passa dal gate RS-4 budget: se "gemini" ha esaurito il tetto
+ * di spesa, la chiamata viene saltata e il caller fa fallback deterministico.
+ *
+ * logSpend con i token effettivi dopo la chiamata (parity con generateText
+ * di m03 e con fal.ai action).
  */
-async function describeVisualFromDraftIT(italianText: string): Promise<string | null> {
-  const trimmed = italianText.trim();
+async function describeVisualFromDraftIT(input: {
+  organizationId: string;
+  brandId: string;
+  italianText: string;
+}): Promise<string | null> {
+  const trimmed = input.italianText.trim();
   if (trimmed.length === 0) return null;
+
+  // Budget gate: stima pessimistica $0.0005 per chiamata (5x la media).
+  // Se non entra nel budget "gemini", salta: il caller farà fallback.
   try {
-    const r = await geminiGenerateText({
+    await assertBudgetOk(input.organizationId, "gemini", 0.0005);
+  } catch (err) {
+    if (err instanceof AiBudgetExceededError) return null;
+    // Altri errori: non blocchiamo la generazione immagine, fallback.
+    return null;
+  }
+
+  let r;
+  try {
+    r = await geminiGenerateText({
       systemPrompt:
         "You transform an Italian marketing draft into ONE concise English visual " +
         "description (max 60 words) suitable for a text-to-image model. " +
@@ -66,12 +90,30 @@ async function describeVisualFromDraftIT(italianText: string): Promise<string | 
       maxTokens: 220,
       responseMimeType: "text/plain",
     });
-    const out = r.text.trim().replace(/^["']+|["']+$/g, "");
-    if (out.length < 10) return null;
-    return out.slice(0, 500);
   } catch {
     return null;
   }
+
+  // Log della spesa effettiva (token reali ritornati dal wrapper).
+  try {
+    await logSpend({
+      organizationId: input.organizationId,
+      brandId: input.brandId,
+      category: "gemini",
+      action: "gemini.fal_visual_description",
+      costUsd: r.costUsd,
+      tokensIn: r.tokensIn,
+      tokensOut: r.tokensOut,
+      targetType: "brand",
+      targetId: input.brandId,
+    });
+  } catch {
+    // best-effort: non bloccare se il logSpend fallisce.
+  }
+
+  const out = r.text.trim().replace(/^["']+|["']+$/g, "");
+  if (out.length < 10) return null;
+  return out.slice(0, 500);
 }
 
 export async function composePromptFromDraft(input: {
@@ -90,7 +132,11 @@ export async function composePromptFromDraft(input: {
   // bozza (Gemini). Fallback: subject = theme sanitizzato (senza il corpo,
   // che tipicamente contiene strategia / CTA / brand).
   const italianText = `${input.draftThemeInput}\n\n${input.draftGeneratedText}`.trim();
-  const visualEN = await describeVisualFromDraftIT(italianText);
+  const visualEN = await describeVisualFromDraftIT({
+    organizationId: input.organizationId,
+    brandId: input.brandId,
+    italianText,
+  });
   const subject =
     visualEN ?? sanitizeForPrompt(input.draftThemeInput || input.draftGeneratedText, 200);
 

@@ -23,6 +23,7 @@ import {
   FAL_PREVIEW_MODEL,
   FAL_PROVIDER_SLUG,
   FAL_QUALITY_MODEL,
+  FAL_SIZE_BY_CHANNEL,
   type DraftChannelHint,
 } from "@/lib/ai/fal-config";
 import {
@@ -293,13 +294,11 @@ export async function generateAndSaveAiVariant(input: {
   const pre = await preflight(session.organizationId, estimatedCost);
   if (!pre.ok) return pre;
 
-  const { size } = await composePromptFromDraft({
-    organizationId: session.organizationId,
-    brandId: brand.id,
-    draftThemeInput: draft.themeInput,
-    draftGeneratedText: draft.generatedText,
-    channel: input.channel,
-  });
+  // generateAndSaveAiVariant riceve GIÀ il prompt (quello della preview
+  // che l'utente ha scelto). Non serve ricomporlo da zero - sarebbe una
+  // chiamata Gemini sprecata ad ogni "usa questa variante" per ottenere
+  // un dato (size) derivabile deterministicamente dal canale.
+  const size = FAL_SIZE_BY_CHANNEL[input.channel];
 
   // Step A: chiamata fal. Se arriva qui, fal ha già fatto il lavoro (e
   // addebitato). Da qui in poi dobbiamo loggare la spesa anche se il
