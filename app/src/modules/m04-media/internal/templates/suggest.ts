@@ -72,14 +72,16 @@ export function suggestTemplateForDraft(
   return generic ?? availableTemplates[0] ?? null;
 }
 
-/** Taglia una stringa al limite max senza spezzare a metà parola. */
+/** Taglia una stringa al limite max senza spezzare a metà parola.
+ * Preferisce SEMPRE il confine di parola: se c'è uno spazio nel primo
+ * maxLen caratteri, taglia lì, anche se significa restituire poche parole
+ * (meglio "TEST" che "TEST CLAUD"). Solo se non c'è alcuno spazio (parola
+ * singola più lunga del limite) accetta il taglio hard. */
 function truncateAtWord(s: string, maxLen: number): string {
   if (s.length <= maxLen) return s;
   const slice = s.slice(0, maxLen);
   const lastSpace = slice.lastIndexOf(" ");
-  // Taglia all'ultimo spazio; se lo spazio è troppo vicino all'inizio (perde
-  // troppo), accetta un taglio hard.
-  return (lastSpace > maxLen * 0.5 ? slice.slice(0, lastSpace) : slice).trimEnd();
+  return (lastSpace > 0 ? slice.slice(0, lastSpace) : slice).trimEnd();
 }
 
 /**

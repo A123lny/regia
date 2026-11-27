@@ -5,6 +5,18 @@ const nextConfig: NextConfig = {
   // @resvg/resvg-js: m04-media renderer (satori → PNG).
   // twilio + https-proxy-agent: m05-publishing adapter Twilio (Node.js SDK).
   serverExternalPackages: ["@resvg/resvg-js", "twilio", "https-proxy-agent"],
+
+  // Vercel tracer non trova i .wasm che satori/harfbuzzjs caricano a runtime
+  // via fs.readFileSync (non import statico). Senza questa lista il template
+  // renderer esplode in produzione con "ENOENT ... harfbuzzjs/hb.wasm".
+  outputFileTracingIncludes: {
+    "**": [
+      "./node_modules/harfbuzzjs/hb.wasm",
+      "./node_modules/harfbuzzjs/hbjs.js",
+      "./node_modules/satori/yoga.wasm",
+    ],
+  },
+
   experimental: {
     // Server actions con upload immagini media library fino a 20MB (M04).
     // Default Next.js e' 1MB; sopra, FormData con File fallisce silenziosamente

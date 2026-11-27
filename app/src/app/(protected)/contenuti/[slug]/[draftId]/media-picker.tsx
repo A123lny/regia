@@ -4,7 +4,7 @@
 // Due modalita: libreria esistente o generazione da template.
 // Modal per libreria + modal per template picker + form campi template.
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ImageIcon,
@@ -74,6 +74,13 @@ export function DraftMediaPicker({
     ? suggestTemplateForDraft(draftContext, availableTemplates)
     : null;
 
+  // Quando l'immagine allegata cambia (attach/sostituzione/detach), azzera
+  // qualsiasi errore residuo da un tentativo precedente (es. "ENOENT ..."
+  // del Da template che non si puliva finché non si ricaricava la pagina).
+  useEffect(() => {
+    setError(null);
+  }, [currentAsset?.id]);
+
   function handleAutofillFromDraft() {
     if (!selectedTemplate || !draftContext) return;
     setTemplateFields(autofillTemplateFields(draftContext, selectedTemplate));
@@ -141,18 +148,54 @@ export function DraftMediaPicker({
 
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-text">Immagine allegata</h3>
-        {currentAsset ? (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPickerOpen("library")}
-              disabled={busy}
-              className="rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text hover:border-primary/40 disabled:opacity-50"
-            >
-              Sostituisci
-            </button>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-medium text-text">
+          {currentAsset ? "Immagine allegata" : "Allega un'immagine"}
+        </h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPickerOpen("library")}
+            disabled={busy}
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text hover:border-primary/40 disabled:opacity-50"
+          >
+            <ImageIcon className="h-3.5 w-3.5" />
+            {currentAsset ? "Sostituisci" : "Da libreria"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPickerOpen("template")}
+            disabled={busy}
+            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
+          >
+            <LayoutTemplate className="h-3.5 w-3.5" /> Da template
+          </button>
+          <button
+            type="button"
+            onClick={() => setPickerOpen("ai")}
+            disabled={busy}
+            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
+          >
+            <Wand className="h-3.5 w-3.5" /> Genera con AI
+          </button>
+          <button
+            type="button"
+            onClick={() => setPickerOpen("creatomate")}
+            disabled={busy}
+            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
+          >
+            <Clapperboard className="h-3.5 w-3.5" /> Crea visual
+          </button>
+          <button
+            type="button"
+            onClick={() => setPickerOpen("video")}
+            disabled={busy || !currentAsset}
+            className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
+            title={currentAsset ? "Trasforma l'immagine allegata in video" : "Serve un'immagine allegata"}
+          >
+            <Film className="h-3.5 w-3.5" /> Genera video AI
+          </button>
+          {currentAsset && (
             <button
               type="button"
               onClick={handleDetach}
@@ -162,52 +205,8 @@ export function DraftMediaPicker({
             >
               <X className="h-3.5 w-3.5" />
             </button>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPickerOpen("library")}
-              disabled={busy}
-              className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text hover:border-primary/40 disabled:opacity-50"
-            >
-              <ImageIcon className="h-3.5 w-3.5" /> Da libreria
-            </button>
-            <button
-              type="button"
-              onClick={() => setPickerOpen("template")}
-              disabled={busy}
-              className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
-            >
-              <LayoutTemplate className="h-3.5 w-3.5" /> Da template
-            </button>
-            <button
-              type="button"
-              onClick={() => setPickerOpen("ai")}
-              disabled={busy}
-              className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
-            >
-              <Wand className="h-3.5 w-3.5" /> Genera con AI
-            </button>
-            <button
-              type="button"
-              onClick={() => setPickerOpen("creatomate")}
-              disabled={busy}
-              className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
-            >
-              <Clapperboard className="h-3.5 w-3.5" /> Crea visual
-            </button>
-            <button
-              type="button"
-              onClick={() => setPickerOpen("video")}
-              disabled={busy || !currentAsset}
-              className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
-              title={currentAsset ? undefined : "Serve un'immagine allegata"}
-            >
-              <Film className="h-3.5 w-3.5" /> Genera video AI
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {error && (
@@ -528,13 +527,13 @@ export function DraftMediaPicker({
         </div>
       )}
 
-      {pickerOpen === "ai" && !currentAsset && (
+      {pickerOpen === "ai" && (
         <div className="mt-3">
           <AiGeneratePanel draftId={draftId} onClose={() => setPickerOpen(null)} />
         </div>
       )}
 
-      {pickerOpen === "creatomate" && !currentAsset && (
+      {pickerOpen === "creatomate" && (
         <div className="mt-3">
           <CreatomatePanel
             brandId={brandId}

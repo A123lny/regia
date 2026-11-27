@@ -33,8 +33,10 @@ export function truncateAtWord(s: string, maxLen: number): string {
   if (s.length <= maxLen) return s;
   const slice = s.slice(0, maxLen);
   const lastSpace = slice.lastIndexOf(" ");
-  // Non troncare a metà parola: taglio all'ultimo spazio e aggiungo ellissi.
-  return (lastSpace > maxLen * 0.5 ? slice.slice(0, lastSpace) : slice).trimEnd() + "…";
+  // Mai spezzare a metà parola: preferisci sempre il confine di parola, anche
+  // quando è vicino all'inizio ("TEST" meglio di "TEST CLAUD"). Solo se non
+  // c'è alcuno spazio (parola unica più lunga del limite) accetta il hard cut.
+  return (lastSpace > 0 ? slice.slice(0, lastSpace) : slice).trimEnd() + "…";
 }
 
 export function guessModificationKind(key: string): ModKind {

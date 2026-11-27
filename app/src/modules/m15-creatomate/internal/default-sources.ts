@@ -27,6 +27,12 @@ export type DefaultDraftContext = {
   ctaText?: string; // es. "Prenota ora"
 };
 
+// IMPORTANTE: in Creatomate `track` deve essere un intero >=1 (<=1000).
+// Elementi sullo stesso track si sostituiscono a vicenda nel tempo:
+// per una composizione statica dove sfondo + pannello + testi vanno visti
+// insieme servono track DIVERSI, stacking dal basso verso l'alto.
+// Convention interna: 1=sfondo, 2=pannelli/immagini, 3+=testo/logo.
+
 function textEl(opts: {
   name: string;
   text: string;
@@ -38,11 +44,12 @@ function textEl(opts: {
   fontWeight?: 400 | 700 | 800;
   color?: string;
   horizontalAlign?: "left" | "center" | "right";
+  track?: number;
 }) {
   return {
     name: opts.name,
     type: "text",
-    track: 1,
+    track: opts.track ?? 3,
     x: `${opts.x}%`,
     y: `${opts.y}%`,
     width: `${opts.width}%`,
@@ -60,11 +67,19 @@ function textEl(opts: {
   };
 }
 
-function rectEl(opts: { name: string; color: string; x: number; y: number; w: number; h: number }) {
+function rectEl(opts: {
+  name: string;
+  color: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  track?: number;
+}) {
   return {
     name: opts.name,
     type: "shape",
-    track: 0,
+    track: opts.track ?? 2,
     x: `${opts.x}%`,
     y: `${opts.y}%`,
     width: `${opts.w}%`,
@@ -74,11 +89,20 @@ function rectEl(opts: { name: string; color: string; x: number; y: number; w: nu
   };
 }
 
-function imageEl(opts: { name: string; url: string; x: number; y: number; w: number; h: number; fit?: "contain" | "cover" }) {
+function imageEl(opts: {
+  name: string;
+  url: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  fit?: "contain" | "cover";
+  track?: number;
+}) {
   return {
     name: opts.name,
     type: "image",
-    track: 0,
+    track: opts.track ?? 2,
     x: `${opts.x}%`,
     y: `${opts.y}%`,
     width: `${opts.w}%`,
@@ -98,8 +122,8 @@ export function squarePostSource(
   draft: DefaultDraftContext,
 ): Record<string, unknown> {
   const elements: Array<Record<string, unknown>> = [
-    rectEl({ name: "bg", color: brand.color, x: 0, y: 0, w: 100, h: 100 }),
-    rectEl({ name: "panel", color: "#ffffff", x: 7, y: 20, w: 86, h: 60 }),
+    rectEl({ name: "bg", color: brand.color, x: 0, y: 0, w: 100, h: 100, track: 1 }),
+    rectEl({ name: "panel", color: "#ffffff", x: 7, y: 20, w: 86, h: 60, track: 2 }),
     textEl({
       name: "title",
       text: draft.shortTitle || brand.displayName,
@@ -111,6 +135,7 @@ export function squarePostSource(
       fontWeight: 800,
       color: brand.color,
       horizontalAlign: "left",
+      track: 3,
     }),
     textEl({
       name: "body",
@@ -122,6 +147,7 @@ export function squarePostSource(
       fontSize: 32,
       fontWeight: 400,
       color: "#333333",
+      track: 4,
     }),
     textEl({
       name: "brandname",
@@ -134,11 +160,21 @@ export function squarePostSource(
       fontWeight: 700,
       color: "#ffffff",
       horizontalAlign: "left",
+      track: 5,
     }),
   ];
   if (brand.logoUrl) {
     elements.push(
-      imageEl({ name: "logo", url: brand.logoUrl, x: 76, y: 5, w: 17, h: 10, fit: "contain" }),
+      imageEl({
+        name: "logo",
+        url: brand.logoUrl,
+        x: 76,
+        y: 5,
+        w: 17,
+        h: 10,
+        fit: "contain",
+        track: 6,
+      }),
     );
   }
   return {
@@ -159,7 +195,7 @@ export function storyReelSource(
   draft: DefaultDraftContext,
 ): Record<string, unknown> {
   const elements: Array<Record<string, unknown>> = [
-    rectEl({ name: "bg", color: brand.color, x: 0, y: 0, w: 100, h: 100 }),
+    rectEl({ name: "bg", color: brand.color, x: 0, y: 0, w: 100, h: 100, track: 1 }),
     {
       ...textEl({
         name: "title",
@@ -172,6 +208,7 @@ export function storyReelSource(
         fontWeight: 800,
         color: "#ffffff",
         horizontalAlign: "center",
+        track: 3,
       }),
       animations: [{ type: "scale", scope: "element", duration: 1.5, easing: "cubic-out" }],
     },
@@ -186,10 +223,9 @@ export function storyReelSource(
       fontWeight: 400,
       color: "#ffffff",
       horizontalAlign: "center",
+      track: 4,
     }),
-    {
-      ...rectEl({ name: "cta_bg", color: "#ffffff", x: 25, y: 83, w: 50, h: 7 }),
-    },
+    rectEl({ name: "cta_bg", color: "#ffffff", x: 25, y: 83, w: 50, h: 7, track: 2 }),
     textEl({
       name: "cta",
       text: draft.ctaText || "Scopri di più",
@@ -201,11 +237,21 @@ export function storyReelSource(
       fontWeight: 700,
       color: brand.color,
       horizontalAlign: "center",
+      track: 5,
     }),
   ];
   if (brand.logoUrl) {
     elements.push(
-      imageEl({ name: "logo", url: brand.logoUrl, x: 40, y: 5, w: 20, h: 10, fit: "contain" }),
+      imageEl({
+        name: "logo",
+        url: brand.logoUrl,
+        x: 40,
+        y: 5,
+        w: 20,
+        h: 10,
+        fit: "contain",
+        track: 6,
+      }),
     );
   }
   return {
@@ -228,8 +274,8 @@ export function posterA4Source(
   draft: DefaultDraftContext,
 ): Record<string, unknown> {
   const elements: Array<Record<string, unknown>> = [
-    rectEl({ name: "bg", color: "#f8f5f0", x: 0, y: 0, w: 100, h: 100 }),
-    rectEl({ name: "top_band", color: brand.color, x: 0, y: 0, w: 100, h: 18 }),
+    rectEl({ name: "bg", color: "#f8f5f0", x: 0, y: 0, w: 100, h: 100, track: 1 }),
+    rectEl({ name: "top_band", color: brand.color, x: 0, y: 0, w: 100, h: 18, track: 2 }),
     textEl({
       name: "brandname",
       text: brand.displayName,
@@ -241,6 +287,7 @@ export function posterA4Source(
       fontWeight: 800,
       color: "#ffffff",
       horizontalAlign: "center",
+      track: 3,
     }),
     textEl({
       name: "title",
@@ -253,6 +300,7 @@ export function posterA4Source(
       fontWeight: 800,
       color: brand.color,
       horizontalAlign: "center",
+      track: 4,
     }),
     textEl({
       name: "body",
@@ -265,6 +313,7 @@ export function posterA4Source(
       fontWeight: 400,
       color: "#333333",
       horizontalAlign: "center",
+      track: 5,
     }),
     textEl({
       name: "cta",
@@ -277,6 +326,7 @@ export function posterA4Source(
       fontWeight: 700,
       color: brand.color,
       horizontalAlign: "center",
+      track: 6,
     }),
   ];
   return {
