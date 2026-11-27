@@ -111,15 +111,16 @@ export async function regenerateDraftAction(input: {
   try {
     const session = await requireAuth("reviews.respond");
     await updateReviewDraft(session.organizationId, input.reviewId, null, "pending");
-    await generateDraftForReview(session.organizationId, input.reviewId);
+    const gen = await generateDraftForReview(session.organizationId, input.reviewId);
     await logAuditEvent({
       organizationId: session.organizationId,
       actorUserId: session.userId,
       actorKind: "user",
       action: "reviews.draft_regenerated",
       target: `review:${input.reviewId}`,
-      details: {},
+      details: { outcome: gen.ok ? "ok" : gen.kind },
     });
+    if (!gen.ok) return { ok: false, error: gen.error };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };

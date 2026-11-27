@@ -60,9 +60,15 @@ export function ReviewDrawer({
   }
 
   async function doRegenerate() {
+    setErr(null);
     const r = await regenerateDraftAction({ reviewId: review!.id });
-    if (!r.ok) setErr(r.error);
-    else refresh();
+    if (!r.ok) {
+      setErr(r.error);
+      return;
+    }
+    // Rigenera: NON chiudere il drawer, l'utente vuole vedere/approvare la
+    // bozza appena generata. Solo refresh dei dati.
+    router.refresh();
   }
 
   async function copyToClipboard() {
@@ -105,13 +111,17 @@ export function ReviewDrawer({
 
         {review.status === "pending" && (
           <section className="mt-4">
-            <p className="text-sm text-slate-500">Bozza in generazione…</p>
+            <p className="text-sm text-slate-500">
+              {isPending
+                ? "Generazione in corso…"
+                : "Nessuna bozza AI ancora. Premi per generarla ora."}
+            </p>
             <button
-              className="mt-2 rounded border px-3 py-1 text-sm"
+              className="mt-2 rounded border px-3 py-1 text-sm disabled:opacity-60"
               disabled={isPending}
               onClick={() => startTransition(doRegenerate)}
             >
-              Genera bozza ora
+              {isPending ? "Attendi…" : "Genera bozza ora"}
             </button>
           </section>
         )}

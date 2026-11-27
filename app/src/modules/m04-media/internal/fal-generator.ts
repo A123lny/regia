@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import { getAdminClient } from "@/lib/db/admin";
 import { getBrandById, getBrandKitWithLists } from "@/modules/m02-brand/public";
 import { generateImages, type GenerateImagesResult } from "@/lib/ai/fal";
+import { generateText as geminiGenerateText } from "@/lib/ai/gemini";
 import {
   FAL_SIZE_BY_CHANNEL,
   type DraftChannelHint,
@@ -42,6 +43,37 @@ export type ComposedPrompt = {
   size: FalImageSize;
 };
 
+/**
+ * Chiede a Gemini di estrarre dal testo italiano della bozza una SOLA
+ * descrizione VISIVA in inglese, zero branding, zero strategia, pronta per
+ * un modello text-to-image. Se la chiamata fallisce (quota/timeout/config)
+ * ritorna null e il caller fa fallback a theme/body sanitizzati.
+ */
+async function describeVisualFromDraftIT(italianText: string): Promise<string | null> {
+  const trimmed = italianText.trim();
+  if (trimmed.length === 0) return null;
+  try {
+    const r = await geminiGenerateText({
+      systemPrompt:
+        "You transform an Italian marketing draft into ONE concise English visual " +
+        "description (max 60 words) suitable for a text-to-image model. " +
+        "Describe ONLY what the photograph should show: subject, setting, lighting, " +
+        "mood. NEVER include: brand names, logos, signs, storefronts, written text " +
+        "of any kind, slogans, prices, people's faces as close-ups, marketing " +
+        "strategy, positioning, or any Italian words. Output the description only, " +
+        "no preamble, no quotes, no list.",
+      userMessage: trimmed.slice(0, 1500),
+      maxTokens: 220,
+      responseMimeType: "text/plain",
+    });
+    const out = r.text.trim().replace(/^["']+|["']+$/g, "");
+    if (out.length < 10) return null;
+    return out.slice(0, 500);
+  } catch {
+    return null;
+  }
+}
+
 export async function composePromptFromDraft(input: {
   organizationId: string;
   brandId: string;
@@ -54,43 +86,39 @@ export async function composePromptFromDraft(input: {
     getBrandById(input.organizationId, input.brandId),
   ]);
 
-  const theme = sanitizeForPrompt(input.draftThemeInput, 300);
-  const body = sanitizeForPrompt(input.draftGeneratedText, 600);
+  // Prima scelta: descrizione visiva in INGLESE dedotta dal corpo della
+  // bozza (Gemini). Fallback: subject = theme sanitizzato (senza il corpo,
+  // che tipicamente contiene strategia / CTA / brand).
+  const italianText = `${input.draftThemeInput}\n\n${input.draftGeneratedText}`.trim();
+  const visualEN = await describeVisualFromDraftIT(italianText);
+  const subject =
+    visualEN ?? sanitizeForPrompt(input.draftThemeInput || input.draftGeneratedText, 200);
 
-  // Palette: solo il color ufficiale del brand (hex). Modelli flux reagiscono
-  // bene sia a hex ("primary color #a84a2d") sia a descrizioni.
-  const paletteBits: string[] = [];
-  if (brand?.color) paletteBits.push(`dominant brand color ${brand.color}`);
+  // Palette: solo hex del brand (modelli flux rispondono bene a #RRGGBB).
+  // Nessun brand name nel prompt: eliminata la riga "photograph for <brand>".
+  // Nessun strategicDirection o toneOfVoice: sono testi di posizionamento,
+  // non istruzioni visive — l'immagine deve dipendere dal contenuto della
+  // bozza, non dalla strategia commerciale.
+  const paletteBit = brand?.color ? `Dominant color palette: ${brand.color}.` : "";
 
-  const toneBits: string[] = [];
-  if (bundle?.kit?.toneOfVoice) {
-    toneBits.push(sanitizeForPrompt(bundle.kit.toneOfVoice, 200));
-  }
-  if (bundle?.kit?.strategicDirection) {
-    toneBits.push(sanitizeForPrompt(bundle.kit.strategicDirection, 200));
-  }
-
-  // Parole bandite dal brand → le aggiungiamo come "no X, no Y" al prompt.
-  const forbiddenBits: string[] = [];
-  if (bundle?.forbiddenWords?.length) {
-    forbiddenBits.push(
-      "avoid imagery suggesting: " +
-        bundle.forbiddenWords
-          .slice(0, 8)
-          .map((w) => w.word)
-          .join(", "),
-    );
-  }
+  // Parole bandite → vincolo negativo esplicito.
+  const forbiddenBit = bundle?.forbiddenWords?.length
+    ? "Avoid imagery suggesting: " +
+      bundle.forbiddenWords
+        .slice(0, 8)
+        .map((w) => w.word)
+        .join(", ") +
+      "."
+    : "";
 
   const parts: string[] = [
-    `High quality photograph for ${brand?.displayName ?? "the brand"}, social media use.`,
-    `Subject: ${theme || body.slice(0, 200)}.`,
-    body.length > 0 ? `Context: ${body.slice(0, 200)}.` : "",
-    paletteBits.length > 0 ? `Palette: ${paletteBits.join(", ")}.` : "",
-    toneBits.length > 0 ? `Mood: ${toneBits.join(" ")}.` : "",
+    "Photorealistic photograph, natural light, editorial quality.",
+    `Subject: ${subject}.`,
+    paletteBit,
     `Composition suited to ${FAL_SIZE_BY_CHANNEL[input.channel].label}.`,
-    `No text, no logos, no watermarks, no fake storefronts, no human faces close-up unless specified.`,
-    forbiddenBits.join(" "),
+    // Vincoli negativi forti - niente scritte né segnaletica né loghi finti.
+    "No text, no letters, no words, no logos, no signage, no brand names, no watermark, no storefront names, no price tags.",
+    forbiddenBit,
   ];
 
   const prompt = parts.filter((p) => p.length > 0).join(" ");

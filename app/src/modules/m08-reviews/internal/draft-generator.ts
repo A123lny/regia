@@ -17,18 +17,35 @@ import { getReview, updateReviewDraft } from "./reviews-repo";
 
 const MAX_RETRIES = 2;
 
+export type DraftGenResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error: string;
+      kind: "config" | "rate_limit" | "timeout" | "api" | "guard" | "unexpected";
+    };
+
+/**
+ * Genera e salva la bozza di risposta. Ritorna un result object così il caller
+ * può mostrare un errore specifico all'utente invece di lasciare la review
+ * in pending con la UI che pulsa "Bozza in generazione…" per sempre.
+ */
 export async function generateDraftForReview(
   organizationId: string,
   reviewId: string,
-): Promise<void> {
+): Promise<DraftGenResult> {
   const review = await getReview(organizationId, reviewId);
-  if (!review) throw new Error(`review ${reviewId} non trovata`);
+  if (!review) return { ok: false, error: `Recensione non trovata.`, kind: "unexpected" };
   if (review.classification === "serious") {
-    throw new Error("RF-8.4: niente bozza per review classificata 'serious'");
+    return {
+      ok: false,
+      error: "Review classificata 'serious': niente bozza AI (RF-8.4).",
+      kind: "unexpected",
+    };
   }
 
   const brand = await getBrandById(organizationId, review.brandId);
-  if (!brand) throw new Error(`brand ${review.brandId} non trovato`);
+  if (!brand) return { ok: false, error: `Marchio non trovato.`, kind: "unexpected" };
   const kit = await getBrandKitWithLists(review.brandId);
 
   const brandCtx: BrandContext = {
@@ -40,6 +57,7 @@ export async function generateDraftForReview(
 
   const { system, user } = buildReplyPrompt(review, brandCtx);
 
+  let lastGuardReason: string | null = null;
   for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
     try {
       const result = await generateText({
@@ -66,8 +84,9 @@ export async function generateDraftForReview(
             tokensOut: result.tokensOut,
           },
         });
-        return;
+        return { ok: true };
       }
+      lastGuardReason = guard.reason;
       if (attempt > MAX_RETRIES) {
         await logAuditEvent({
           organizationId,
@@ -75,21 +94,58 @@ export async function generateDraftForReview(
           actorKind: "agent",
           action: "reviews.draft_rejected",
           target: `review:${reviewId}`,
-          details: {
-            reason: guard.reason,
-            finalAttempt: attempt,
-          },
+          details: { reason: guard.reason, finalAttempt: attempt },
         });
         await updateReviewDraft(organizationId, reviewId, null, "pending");
-        return;
+        return {
+          ok: false,
+          error: `Bozza generata ma non conforme (guard: ${guard.reason}). Riprova o rispondi a mano.`,
+          kind: "guard",
+        };
       }
     } catch (e) {
-      // AiConfigError = fatale (API key assente). Non ritentare: fail fast.
-      // Altri AiError = transient (timeout/rate/api) → ritenta fino a MAX_RETRIES.
-      const isTransientAiError =
-        e instanceof AiTimeoutError || e instanceof AiRateLimitError || e instanceof AiApiError;
-      const isFatalConfig = e instanceof AiConfigError;
-      if (attempt > MAX_RETRIES || !isTransientAiError || isFatalConfig) {
+      const isConfig = e instanceof AiConfigError;
+      const isRate = e instanceof AiRateLimitError;
+      const isTimeout = e instanceof AiTimeoutError;
+      const isApi = e instanceof AiApiError;
+      const isTransientAi = isTimeout || isRate || isApi;
+      // Config error = fatale, non ritentare.
+      if (isConfig) {
+        await logAuditEvent({
+          organizationId,
+          actorUserId: null,
+          actorKind: "agent",
+          action: "reviews.draft_error",
+          target: `review:${reviewId}`,
+          details: { message: e instanceof Error ? e.message : String(e), kind: "config" },
+        });
+        await updateReviewDraft(organizationId, reviewId, null, "pending");
+        return {
+          ok: false,
+          error:
+            "Chiave Anthropic non impostata o non valida (ANTHROPIC_API_KEY). Chiedi all'Owner di configurarla su Vercel.",
+          kind: "config",
+        };
+      }
+      // Non-AI error = fatale (es. DB).
+      if (!isTransientAi) {
+        await logAuditEvent({
+          organizationId,
+          actorUserId: null,
+          actorKind: "agent",
+          action: "reviews.draft_error",
+          target: `review:${reviewId}`,
+          details: { message: e instanceof Error ? e.message : String(e), kind: "unexpected" },
+        });
+        await updateReviewDraft(organizationId, reviewId, null, "pending");
+        return {
+          ok: false,
+          error: e instanceof Error ? e.message : String(e),
+          kind: "unexpected",
+        };
+      }
+      // Transient AI error: ritenta se c'è ancora budget attempt.
+      if (attempt > MAX_RETRIES) {
         await logAuditEvent({
           organizationId,
           actorUserId: null,
@@ -98,13 +154,26 @@ export async function generateDraftForReview(
           target: `review:${reviewId}`,
           details: {
             message: e instanceof Error ? e.message : String(e),
-            kind:
-              isTransientAiError || isFatalConfig ? (e as { kind?: string }).kind : "unexpected",
+            kind: isRate ? "rate_limit" : isTimeout ? "timeout" : "api",
           },
         });
         await updateReviewDraft(organizationId, reviewId, null, "pending");
-        return;
+        return {
+          ok: false,
+          error: isRate
+            ? "Rate limit Anthropic: riprova fra 30-60 secondi."
+            : isTimeout
+              ? "Timeout Anthropic: riprova."
+              : `Errore Anthropic: ${e instanceof Error ? e.message : String(e)}`,
+          kind: isRate ? "rate_limit" : isTimeout ? "timeout" : "api",
+        };
       }
     }
   }
+  // Loop finito senza return (non dovrebbe succedere): fail generico.
+  return {
+    ok: false,
+    error: `Generazione fallita dopo ${MAX_RETRIES + 1} tentativi${lastGuardReason ? ` (ultimo: ${lastGuardReason})` : ""}.`,
+    kind: "unexpected",
+  };
 }
