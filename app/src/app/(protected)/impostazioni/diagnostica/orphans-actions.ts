@@ -261,15 +261,29 @@ async function recoverSingleOrphan(
     });
     if (initialStatus === "succeeded") {
       const applied = await applySucceededRenderByExternalId(extId);
+      if (applied.ok) {
+        return { ok: true, renderId: row.id, status: "succeeded (asset in libreria)" };
+      }
+      // Render succeeded su Creatomate ma non siamo riusciti a scaricarlo:
+      // conta come failure (l'utente non ha un asset utilizzabile).
       return {
-        ok: true,
-        renderId: row.id,
-        status: applied.ok
-          ? "succeeded (asset in libreria)"
-          : `succeeded (apply error: ${applied.ok === false ? applied.error : "?"})`,
+        ok: false,
+        error: `Render completato su Creatomate ma download fallito: ${applied.error}`,
       };
     }
-    return { ok: true, renderId: row.id, status: initialStatus };
+    if (initialStatus === "failed") {
+      // Render su Creatomate è fallito/cancellato: non c'è nulla da
+      // recuperare lato Regìa. La riga DB resta per tracciabilità ma non
+      // è un "recovery" riuscito.
+      const liveMsg = live.error_message ? `: ${live.error_message}` : "";
+      return {
+        ok: false,
+        error: `Render fallito su Creatomate${liveMsg}. Niente asset da scaricare.`,
+      };
+    }
+    // Stati intermedi (queued/planned/rendering): salvato in DB, il
+    // polling o il webhook completerà. L'utente lo vedrà nelle bozze.
+    return { ok: true, renderId: row.id, status: `${initialStatus} (in corso)` };
   } catch (err) {
     return { ok: false, error: `Insert DB: ${err instanceof Error ? err.message : "errore"}` };
   }

@@ -1,16 +1,14 @@
-// RF-8.2/8.3 Draft generator con AI Anthropic + guard RF-8.7.
-// Riuso RS-2 unico punto AI testuale (@/lib/ai/anthropic).
+// Draft generator per risposte recensioni (guard RF-8.7).
+// Usa Gemini come gli altri testi della piattaforma (Anthropic non e'
+// configurato in produzione: evitiamo la dipendenza).
 // Serious → mai bozza (RF-8.4). Retry max 2 su fail/guard, poi pending.
 
 import { logAuditEvent } from "@/lib/audit/log";
 import { getBrandById, getBrandKitWithLists } from "@/modules/m02-brand/public";
-import {
-  generateText,
-  AiTimeoutError,
-  AiRateLimitError,
-  AiApiError,
-  AiConfigError,
-} from "@/lib/ai/anthropic";
+// Errori sono dichiarati in anthropic.ts ma condivisi (il wrapper Gemini
+// lancia le stesse classi) — cosi' la gestione errori qui è identica a m03.
+import { AiTimeoutError, AiRateLimitError, AiApiError, AiConfigError } from "@/lib/ai/anthropic";
+import { generateText } from "@/lib/ai/gemini";
 import { buildReplyPrompt, type BrandContext } from "./prompt-builder";
 import { validateDraft } from "./draft-guard";
 import { getReview, updateReviewDraft } from "./reviews-repo";
@@ -64,7 +62,6 @@ export async function generateDraftForReview(
         systemPrompt: system,
         userMessage: user,
         maxTokens: 400,
-        temperature: 0.6,
       });
       const draft = result.text;
       const guard = validateDraft(draft, brandCtx);
@@ -123,7 +120,7 @@ export async function generateDraftForReview(
         return {
           ok: false,
           error:
-            "Chiave Anthropic non impostata o non valida (ANTHROPIC_API_KEY). Chiedi all'Owner di configurarla su Vercel.",
+            "Chiave Gemini non impostata o non valida (GEMINI_API_KEY). Chiedi all'Owner di configurarla su Vercel.",
           kind: "config",
         };
       }
@@ -161,10 +158,10 @@ export async function generateDraftForReview(
         return {
           ok: false,
           error: isRate
-            ? "Rate limit Anthropic: riprova fra 30-60 secondi."
+            ? "Rate limit Gemini: riprova fra 30-60 secondi."
             : isTimeout
-              ? "Timeout Anthropic: riprova."
-              : `Errore Anthropic: ${e instanceof Error ? e.message : String(e)}`,
+              ? "Timeout Gemini: riprova."
+              : `Errore Gemini: ${e instanceof Error ? e.message : String(e)}`,
           kind: isRate ? "rate_limit" : isTimeout ? "timeout" : "api",
         };
       }

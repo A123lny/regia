@@ -93,12 +93,12 @@ export default async function BrandContentPage({
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Contenuti
         </Link>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-y-2">
           <div className="flex items-center gap-3">
             <BrandChip slug={brandSlug} name={displayName} color={brandColor} />
             <h1 className="font-serif text-3xl font-semibold text-text">{displayName}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="outline">
               <Link href={`/contenuti/${brandSlug}/calendario`}>
                 <Calendar className="mr-2 h-4 w-4" /> Calendario

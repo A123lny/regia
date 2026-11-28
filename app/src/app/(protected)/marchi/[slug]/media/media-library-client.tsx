@@ -382,14 +382,13 @@ function MetaEditor({
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    // Save SEMPRE caption + tags, senza comparazioni fragili (trim mismatch,
+    // null vs "", whitespace invisibili). Il server fa dedup e la chiamata
+    // è idempotente: un save senza modifiche costa un roundtrip ma non
+    // perde mai l'input dell'utente.
     try {
-      let updated = asset;
-      if (caption !== asset.caption) {
-        updated = await updateMediaAssetCaption(asset.id, caption);
-      }
-      if (tagsCsv !== asset.tags.join(", ")) {
-        updated = await updateMediaAssetTags(asset.id, tagsCsv);
-      }
+      let updated = await updateMediaAssetCaption(asset.id, caption);
+      updated = await updateMediaAssetTags(asset.id, tagsCsv);
       onSaved(updated);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Errore salvataggio");

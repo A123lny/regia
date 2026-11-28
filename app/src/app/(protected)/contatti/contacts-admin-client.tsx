@@ -4,7 +4,7 @@
 // Drawer via Sheet (radix). Consensi + veicoli caricati on-demand con API interne
 // (fetch) per non appesantire la lista principale.
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   UserPlus,
   Mail,
@@ -332,12 +332,12 @@ function ContactDetailDrawer({
   const [error, setError] = useState<string | null>(null);
   const confirm = useConfirm();
 
-  // Load on mount (via server component fallback API stub → useEffect)
-  // Semplifichiamo: fetch da endpoint interno costruito ad-hoc? No, usiamo
-  // server actions restituendo consensi al primo render tramite prop iniziale.
-  // Per ora: mostro placeholder e carica al primo render.
-  useState(() => {
-    void (async () => {
+  // Carica consensi + veicoli quando il drawer apre (cambia contact).
+  // Prima qui c'era un uso improprio di useState(() => async side effect)
+  // che non triggerava mai il re-render con i dati caricati.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
       try {
         const res = await fetch(`/api/contatti/${contact.id}/detail`, { cache: "no-store" });
         if (!res.ok) throw new Error("Errore caricamento dettagli");
@@ -345,15 +345,19 @@ function ContactDetailDrawer({
           consents: ContactConsent[];
           vehicles: ContactVehicle[];
         };
+        if (cancelled) return;
         setConsents(data.consents);
         setVehicles(data.vehicles);
       } catch (err) {
-        setError((err as Error).message);
+        if (!cancelled) setError((err as Error).message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  });
+    return () => {
+      cancelled = true;
+    };
+  }, [contact.id]);
 
   return (
     <>
