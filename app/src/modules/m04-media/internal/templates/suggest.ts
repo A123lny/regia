@@ -84,6 +84,35 @@ function truncateAtWord(s: string, maxLen: number): string {
   return (lastSpace > 0 ? slice.slice(0, lastSpace) : slice).trimEnd();
 }
 
+/** Estrae dal testo un NUMERO di valore (percentuale, prezzo, importo),
+ * utile per i campi headline con maxLength ≈ 10 (es. "-20%", "12.50€").
+ * Ritorna stringa vuota se non trova nulla di numerico plausibile.
+ *
+ * Regole in ordine di preferenza:
+ *   1. percentuale con segno: -20%, +15%, 20%
+ *   2. prezzo con valuta: €12.50, 12,50€, $9.99, £8
+ *   3. numero isolato di 2+ cifre: 50, 100 (evita "a" o "la" accidentali)
+ */
+function extractPriceOrNumber(text: string, maxLen: number): string {
+  const normalized = text.replace(/\s+/g, " ");
+  // 1. Percentuale (con segno opzionale)
+  const pctMatch = normalized.match(/[-+]?\s?\d+(?:[.,]\d+)?\s?%/);
+  if (pctMatch && pctMatch[0].replace(/\s+/g, "").length <= maxLen) {
+    return pctMatch[0].replace(/\s+/g, "");
+  }
+  // 2. Prezzo con valuta (valuta prima o dopo)
+  const priceMatch = normalized.match(/(?:[€£$]\s?\d+(?:[.,]\d+)?|\d+(?:[.,]\d+)?\s?[€£$])/);
+  if (priceMatch && priceMatch[0].replace(/\s+/g, "").length <= maxLen) {
+    return priceMatch[0].replace(/\s+/g, "");
+  }
+  // 3. Numero isolato di almeno 2 cifre (senza unità chiaramente spuria)
+  const numMatch = normalized.match(/\b\d{2,}(?:[.,]\d+)?\b/);
+  if (numMatch && numMatch[0].length <= maxLen) {
+    return numMatch[0];
+  }
+  return "";
+}
+
 /**
  * Pre-compila i campi di un template usando il testo del draft.
  * - "name" → è un NOME PROPRIO (ristorante, persona, luogo). Non riempire
@@ -116,7 +145,15 @@ export function autofillTemplateFields(
       // Lasciato vuoto: UI mostrerà il campo evidenziando che è da compilare.
       result[f.key] = "";
     } else if (SHORT_TITLE_KEYS.has(f.key)) {
-      result[f.key] = truncateAtWord(firstSentence, Math.min(max, 80));
+      // Campi tipo "headline" con maxLength <= 15 sono tipicamente numerici
+      // (prezzo, percentuale, importo). Il testo autofilled "Spesa a" o
+      // "Lenny:" era fuorviante: estrai piuttosto un numero dal testo; se
+      // non ce n'è, lascia vuoto.
+      if (max <= 15) {
+        result[f.key] = extractPriceOrNumber(text, max);
+      } else {
+        result[f.key] = truncateAtWord(firstSentence, Math.min(max, 80));
+      }
     } else if (VERY_SHORT_KEYS.has(f.key)) {
       result[f.key] = truncateAtWord(firstSentence, Math.min(max, 40));
     } else if (BODY_KEYS.has(f.key)) {

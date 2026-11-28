@@ -1,21 +1,27 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Moduli nativi / Node.js-only: turbopack non li bundle. Risolti a runtime da Node.
-  // @resvg/resvg-js: m04-media renderer (satori → PNG).
-  // twilio + https-proxy-agent: m05-publishing adapter Twilio (Node.js SDK).
-  serverExternalPackages: ["@resvg/resvg-js", "twilio", "https-proxy-agent"],
-
-  // Vercel tracer non trova i .wasm che satori/harfbuzzjs caricano a runtime
-  // via fs.readFileSync (non import statico). Senza questa lista il template
-  // renderer esplode in produzione con "ENOENT ... harfbuzzjs/hb.wasm".
-  outputFileTracingIncludes: {
-    "**": [
-      "./node_modules/harfbuzzjs/hb.wasm",
-      "./node_modules/harfbuzzjs/hbjs.js",
-      "./node_modules/satori/yoga.wasm",
-    ],
-  },
+  // Moduli nativi / Node.js-only / wasm: Turbopack NON li bundle, Node li
+  // risolve a runtime da node_modules.
+  //   @resvg/resvg-js   - m04-media renderer (satori -> PNG), nativo napi
+  //   satori            - carica yoga.wasm e harfbuzz a runtime via fs
+  //   harfbuzzjs        - hb.wasm caricato via WebAssembly.compileStreaming
+  //                       (Vercel tracer non lo vede come dipendenza statica)
+  //   twilio            - Node.js SDK m05-publishing
+  //   https-proxy-agent - transitivo twilio
+  //
+  // Prima tentata la strada outputFileTracingIncludes: non basta perche'
+  // harfbuzzjs usa __dirname + '/hb.wasm' a runtime, quindi serve che TUTTA
+  // la cartella node_modules/harfbuzzjs/ sia sul disco al fianco del codice.
+  // serverExternalPackages ottiene esattamente questo: external = non bundlato
+  // = cartella intera presente nella deploy.
+  serverExternalPackages: [
+    "@resvg/resvg-js",
+    "satori",
+    "harfbuzzjs",
+    "twilio",
+    "https-proxy-agent",
+  ],
 
   experimental: {
     // Server actions con upload immagini media library fino a 20MB (M04).

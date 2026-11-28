@@ -31,13 +31,25 @@ const MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024;
 const DOWNLOAD_TIMEOUT_MS = 60_000;
 
 // Host consentiti per l'URL di output Creatomate.
-// Creatomate serve i file dal proprio CDN; per SSRF restringiamo.
-const ALLOWED_OUTPUT_HOSTS = new Set<string>([
+// Creatomate serve i file su Backblaze B2 (fXXX.backblazeb2.com dove XXX
+// identifica il pod geografico) + fallback S3 / CDN custom. Allowlist con
+// match esatto per i domini noti e suffix match per backblaze (pod rotanti).
+const ALLOWED_OUTPUT_HOSTS_EXACT = new Set<string>([
   "cdn.creatomate.com",
   "creatomate-static.s3.amazonaws.com",
   "creatomate-static.s3.eu-west-1.amazonaws.com",
   "creatomate.s3.eu-west-1.amazonaws.com",
 ]);
+// Suffissi di secondo-livello consentiti (host.endsWith("." + suffix)).
+const ALLOWED_OUTPUT_HOSTS_SUFFIX = ["backblazeb2.com"];
+
+function isAllowedOutputHost(hostname: string): boolean {
+  if (ALLOWED_OUTPUT_HOSTS_EXACT.has(hostname)) return true;
+  for (const suffix of ALLOWED_OUTPUT_HOSTS_SUFFIX) {
+    if (hostname === suffix || hostname.endsWith("." + suffix)) return true;
+  }
+  return false;
+}
 
 const ALLOWED_OUTPUT_CT = new Set<string>([
   "image/png",
@@ -65,7 +77,7 @@ function assertSafeOutputUrl(raw: string): URL {
   if (u.protocol !== "https:") {
     throw new RenderOutputSsrfError("L'URL di output deve essere HTTPS.");
   }
-  if (!ALLOWED_OUTPUT_HOSTS.has(u.hostname)) {
+  if (!isAllowedOutputHost(u.hostname)) {
     throw new RenderOutputSsrfError(`Host non autorizzato per output: ${u.hostname}`);
   }
   return u;
