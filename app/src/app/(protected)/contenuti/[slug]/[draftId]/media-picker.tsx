@@ -4,7 +4,7 @@
 // Due modalita: libreria esistente o generazione da template.
 // Modal per libreria + modal per template picker + form campi template.
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ImageIcon,
@@ -74,12 +74,9 @@ export function DraftMediaPicker({
     ? suggestTemplateForDraft(draftContext, availableTemplates)
     : null;
 
-  // Quando l'immagine allegata cambia (attach/sostituzione/detach), azzera
-  // qualsiasi errore residuo da un tentativo precedente (es. "ENOENT ..."
-  // del Da template che non si puliva finché non si ricaricava la pagina).
-  useEffect(() => {
-    setError(null);
-  }, [currentAsset?.id]);
+  // Nota: la pulizia dell'errore avviene già nei vari handle*() (attach,
+  // detach, pickerOpen change, template generate). Non serve un effect di
+  // sincronizzazione su currentAsset.id - sarebbe un re-render cascata.
 
   function handleAutofillFromDraft() {
     if (!selectedTemplate || !draftContext) return;

@@ -182,7 +182,7 @@ export async function generateAiPreviews(input: {
   const pre = await preflight(session.organizationId, estimatedCost);
   if (!pre.ok) return pre;
 
-  const { prompt, size } = await composePromptFromDraft({
+  const { prompt, size, loraUrl } = await composePromptFromDraft({
     organizationId: session.organizationId,
     brandId: brand.id,
     draftThemeInput: draft.themeInput,
@@ -190,13 +190,20 @@ export async function generateAiPreviews(input: {
     channel,
   });
 
+  // Se il brand ha un LoRA addestrato, usiamo fal-ai/flux-lora (accetta
+  // loras[]) invece di flux/schnell. Latenza leggermente più alta, ma le
+  // anteprime riflettono lo stile addestrato.
+  const previewModel =
+    loraUrl && loraUrl.length > 0 ? "fal-ai/flux-lora" : FAL_PREVIEW_MODEL;
+
   let result: Awaited<ReturnType<typeof runFalGeneration>>;
   try {
     result = await runFalGeneration({
-      modelId: FAL_PREVIEW_MODEL,
+      modelId: previewModel,
       prompt,
       size,
       numImages: FAL_PREVIEW_COUNT,
+      ...(loraUrl ? { loraUrl } : {}),
     });
   } catch (err) {
     console.error("[fal] generateAiPreviews failed", {
@@ -300,16 +307,25 @@ export async function generateAndSaveAiVariant(input: {
   // un dato (size) derivabile deterministicamente dal canale.
   const size = FAL_SIZE_BY_CHANNEL[input.channel];
 
+  // Se il brand ha un LoRA addestrato, la variante finale deve usarlo
+  // (le anteprime l'hanno già usato se presente). Leggiamo direttamente
+  // dal brand kit per evitare parametri in più nell'API client.
+  const { getBrandKitWithLists } = await import("@/modules/m02-brand/public");
+  const bundle = await getBrandKitWithLists(brand.id);
+  const loraUrl = bundle?.kit.loraModelUrl ?? null;
+  const qualityModel = loraUrl ? "fal-ai/flux-lora" : FAL_QUALITY_MODEL;
+
   // Step A: chiamata fal. Se arriva qui, fal ha già fatto il lavoro (e
   // addebitato). Da qui in poi dobbiamo loggare la spesa anche se il
   // salvataggio nel bucket fallisce.
   let result: Awaited<ReturnType<typeof runFalGeneration>>;
   try {
     result = await runFalGeneration({
-      modelId: FAL_QUALITY_MODEL,
+      modelId: qualityModel,
       prompt: input.prompt.slice(0, 2000),
       size,
       numImages: 1,
+      ...(loraUrl ? { loraUrl } : {}),
     });
   } catch (err) {
     console.error("[fal] generateAndSaveAiVariant: fal call failed", {

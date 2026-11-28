@@ -77,6 +77,20 @@ export type {
 export { startFalVideoAction, getFalVideoJobStatusAction } from "./internal/fal-video-actions";
 export type { StartVideoResult, VideoStatusResult } from "./internal/fal-video-actions";
 
+// Training LoRA stile brand (fal-ai/flux-lora-fast-training).
+export {
+  startLoraTrainingAction,
+  getLoraTrainingJobStatusAction,
+  listLoraTrainingJobsAction,
+  clearBrandLoraAction,
+} from "./internal/lora-training-actions";
+export type {
+  StartLoraResult,
+  LoraJob,
+  LoraJobStatus,
+  LoraStatusResult,
+} from "./internal/lora-training-actions";
+
 // renderTemplateToPng e getTemplateDefinition vivono in ./server.ts
 // (importano @resvg/resvg-js nativo non bundlabile client).
 

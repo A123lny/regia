@@ -42,6 +42,10 @@ function sanitizeForPrompt(s: string, maxLen: number): string {
 export type ComposedPrompt = {
   prompt: string;
   size: FalImageSize;
+  /** URL del LoRA addestrato sul brand (se valorizzato in brand_kits.lora_model_url).
+   * Il caller lo passa a generateImages con modelId=fal-ai/flux-lora per applicare
+   * lo stile; null → usa il modello base (schnell/dev). */
+  loraUrl: string | null;
 };
 
 /**
@@ -183,7 +187,11 @@ export async function composePromptFromDraft(input: {
   ];
 
   const prompt = parts.filter((p) => p.length > 0).join(" ");
-  return { prompt, size: FAL_SIZE_BY_CHANNEL[input.channel] };
+  return {
+    prompt,
+    size: FAL_SIZE_BY_CHANNEL[input.channel],
+    loraUrl: bundle?.kit.loraModelUrl ?? null,
+  };
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -264,11 +272,14 @@ export async function runFalGeneration(input: {
   prompt: string;
   size: FalImageSize;
   numImages: number;
+  /** URL safetensors LoRA (opzionale). Valido solo se modelId=fal-ai/flux-lora. */
+  loraUrl?: string;
 }): Promise<GenerateImagesResult> {
   return generateImages({
     modelId: input.modelId,
     prompt: input.prompt,
     size: input.size,
     numImages: input.numImages,
+    ...(input.loraUrl ? { loraUrl: input.loraUrl } : {}),
   });
 }

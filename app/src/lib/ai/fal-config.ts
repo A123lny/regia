@@ -2,12 +2,19 @@
 // Il file è importabile sia server che client (non esporta la chiave).
 // La chiave FAL_KEY sta solo nelle env server; mai nel bundle browser.
 
-export type FalImageModelId = "fal-ai/flux/schnell" | "fal-ai/flux-pro/v1.1";
+export type FalImageModelId =
+  | "fal-ai/flux/schnell"
+  | "fal-ai/flux-pro/v1.1"
+  | "fal-ai/flux-lora";
 
 // Modello veloce per le 2–4 anteprime (Apache 2.0, ~2s, basso costo).
 export const FAL_PREVIEW_MODEL: FalImageModelId = "fal-ai/flux/schnell";
 // Modello di qualità per la variante finale scelta dall'utente.
 export const FAL_QUALITY_MODEL: FalImageModelId = "fal-ai/flux-pro/v1.1";
+// Modello che accetta loras[]: usato quando brand_kit.lora_model_url è
+// valorizzato, in modo che le generazioni applichino lo stile addestrato
+// (vedi lora-training-actions.ts). Pricing simile a flux/dev.
+export const FAL_LORA_MODEL: FalImageModelId = "fal-ai/flux-lora";
 
 // Numero di anteprime generate al click "Genera anteprime".
 export const FAL_PREVIEW_COUNT = 4;
@@ -16,6 +23,7 @@ export const FAL_PREVIEW_COUNT = 4;
 export const FAL_COST_USD: Record<FalImageModelId, number> = {
   "fal-ai/flux/schnell": 0.003,
   "fal-ai/flux-pro/v1.1": 0.04,
+  "fal-ai/flux-lora": 0.025,
 };
 
 // ─── Video (image-to-video) ───────────────────────────────────────────────

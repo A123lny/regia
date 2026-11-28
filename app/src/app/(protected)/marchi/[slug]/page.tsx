@@ -58,7 +58,9 @@ import {
   removeBrandSensitiveTopic,
 } from "@/modules/m02-brand/public";
 import { ToneExamplesEditor } from "./tone-examples-editor";
+import { LoraTrainingCard } from "./lora-training-card";
 import { HelpButton } from "@/components/help/help-button";
+import { listMediaAssetsByBrand, listLoraTrainingJobsAction } from "@/modules/m04-media/public";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString("it-IT", {
@@ -98,6 +100,25 @@ export default async function BrandKitPage({
     try {
       const { listBrandTemplates } = await import("@/modules/m15-creatomate/public");
       return await listBrandTemplates(session.organizationId, brandId, false);
+    } catch {
+      return [];
+    }
+  })();
+
+  // Assets Libreria e storico training (per la card LoRA). Entrambi
+  // degradano a [] se qualcosa va storto in produzione (tabella non
+  // ancora applicata, ecc): la card resta visibile ma non blocca.
+  const assets = await (async () => {
+    try {
+      return await listMediaAssetsByBrand(session.organizationId, brandId, 500);
+    } catch {
+      return [];
+    }
+  })();
+  const loraJobs = await (async () => {
+    try {
+      const r = await listLoraTrainingJobsAction({ brandId });
+      return r.ok ? r.items : [];
     } catch {
       return [];
     }
@@ -306,6 +327,15 @@ export default async function BrandKitPage({
           </form>
         </CardContent>
       </Card>
+
+      {/* Card 2c: Addestra stile (LoRA) */}
+      <LoraTrainingCard
+        brandId={brandId}
+        brandSlug={brandSlug}
+        loraModelUrl={kit?.loraModelUrl ?? null}
+        assets={assets}
+        initialJobs={loraJobs}
+      />
 
       {/* Card 3: Rubriche */}
       <Card>

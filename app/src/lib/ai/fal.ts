@@ -119,6 +119,10 @@ export type GenerateImagesInput = {
   // Se true usa seed deterministici crescenti per riproducibilità anteprime.
   // Useful quando l'utente rigenera dalla stessa seed set per confronti.
   seed?: number;
+  /** URL safetensors LoRA da applicare (solo per modelId=fal-ai/flux-lora).
+   * Quando valorizzato e modelId è flux-lora, viene passato come
+   * loras:[{path, scale:1}] all'API. Ignorato per altri modelId. */
+  loraUrl?: string;
 };
 
 export type GenerateImagesResult = {
@@ -171,6 +175,12 @@ export async function generateImages(input: GenerateImagesInput): Promise<Genera
             num_images: input.numImages,
             enable_safety_checker: true,
             ...(input.seed !== undefined ? { seed: input.seed } : {}),
+            // loras[] è valido solo su fal-ai/flux-lora. Su altri modelId il
+            // campo viene silenziosamente ignorato da fal, ma non lo inviamo
+            // per non confondere i log.
+            ...(input.modelId === "fal-ai/flux-lora" && input.loraUrl
+              ? { loras: [{ path: input.loraUrl, scale: 1 }] }
+              : {}),
           },
           logs: false,
         }),
