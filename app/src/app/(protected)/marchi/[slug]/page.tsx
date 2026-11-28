@@ -46,6 +46,9 @@ import {
   formatBrandContextForAI,
   updateBrandKitTone,
   updateBrandKitContext,
+  updateBrandKitImageSettings,
+  IMAGE_STYLE_MAX,
+  FORBIDDEN_SUBJECTS_MAX,
   addBrandPillar,
   removeBrandPillar,
   moveBrandPillar,
@@ -234,6 +237,70 @@ export default async function BrandKitPage({
             <div className="mt-4 flex justify-end">
               <Button type="submit" className="bg-primary text-white hover:bg-primary-hover">
                 Salva contesto strategico
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Card 2b: Stile immagini AI */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-serif">Stile immagini AI</CardTitle>
+          <CardDescription>
+            Istruzioni visive iniettate nel prompt text-to-image. Lo stile descrive come devono
+            apparire le foto (illuminazione, atmosfera, resa); i soggetti vietati sono aggiunti ai
+            vincoli negativi del prompt.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            action={async (formData: FormData) => {
+              "use server";
+              const imageStyle = String(formData.get("imageStyle") ?? "");
+              const subjectsRaw = String(formData.get("forbiddenSubjects") ?? "");
+              const forbiddenSubjects = subjectsRaw
+                .split(/\r?\n/)
+                .map((s) => s.trim())
+                .filter(Boolean);
+              await updateBrandKitImageSettings(brandId, { imageStyle, forbiddenSubjects });
+            }}
+          >
+            <div className="space-y-4">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="imageStyle">Stile foto (in inglese)</Label>
+                <Textarea
+                  id="imageStyle"
+                  name="imageStyle"
+                  defaultValue={kit?.imageStyle ?? ""}
+                  rows={3}
+                  maxLength={IMAGE_STYLE_MAX}
+                  placeholder="Es. warm photorealistic, natural light, shallow depth of field, editorial quality, cinematic"
+                />
+                <p className="text-[11px] text-text-muted">
+                  Scrivilo in inglese: va direttamente al modello di immagini. Max {IMAGE_STYLE_MAX}{" "}
+                  caratteri.
+                </p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="forbiddenSubjects">
+                  Soggetti da evitare (uno per riga, max {FORBIDDEN_SUBJECTS_MAX})
+                </Label>
+                <Textarea
+                  id="forbiddenSubjects"
+                  name="forbiddenSubjects"
+                  defaultValue={(kit?.forbiddenSubjects ?? []).join("\n")}
+                  rows={4}
+                  placeholder={"children\ntext overlays\nfake storefronts\nclose-up faces"}
+                />
+                <p className="text-[11px] text-text-muted">
+                  Aggiunti al vincolo &laquo;no text/logos/signage&raquo; già di sistema.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button type="submit" className="bg-primary text-white hover:bg-primary-hover">
+                Salva stile immagini
               </Button>
             </div>
           </form>

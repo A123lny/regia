@@ -61,14 +61,20 @@ export {
 export type { UpsertMediaProviderActionInput } from "./internal/media-providers-actions";
 
 // Generazione immagini AI (fal.ai).
-export { generateAiPreviews, generateAndSaveAiVariant } from "./internal/fal-actions";
-export type { AiPreviewItem, AiPreviewsResult, AiVariantSavedResult } from "./internal/fal-actions";
+export {
+  generateAiPreviews,
+  generateAndSaveAiVariant,
+  editMediaAssetWithKontextAction,
+} from "./internal/fal-actions";
+export type {
+  AiPreviewItem,
+  AiPreviewsResult,
+  AiVariantSavedResult,
+  EditImageResult,
+} from "./internal/fal-actions";
 
 // Generazione video AI (fal.ai image-to-video).
-export {
-  startFalVideoAction,
-  getFalVideoJobStatusAction,
-} from "./internal/fal-video-actions";
+export { startFalVideoAction, getFalVideoJobStatusAction } from "./internal/fal-video-actions";
 export type { StartVideoResult, VideoStatusResult } from "./internal/fal-video-actions";
 
 // renderTemplateToPng e getTemplateDefinition vivono in ./server.ts

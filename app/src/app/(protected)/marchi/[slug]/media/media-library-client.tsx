@@ -5,12 +5,13 @@
 
 import { useState, useTransition, useMemo, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Search, Trash2, Tag as TagIcon, Loader2, Download } from "lucide-react";
+import { Upload, Search, Trash2, Tag as TagIcon, Loader2, Download, Wand2 } from "lucide-react";
 import type { MediaAsset } from "@/modules/m04-media/public";
 import {
   deleteMediaAsset,
   updateMediaAssetCaption,
   updateMediaAssetTags,
+  editMediaAssetWithKontextAction,
 } from "@/modules/m04-media/public";
 
 type Props = {
@@ -103,6 +104,31 @@ export function MediaLibraryClient({ brandId, initialAssets }: Props) {
         setAssets((prev) => prev.filter((x) => x.id !== a.id));
       } catch (err) {
         setUploadError(err instanceof Error ? err.message : "Errore eliminazione");
+      } finally {
+        setBusyId(null);
+      }
+    });
+  }
+
+  function handleKontextEdit(a: MediaAsset) {
+    const instructionIT = prompt(
+      "Istruzioni di modifica in INGLESE (es. 'replace background with cozy restaurant interior'):",
+      "",
+    );
+    if (!instructionIT) return;
+    setBusyId(a.id);
+    setUploadError(null);
+    startTransition(async () => {
+      try {
+        const r = await editMediaAssetWithKontextAction({
+          assetId: a.id,
+          editPrompt: instructionIT,
+        });
+        if (!r.ok) {
+          setUploadError(r.error);
+          return;
+        }
+        setAssets((prev) => [r.asset, ...prev]);
       } finally {
         setBusyId(null);
       }
@@ -270,6 +296,16 @@ export function MediaLibraryClient({ brandId, initialAssets }: Props) {
                       >
                         <Download className="h-3 w-3" />
                       </a>
+                      <button
+                        type="button"
+                        onClick={() => handleKontextEdit(a)}
+                        disabled={isBusy}
+                        className="rounded-md bg-primary/90 p-1.5 text-white hover:bg-primary disabled:opacity-50"
+                        aria-label="Modifica con AI (FLUX Kontext)"
+                        title="Modifica con AI — ~$0.04"
+                      >
+                        <Wand2 className="h-3 w-3" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(a)}

@@ -9,8 +9,23 @@ export type BrandKit = {
   strategicYearGoal: string;
   strategicDirection: string;
   toneExamples: ToneExample[];
+  // Personalizzazione generazione immagini AI (richiesta utente 2026-11-27).
+  // imageStyle: stile foto in INGLESE da iniettare nel prompt text-to-image
+  //   (es. "warm photorealistic, shallow depth of field, editorial")
+  // forbiddenSubjects: soggetti da evitare esplicitamente nelle immagini
+  //   (es. ["children", "text overlays", "fake storefronts"])
+  // loraModelUrl: safetensors URL del LoRA addestrato su fal (null se non
+  //   ancora addestrato); quando valorizzato le generazioni passano da
+  //   flux/dev a flux-lora.
+  imageStyle: string;
+  forbiddenSubjects: string[];
+  loraModelUrl: string | null;
   updatedAt: string;
 };
+
+export const IMAGE_STYLE_MAX = 500;
+export const FORBIDDEN_SUBJECTS_MAX = 20;
+export const FORBIDDEN_SUBJECT_MAX_LEN = 80;
 
 // RN-70: esempio di post passato con nota su cosa piaceva.
 // Fino a 10 esempi per brand. Alimentano il prompt M3 come few-shot per il tono.

@@ -15,6 +15,9 @@ export {
   MAX_TONE_EXAMPLES,
   TONE_EXAMPLE_TEXT_MAX,
   TONE_EXAMPLE_NOTE_MAX,
+  IMAGE_STYLE_MAX,
+  FORBIDDEN_SUBJECTS_MAX,
+  FORBIDDEN_SUBJECT_MAX_LEN,
   isValidToneExamples,
 } from "./internal/brand-kit-types";
 
@@ -44,6 +47,7 @@ export {
   updateBrandKitTone,
   updateBrandKitToneExamples,
   updateBrandKitContext,
+  updateBrandKitImageSettings,
   addBrandPillar,
   removeBrandPillar,
   moveBrandPillar,

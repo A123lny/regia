@@ -21,6 +21,9 @@ import {
   MAX_TONE_EXAMPLES,
   TONE_EXAMPLE_TEXT_MAX,
   TONE_EXAMPLE_NOTE_MAX,
+  IMAGE_STYLE_MAX,
+  FORBIDDEN_SUBJECTS_MAX,
+  FORBIDDEN_SUBJECT_MAX_LEN,
 } from "./brand-kit-types";
 
 async function requireOwner() {
@@ -154,6 +157,45 @@ export async function updateBrandKitContext(
     actorKind: "user",
     action: "brand_kit.context_updated",
     target: `brand:${brand.slug}`,
+  });
+  revalidateBrandPage(brand.slug);
+}
+
+// ─── PERSONALIZZAZIONE IMMAGINI AI ─────────────────────────────────────────────
+// Stile foto (in inglese, iniettato nel prompt text-to-image) + soggetti da
+// evitare (vincoli negativi aggiuntivi al "no text/logos/signage" di sistema).
+
+export async function updateBrandKitImageSettings(
+  brandId: string,
+  payload: { imageStyle: string; forbiddenSubjects: string[] },
+): Promise<void> {
+  const { session, brand } = await requireOwnedBrand(brandId);
+  const style = payload.imageStyle.trim();
+  if (style.length > IMAGE_STYLE_MAX) {
+    throw new Error(`Stile immagini troppo lungo (max ${IMAGE_STYLE_MAX} caratteri)`);
+  }
+  const subjects = payload.forbiddenSubjects
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && s.length <= FORBIDDEN_SUBJECT_MAX_LEN)
+    .slice(0, FORBIDDEN_SUBJECTS_MAX);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getAdminClient() as any;
+  const { error } = await admin
+    .from("brand_kits")
+    .update({
+      image_style: style,
+      forbidden_subjects: subjects,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("brand_id", brandId);
+  if (error) throw new Error(`Errore salvataggio stile immagini: ${error.message}`);
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "brand_kit.image_settings_updated",
+    target: `brand:${brand.slug}`,
+    details: { styleLen: style.length, subjects: subjects.length },
   });
   revalidateBrandPage(brand.slug);
 }

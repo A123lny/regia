@@ -147,18 +147,33 @@ export async function composePromptFromDraft(input: {
   // bozza, non dalla strategia commerciale.
   const paletteBit = brand?.color ? `Dominant color palette: ${brand.color}.` : "";
 
-  // Parole bandite → vincolo negativo esplicito.
-  const forbiddenBit = bundle?.forbiddenWords?.length
-    ? "Avoid imagery suggesting: " +
-      bundle.forbiddenWords
-        .slice(0, 8)
-        .map((w) => w.word)
-        .join(", ") +
-      "."
-    : "";
+  // Stile foto personalizzato del brand (imageStyle - richiesta utente
+  // 2026-11-27). Sostituisce il baseline "Photorealistic photograph,
+  // natural light, editorial quality" quando compilato. Scritto in inglese
+  // perché va direttamente al modello di immagini.
+  const styleBit =
+    (bundle?.kit.imageStyle ?? "").trim().length > 0
+      ? sanitizeForPrompt(bundle?.kit.imageStyle ?? "", 500)
+      : "Photorealistic photograph, natural light, editorial quality";
+
+  // Parole bandite (brand_forbidden_words) + soggetti vietati (imageSubjects
+  // - richiesta utente 2026-11-27). I primi sono "parole dal copy" vietate
+  // e li convertiamo in visual-avoid; i secondi sono già esplicitamente
+  // visuali.
+  const forbiddenCopyWords = (bundle?.forbiddenWords ?? [])
+    .slice(0, 8)
+    .map((w) => w.word.trim())
+    .filter((w) => w.length > 0);
+  const forbiddenSubjects = (bundle?.kit.forbiddenSubjects ?? [])
+    .slice(0, 20)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const allForbidden = [...forbiddenSubjects, ...forbiddenCopyWords];
+  const forbiddenBit =
+    allForbidden.length > 0 ? `Avoid imagery suggesting: ${allForbidden.join(", ")}.` : "";
 
   const parts: string[] = [
-    "Photorealistic photograph, natural light, editorial quality.",
+    `${styleBit}.`,
     `Subject: ${subject}.`,
     paletteBit,
     `Composition suited to ${FAL_SIZE_BY_CHANNEL[input.channel].label}.`,

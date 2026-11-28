@@ -19,6 +19,9 @@ type BrandKitRow = {
   strategic_year_goal: string;
   strategic_direction: string;
   tone_examples: ToneExample[];
+  image_style: string | null;
+  forbidden_subjects: string[] | null;
+  lora_model_url: string | null;
   updated_at: string;
 };
 
@@ -55,6 +58,9 @@ function mapKit(row: BrandKitRow): BrandKit {
     strategicYearGoal: row.strategic_year_goal,
     strategicDirection: row.strategic_direction,
     toneExamples: Array.isArray(row.tone_examples) ? row.tone_examples : [],
+    imageStyle: row.image_style ?? "",
+    forbiddenSubjects: Array.isArray(row.forbidden_subjects) ? row.forbidden_subjects : [],
+    loraModelUrl: row.lora_model_url ?? null,
     updatedAt: row.updated_at,
   };
 }

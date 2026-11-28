@@ -405,3 +405,162 @@ export async function generateAndSaveAiVariant(input: {
   revalidatePath(`/marchi/${brand.slug}/media`);
   return { ok: true, asset };
 }
+
+// ────────────────────────────────────────────────────────────────────────
+// "Modifica foto" - FLUX.1 Kontext (image-editing).
+// Prende un'immagine esistente dalla Libreria + istruzioni testuali in
+// inglese e produce una nuova immagine modificata (es. "replace background
+// with cozy restaurant interior"). Costa ~$0.04 per immagine.
+// Salva il risultato come NUOVO asset (non sostituisce l'originale).
+// ────────────────────────────────────────────────────────────────────────
+
+const FLUX_KONTEXT_MODEL = "fal-ai/flux-pro/kontext";
+const FLUX_KONTEXT_COST_USD = 0.04;
+
+export type EditImageResult = { ok: true; asset: MediaAsset } | { ok: false; error: string };
+
+export async function editMediaAssetWithKontextAction(input: {
+  assetId: string;
+  editPrompt: string;
+}): Promise<EditImageResult> {
+  const session = await getSessionOrRedirect();
+  try {
+    requireCapability(session, "content.generate");
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Non autorizzato." };
+  }
+
+  const prompt = input.editPrompt.trim();
+  if (prompt.length < 3 || prompt.length > 1000) {
+    return { ok: false, error: "Istruzione di modifica non valida (3-1000 caratteri)." };
+  }
+
+  const { getMediaAssetById } = await import("./media-assets-repo");
+  const asset = await getMediaAssetById(session.organizationId, input.assetId);
+  if (!asset) return { ok: false, error: "Immagine non trovata." };
+
+  const pre = await preflight(session.organizationId, FLUX_KONTEXT_COST_USD);
+  if (!pre.ok) return pre;
+
+  // FLUX Kontext accetta qualsiasi URL raggiungibile come image_url. L'asset
+  // ha già un signed URL valido (24h) dal bucket content-media.
+  const { fal } = await import("@fal-ai/client");
+  type KontextOutput = {
+    images?: Array<{ url?: string; width?: number; height?: number; content_type?: string }>;
+    has_nsfw_concepts?: boolean[];
+  };
+  let out: KontextOutput;
+  try {
+    const result = await Promise.race([
+      fal.subscribe(FLUX_KONTEXT_MODEL, {
+        input: { prompt, image_url: asset.signedUrl },
+        logs: false,
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("fal timeout")), 90_000)),
+    ]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    out = ((result as any)?.data ?? result) as KontextOutput;
+  } catch (err) {
+    console.error("[fal] FLUX Kontext edit failed", {
+      assetId: asset.id,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    // Possibly charged se fal ha accettato la richiesta: timeout e 5xx post-acceptance.
+    await logSpendBestEffort(
+      {
+        organizationId: session.organizationId,
+        brandId: asset.brandId,
+        category: "fal",
+        action: "media.kontext_edit_errored_possibly_charged",
+        costUsd: FLUX_KONTEXT_COST_USD,
+        tokensIn: 0,
+        tokensOut: 0,
+        targetType: "brand",
+        targetId: asset.brandId,
+      },
+      { draftId: "-", phase: "kontext-edit-error" },
+    );
+    return {
+      ok: false,
+      error: `Modifica foto fallita: ${err instanceof Error ? err.message : "errore"}`,
+    };
+  }
+  const imageUrl = out.images?.[0]?.url;
+  if (!imageUrl) {
+    await logSpendBestEffort(
+      {
+        organizationId: session.organizationId,
+        brandId: asset.brandId,
+        category: "fal",
+        action: "media.kontext_edit_empty_charged",
+        costUsd: FLUX_KONTEXT_COST_USD,
+        tokensIn: 0,
+        tokensOut: 0,
+        targetType: "brand",
+        targetId: asset.brandId,
+      },
+      { draftId: "-", phase: "kontext-edit-empty" },
+    );
+    const nsfw = (out.has_nsfw_concepts ?? []).some(Boolean);
+    return {
+      ok: false,
+      error: nsfw
+        ? "Modifica rifiutata dai filtri di sicurezza fal.ai. Prova con un prompt diverso."
+        : "fal.ai non ha restituito l'immagine modificata.",
+    };
+  }
+
+  // Logga la spesa PRIMA dell'upload (sibling-path parity): fal ha gia addebitato.
+  await logSpendBestEffort(
+    {
+      organizationId: session.organizationId,
+      brandId: asset.brandId,
+      category: "fal",
+      action: "media.kontext_edit_saved",
+      costUsd: FLUX_KONTEXT_COST_USD,
+      tokensIn: 0,
+      tokensOut: 0,
+      targetType: "brand",
+      targetId: asset.brandId,
+    },
+    { draftId: "-", phase: "kontext-edit-ok" },
+  );
+
+  let newAsset: MediaAsset;
+  try {
+    newAsset = await saveFalImageToBucket({
+      imageUrl,
+      organizationId: session.organizationId,
+      brandId: asset.brandId,
+      caption: `[FLUX Kontext] ${prompt.slice(0, 100)}`,
+      tags: [...asset.tags, "ai-edited"].slice(0, 20),
+      uploadedBy: session.userId,
+      contentType: out.images?.[0]?.content_type ?? "image/jpeg",
+    });
+  } catch (err) {
+    console.error("[fal] Kontext: save to bucket failed (fal already charged)", {
+      assetId: asset.id,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return {
+      ok: false,
+      error: `Modifica generata ma non salvata: ${err instanceof Error ? err.message : "errore"}`,
+    };
+  }
+
+  await logAuditEvent({
+    organizationId: session.organizationId,
+    actorUserId: session.userId,
+    actorKind: "user",
+    action: "media.kontext_edit_saved",
+    target: `media:${newAsset.id}`,
+    details: {
+      sourceAssetId: asset.id,
+      brandId: asset.brandId,
+      promptLen: prompt.length,
+      costUsd: FLUX_KONTEXT_COST_USD,
+    },
+  });
+
+  return { ok: true, asset: newAsset };
+}
